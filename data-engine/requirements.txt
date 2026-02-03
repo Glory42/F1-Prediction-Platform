@@ -1,0 +1,4 @@
+fastf1
+supabase
+pandas
+python-dotenv
