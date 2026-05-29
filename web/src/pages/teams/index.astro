@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import type { TeamStanding, SeasonSummary } from '@/types';
 import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Building2 } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -60,7 +61,8 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
         {standings.map((s, i) => (
             <a
               href={`/teams/${s.team.id}?year=${year}`}
-              class={`grid grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 items-center px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              class={`grid grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 items-center px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group relative ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              style={`border-left: 3px solid ${getTeamColor(s.team.teamKey)};`}
             >
               <div class={`font-mono text-sm font-bold ${isTopPos(s.stats.championshipPosition, i) ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                 {champPos(s.stats.championshipPosition, i) === 1 ? <Trophy size={14} /> : String(champPos(s.stats.championshipPosition, i)).padStart(2, '0')}

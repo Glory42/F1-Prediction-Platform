@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import type { DriverStanding, SeasonSummary } from '@/types';
 import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Medal, Users } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -84,7 +85,10 @@ function champPos(pos: number | null, i: number) {
                 <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 hidden xs:inline">{s.driver.code}</span>
               </div>
               <!-- Team -->
-              <div class="font-mono text-[9px] text-muted-foreground truncate hidden md:block">{s.driver.team.name}</div>
+              <div class="hidden md:flex items-center gap-1.5 min-w-0">
+                <div class="w-2 h-2 rounded-full shrink-0" style={`background: ${getTeamColor(s.driver.team.teamKey)};`} />
+                <span class="font-mono text-[9px] text-muted-foreground truncate">{s.driver.team.name}</span>
+              </div>
               <!-- Points -->
               <div class="font-bold text-sm text-right">{Math.round(Number(s.stats.totalPoints))}</div>
               <!-- Wins -->

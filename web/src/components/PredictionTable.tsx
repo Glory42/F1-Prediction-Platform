@@ -1,6 +1,7 @@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { DriverPrediction } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
 
 const FEATURE_LABELS: Record<string, string> = {
   carPerformance:    'Car Performance (30%)',
@@ -69,7 +70,12 @@ export function PredictionTable({ drivers, predictedWinnerId }: Props) {
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{dp.driver.team.name}</TableCell>
+              <TableCell>
+                <div className="inline-flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getTeamColor(dp.driver.team.teamKey) }} />
+                  <span className="text-muted-foreground text-sm">{dp.driver.team.name}</span>
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="h-2 w-full max-w-32 overflow-hidden rounded-full bg-muted">
                   <div

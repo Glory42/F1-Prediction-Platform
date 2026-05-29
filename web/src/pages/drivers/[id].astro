@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import type { DriverYearStats } from '@/types';
 import { BarChart2, History, ChevronRight, User } from 'lucide-react';
 import YearSelectLinks from '@/components/YearSelectLinks.astro';
+import { getTeamColor } from '@/lib/teamColors';
 
 const { id } = Astro.params;
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
@@ -74,7 +75,8 @@ const careerWithStats = career.filter((y) => y.stats !== null);
               )}
             </div>
             <h1 class="text-2xl font-bold">{driver.fullName}</h1>
-            <a href={`/teams/${driver.team.id}?year=${year}`} class="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors duration-150 tracking-wider">
+            <a href={`/teams/${driver.team.id}?year=${year}`} class="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors duration-150 tracking-wider">
+              <div class="w-2 h-2 rounded-full shrink-0" style={`background: ${getTeamColor(driver.team.teamKey)};`} />
               {driver.team.name} · {year} Season
             </a>
           </div>

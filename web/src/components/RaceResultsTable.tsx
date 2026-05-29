@@ -1,5 +1,6 @@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import type { RaceResult } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
 
 interface Props {
   results: RaceResult[];
@@ -45,8 +46,9 @@ export function RaceResultsTable({ results, year }: Props) {
                 </div>
               </TableCell>
               <TableCell className="hidden sm:table-cell">
-                <a href={`/teams/${r.driver.team.id}?year=${year}`} className="font-mono text-[9px] text-muted-foreground hover:text-foreground transition-colors truncate max-w-[140px] block">
-                  {r.driver.team.name}
+                <a href={`/teams/${r.driver.team.id}?year=${year}`} className="inline-flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground hover:text-foreground transition-colors max-w-[140px]">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getTeamColor(r.driver.team.teamKey) }} />
+                  <span className="truncate">{r.driver.team.name}</span>
                 </a>
               </TableCell>
               <TableCell className="text-right font-mono text-sm">{r.points}</TableCell>
