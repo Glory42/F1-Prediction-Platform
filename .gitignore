@@ -34,6 +34,7 @@ ENV/
 *.egg-info/
 dist/
 build/
+!.claude/skills/build/
 .eggs/
 
 # FastF1 cache
