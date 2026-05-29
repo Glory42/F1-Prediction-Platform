@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+.output/
+.vercel/
+
+# Astro
+.astro/
+
+# Cloudflare Workers / Wrangler
+.wrangler/
+.dev.vars
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# FastF1 cache
+data-engine/cache/
+
+# Drizzle
+# (migrations are committed, .sqlite files are not)
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# TypeScript
+*.tsbuildinfo
+
+# Test artifacts
+test-results/

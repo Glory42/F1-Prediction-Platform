@@ -1,0 +1,31 @@
+{
+  "name": "api",
+  "main": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "bun run src/db/seed.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260529.1",
+    "@types/bun": "latest",
+    "@types/node": "^25.9.1",
+    "drizzle-kit": "^0.31.10",
+    "wrangler": "^4.95.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.23",
+    "zod": "^4.4.3"
+  }
+}

@@ -1,0 +1,47 @@
+import type {
+  PredictionResponse, RaceDetailResponse, DriverDetailResponse, TeamDetailResponse,
+  Race, Driver, Team, DriverStanding, TeamStanding,
+  PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem,
+  DriverYearStats, TeamYearStats, SeasonSummary,
+} from '@/types';
+
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`);
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  const json = (await res.json()) as { data: T; error: null } | { data: null; error: { message: string } };
+  if (json.error) throw new Error(json.error.message);
+  return json.data;
+}
+
+export const api = {
+  // Predictions
+  getUpcomingPrediction: () => get<PredictionResponse>('/api/predictions/upcoming'),
+  getPredictionByRace: (raceId: number) => get<PredictionResponse>(`/api/predictions/race/${raceId}`),
+  getPredictionHistory: (year: number) => get<PredictionHistoryItem[]>(`/api/predictions/history?year=${year}`),
+  getIntelStandings: (year: number) => get<IntelStandingRow[]>(`/api/predictions/standings?year=${year}`),
+
+  // Races
+  getRaces: (year: number, status?: string) => {
+    const q = status ? `?year=${year}&status=${status}` : `?year=${year}`;
+    return get<Race[]>(`/api/races${q}`);
+  },
+  getRaceById: (id: number) => get<RaceDetailResponse>(`/api/races/${id}`),
+  getCircuitHistory: (circuitKey: string) => get<CircuitHistoryItem[]>(`/api/races/circuit/${circuitKey}`),
+
+  // Drivers
+  getDrivers: (year: number) => get<Driver[]>(`/api/drivers?year=${year}`),
+  getDriverStandings: (year: number) => get<DriverStanding[]>(`/api/drivers/standings?year=${year}`),
+  getDriverById: (id: number, year: number) => get<DriverDetailResponse>(`/api/drivers/${id}?year=${year}`),
+  getDriverCareer: (id: number) => get<DriverYearStats[]>(`/api/drivers/${id}/career`),
+
+  // Seasons
+  getSeasons: () => get<SeasonSummary[]>('/api/seasons'),
+
+  // Teams
+  getTeams: (year: number) => get<Team[]>(`/api/teams?year=${year}`),
+  getTeamStandings: (year: number) => get<TeamStanding[]>(`/api/teams/standings?year=${year}`),
+  getTeamById: (id: number, year: number) => get<TeamDetailResponse>(`/api/teams/${id}?year=${year}`),
+  getTeamCareer: (id: number) => get<TeamYearStats[]>(`/api/teams/${id}/career`),
+};

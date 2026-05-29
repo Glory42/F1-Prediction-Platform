@@ -1,0 +1,89 @@
+---
+import { formatMs } from '@/lib/utils';
+import type { LapSummary } from '@/types';
+
+interface Props {
+  laps: LapSummary[];
+}
+const { laps } = Astro.props;
+
+const withFastest = laps.filter((l) => l.fastestLapMs != null);
+withFastest.sort((a, b) => (a.fastestLapMs ?? 0) - (b.fastestLapMs ?? 0));
+
+const maxMs = Math.max(...withFastest.map((l) => l.fastestLapMs ?? 0));
+const minMs = Math.min(...withFastest.map((l) => l.fastestLapMs ?? 0));
+const range = maxMs - minMs || 1;
+
+const BAR_MAX_HEIGHT = 140;
+const BAR_WIDTH = 28;
+const GAP = 8;
+// Bottom: 14px for code label + 2px gap + ~60px for rotated time label (8 chars × ~8px)
+const PADDING = { top: 20, bottom: 84, left: 8, right: 8 };
+const chartWidth = withFastest.length * (BAR_WIDTH + GAP) - GAP + PADDING.left + PADDING.right;
+const chartHeight = BAR_MAX_HEIGHT + PADDING.top + PADDING.bottom;
+
+const barBaseY = PADDING.top + BAR_MAX_HEIGHT;
+// Time label anchor: just below the code label
+// rotate(-90) is counterclockwise in SVG → text-anchor="end" makes text go downward
+const timeLabelY = barBaseY + 22;
+---
+
+{withFastest.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No lap time data available.</p>
+) : (
+  <div class="overflow-x-auto w-full flex justify-center">
+    <svg
+      viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+      width={chartWidth}
+      height={chartHeight}
+      aria-label="Fastest lap times per driver"
+      style="display:block"
+    >
+      {withFastest.map((lap, i) => {
+        const x = PADDING.left + i * (BAR_WIDTH + GAP);
+        const cx = x + BAR_WIDTH / 2;
+        const barH = Math.max(4, ((lap.fastestLapMs! - minMs) / range) * BAR_MAX_HEIGHT + 4);
+        const y = barBaseY - barH;
+        const isWinner = i === 0;
+
+        return (
+          <g key={lap.driverId}>
+            {/* Bar */}
+            <rect
+              x={x} y={y}
+              width={BAR_WIDTH} height={barH}
+              fill={isWinner ? '#a855f7' : 'rgba(255,255,255,0.08)'}
+            />
+            {/* Driver code — horizontal, just below bar */}
+            <text
+              x={cx}
+              y={barBaseY + 13}
+              text-anchor="middle"
+              font-family="JetBrains Mono, monospace"
+              font-size="9"
+              fill={isWinner ? '#a855f7' : 'rgba(255,255,255,0.5)'}
+            >
+              {lap.driver?.code ?? '???'}
+            </text>
+            {/*
+              Lap time — rotated -90° (counterclockwise in SVG).
+              text-anchor="end" with rotate(-90) places the anchor at the TOP of the
+              rotated text, so the label extends DOWNWARD below the axis line.
+            */}
+            <text
+              x={cx}
+              y={timeLabelY}
+              text-anchor="end"
+              font-family="JetBrains Mono, monospace"
+              font-size="8"
+              fill="rgba(255,255,255,0.35)"
+              transform={`rotate(-90, ${cx}, ${timeLabelY})`}
+            >
+              {formatMs(lap.fastestLapMs)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  </div>
+)}

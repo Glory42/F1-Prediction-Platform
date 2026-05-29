@@ -1,0 +1,111 @@
+"""
+Legacy race ingest for pre-2018 seasons.
+Uses Ergast data via FastF1 — no lap timing data, results only.
+"""
+import fastf1
+import pandas as pd
+from src.db.client import get_conn
+from src.utils.upsert import upsert
+
+
+def _get_session(year: int, round_num: int) -> fastf1.core.Session:
+    session = fastf1.get_session(year, round_num, "R")
+    # Skip laps — pre-2018 has no timing data, loading saves time
+    session.load(laps=False, telemetry=False, weather=True, messages=False)
+    return session
+
+
+def _ms(val) -> int | None:
+    if pd.isna(val):
+        return None
+    try:
+        return int(pd.to_timedelta(val).total_seconds() * 1000)
+    except Exception:
+        return None
+
+
+def run(year: int, round_num: int) -> None:
+    print(f"[ingest_race_legacy] year={year} round={round_num}")
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT r.id, r.season_id FROM races r "
+                "JOIN seasons s ON r.season_id = s.id "
+                "WHERE s.year = %s AND r.round_number = %s",
+                (year, round_num),
+            )
+            race_row = cur.fetchone()
+        if not race_row:
+            raise ValueError(f"Race not found for year={year} round={round_num}")
+
+        race_id = race_row["id"]
+        season_id = race_row["season_id"]
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
+            driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
+
+        session = _get_session(year, round_num)
+
+        if session.results is None or session.results.empty:
+            raise RuntimeError("Race results not available")
+
+        # Weather — best effort
+        weather = "dry"
+        try:
+            w = session.weather_data
+            if not w.empty and "Rainfall" in w:
+                avg_rain = w["Rainfall"].mean()
+                weather = "wet" if avg_rain > 0.5 else "mixed" if avg_rain > 0.1 else "dry"
+        except Exception:
+            pass
+
+        results_to_upsert = []
+        for _, row in session.results.iterrows():
+            code = str(row.get("Abbreviation", "")).upper()
+            if not code:
+                continue
+            driver_id = driver_map.get(code)
+            if not driver_id:
+                print(f"  [warn] Unknown driver: {code}")
+                continue
+
+            finish_pos = None
+            if not pd.isna(row.get("Position")):
+                finish_pos = int(row["Position"])
+
+            grid_pos = 20
+            if not pd.isna(row.get("GridPosition")):
+                grid_pos = int(row["GridPosition"])
+
+            points = 0.0
+            if not pd.isna(row.get("Points")):
+                points = float(row["Points"])
+
+            results_to_upsert.append({
+                "race_id": race_id,
+                "driver_id": driver_id,
+                "finish_position": finish_pos,
+                "grid_position": grid_pos,
+                "points": points,
+                "status": str(row.get("Status", "Unknown")),
+                "total_race_time_ms": _ms(row.get("Time")),
+                "fastest_lap": False,  # not available via Ergast
+            })
+
+        if results_to_upsert:
+            upsert(conn, "race_results", results_to_upsert, ["race_id", "driver_id"])
+            print(f"  Upserted {len(results_to_upsert)} race result rows")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE races SET status = 'completed', weather = %s WHERE id = %s",
+                (weather, race_id),
+            )
+        conn.commit()
+        print(f"  Race {race_id} → completed | weather={weather}")
+
+    finally:
+        conn.close()

@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 97%;
+    --primary: 271 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 75%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 0 0% 53%;
+    --accent: 0 0% 9%;
+    --accent-foreground: 0 0% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 13%;
+    --input: 0 0% 9%;
+    --ring: 271 91% 65%;
+    --radius: 0rem;
+    /* F1 tokens */
+    --accent-primary:  271 91% 65%;
+    --accent-bright:   270 100% 78%;
+    --accent-electric: 271 91% 65%;
+    --success:         142 71% 45%;
+    --surface:         0 0% 5%;
+    --text-secondary:  0 0% 53%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 97%;
+    --primary: 271 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 75%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 0 0% 53%;
+    --accent: 0 0% 9%;
+    --accent-foreground: 0 0% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 13%;
+    --input: 0 0% 9%;
+    --ring: 271 91% 65%;
+    --radius: 0rem;
+    /* F1 tokens */
+    --accent-primary:  271 91% 65%;
+    --accent-bright:   270 100% 78%;
+    --accent-electric: 271 91% 65%;
+    --success:         142 71% 45%;
+    --surface:         0 0% 5%;
+    --text-secondary:  0 0% 53%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+  ::selection { background: rgba(168, 85, 247, 0.35); color: #fff; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.25);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.45); }
+}
+
+@layer utilities {
+  /* card with subtle gradient + border — matches portfolio .panel */
+  .panel {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(160deg, rgba(13, 13, 13, 0.85), rgba(13, 13, 13, 0.6));
+  }
+
+  /* page-level grid tint */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(168, 85, 247, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168, 85, 247, 0.018) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .pulse-dot   { animation: pulse-glow 2s ease-in-out infinite; }
+  .telemetry-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: telemetry 4s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+@keyframes telemetry {
+  from { stroke-dashoffset: 1000; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes flow {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}

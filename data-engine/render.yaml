@@ -1,0 +1,37 @@
+services:
+  - type: cron
+    name: pre-race-prediction
+    runtime: python
+    schedule: "0 22 * * 6"
+    buildCommand: pip install -r requirements.txt
+    startCommand: >
+      python -m src.main --job ingest_qualifying &&
+      python -m src.main --job compute_features --race_id $(python -c "
+      import psycopg2, os
+      conn = psycopg2.connect(os.environ['DATABASE_URL'])
+      cur = conn.cursor()
+      cur.execute(\"SELECT id FROM races WHERE status='qualifying_done' ORDER BY race_date DESC LIMIT 1\")
+      print(cur.fetchone()[0])
+      ") &&
+      python -m src.main --job compute_predictions --race_id $(python -c "
+      import psycopg2, os
+      conn = psycopg2.connect(os.environ['DATABASE_URL'])
+      cur = conn.cursor()
+      cur.execute(\"SELECT id FROM races WHERE status='qualifying_done' ORDER BY race_date DESC LIMIT 1\")
+      print(cur.fetchone()[0])
+      ")
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+
+  - type: cron
+    name: post-race-ingestion
+    runtime: python
+    schedule: "0 18 * * 0"
+    buildCommand: pip install -r requirements.txt
+    startCommand: >
+      python -m src.main --job ingest_race &&
+      python -m src.main --job compute_season_stats --year $(date +%Y)
+    envVars:
+      - key: DATABASE_URL
+        sync: false

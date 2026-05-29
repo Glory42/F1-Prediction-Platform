@@ -1,0 +1,145 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { DriverStatsGrid } from '@/components/DriverStatsGrid';
+import { RecentResultsTable } from '@/components/RecentResultsTable';
+import { api } from '@/lib/api';
+import type { DriverYearStats } from '@/types';
+import { BarChart2, History, ChevronRight, User } from 'lucide-react';
+import YearSelectLinks from '@/components/YearSelectLinks.astro';
+
+const { id } = Astro.params;
+const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+
+let data = null;
+let career: DriverYearStats[] = [];
+let error = null;
+
+try {
+  [data, career] = await Promise.all([
+    api.getDriverById(Number(id), year),
+    api.getDriverCareer(Number(id)),
+  ]);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load driver';
+}
+
+const driver = data?.driver;
+const careerWithStats = career.filter((y) => y.stats !== null);
+---
+
+<BaseLayout title={driver?.fullName ?? 'Driver'}>
+  <div class="mt-7">
+    <div class="mb-6 flex items-center gap-4">
+      <a href={`/drivers?year=${year}`} class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
+        ← all drivers
+      </a>
+      {careerWithStats.length > 1 && (
+        <div class="ml-auto">
+          <YearSelectLinks
+            items={careerWithStats.map((y) => ({ year: y.year, href: `/drivers/${y.driverId}?year=${y.year}` }))}
+            currentYear={year}
+          />
+        </div>
+      )}
+    </div>
+
+    {error ? (
+      <div class="border border-destructive/40 bg-destructive/10 p-8 text-center">
+        <p class="font-mono text-[10px] text-destructive tracking-widest uppercase">Driver not found</p>
+      </div>
+    ) : data && driver ? (
+      <div class="space-y-8">
+
+        <!-- Header -->
+        <div class="flex items-start gap-6">
+          {driver.headshotUrl ? (
+            <img
+              src={driver.headshotUrl}
+              alt={driver.fullName}
+              class="w-20 h-20 object-cover object-top border border-white/[0.08] shrink-0 bg-white/[0.02]"
+              loading="lazy"
+            />
+          ) : (
+            <div class="w-16 h-16 border border-white/[0.08] flex items-center justify-center shrink-0">
+              <span class="text-2xl font-black text-[#a855f7]">{driver.driverNumber}</span>
+            </div>
+          )}
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5">
+                #{driver.driverNumber} · {driver.code}
+              </span>
+              {driver.nationality && (
+                <span class="font-mono text-[9px] text-muted-foreground">{driver.nationality}</span>
+              )}
+            </div>
+            <h1 class="text-2xl font-bold">{driver.fullName}</h1>
+            <a href={`/teams/${driver.team.id}?year=${year}`} class="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors duration-150 tracking-wider">
+              {driver.team.name} · {year} Season
+            </a>
+          </div>
+        </div>
+
+        <!-- Current year stats -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><BarChart2 size={11} />./stats · {year}</span>
+            <div class="h-px flex-1 bg-white/[0.05]" />
+          </div>
+          <DriverStatsGrid stats={data.seasonStats} />
+        </div>
+
+        <!-- Recent results -->
+        {data.recentResults.length > 0 && (
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><ChevronRight size={11} />./recent results</span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="border border-white/[0.06] overflow-hidden">
+              <RecentResultsTable results={data.recentResults} />
+            </div>
+          </div>
+        )}
+
+        <!-- Career history -->
+        {careerWithStats.length > 1 && (
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./career history</span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="border border-white/[0.06]">
+              <div class="grid grid-cols-[60px_1fr_80px_50px_50px_50px_50px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Year</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Team</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pts</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pos</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right hidden sm:block">W</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right hidden sm:block">Pod</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right hidden md:block">Pole</div>
+              </div>
+              {careerWithStats.map((y, i) => (
+                <a
+                  href={`/drivers/${y.driverId}?year=${y.year}`}
+                  class={`grid grid-cols-[60px_1fr_80px_50px_50px_50px_50px] gap-0 items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${y.year === year ? 'bg-[rgba(168,85,247,0.03)]' : ''}`}
+                >
+                  <div class={`font-mono text-sm font-bold ${y.year === year ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>{y.year}</div>
+                  <div class="font-mono text-[9px] text-muted-foreground group-hover:text-foreground transition-colors truncate">{y.teamName}</div>
+                  <div class="font-bold text-sm text-right">{y.stats ? Math.round(Number(y.stats.totalPoints)) : '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground">
+                    {y.stats?.championshipPosition ? `P${y.stats.championshipPosition}` : '—'}
+                  </div>
+                  <div class="font-mono text-sm text-right text-muted-foreground hidden sm:block">{y.stats?.wins ?? '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground hidden sm:block">{y.stats?.podiums ?? '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground hidden md:block">{y.stats?.poles ?? '—'}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    ) : null}
+  </div>
+</BaseLayout>

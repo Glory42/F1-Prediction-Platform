@@ -1,0 +1,159 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { api } from '@/lib/api';
+import type { TeamYearStats } from '@/types';
+import { Building2, BarChart2, Users, History } from 'lucide-react';
+import YearSelectLinks from '@/components/YearSelectLinks.astro';
+
+const { id } = Astro.params;
+const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+
+let data = null;
+let career: TeamYearStats[] = [];
+let error = null;
+
+try {
+  [data, career] = await Promise.all([
+    api.getTeamById(Number(id), year),
+    api.getTeamCareer(Number(id)),
+  ]);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load team';
+}
+
+const team = data?.team;
+const careerWithStats = career.filter((y) => y.stats !== null);
+---
+
+<BaseLayout title={team?.name ?? 'Team'}>
+  <div class="mt-7">
+    <div class="mb-6 flex items-center gap-4">
+      <a href={`/teams?year=${year}`} class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
+        ← all teams
+      </a>
+      {careerWithStats.length > 1 && (
+        <div class="ml-auto">
+          <YearSelectLinks
+            items={careerWithStats.map((y) => ({ year: y.year, href: `/teams/${y.teamId}?year=${y.year}` }))}
+            currentYear={year}
+          />
+        </div>
+      )}
+    </div>
+
+    {error ? (
+      <div class="border border-destructive/40 bg-destructive/10 p-8 text-center">
+        <p class="font-mono text-[10px] text-destructive tracking-widest uppercase">Team not found</p>
+      </div>
+    ) : data && team ? (
+      <div class="space-y-8">
+
+        <!-- Header -->
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Building2 size={11} />./constructor</span>
+            <div class="h-px w-12 bg-white/[0.05]" />
+          </div>
+          <h1 class="text-2xl font-bold">{team.name}</h1>
+          <p class="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mt-1">
+            {team.nationality && `${team.nationality} · `}{year} season
+          </p>
+        </div>
+
+        <!-- Current season stats -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><BarChart2 size={11} />./stats · {year}</span>
+            <div class="h-px flex-1 bg-white/[0.05]" />
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06]">
+            {[
+              ['Championship', data.seasonStats.championshipPosition ? `P${data.seasonStats.championshipPosition}` : '—'],
+              ['Points', Math.round(Number(data.seasonStats.totalPoints))],
+              ['Wins', data.seasonStats.wins],
+              ['Podiums', data.seasonStats.podiums],
+              ['Races', data.seasonStats.racesCompleted],
+              ['Avg Finish', data.seasonStats.avgFinishPosition ? `P${Math.round(Number(data.seasonStats.avgFinishPosition))}` : '—'],
+              ['Car Perf', data.seasonStats.carPerformanceScore ? `${Math.round(Number(data.seasonStats.carPerformanceScore)*100)}/100` : '—'],
+              ['DNFs', data.seasonStats.dnfCount],
+            ].map(([label, val]) => (
+              <div class="bg-black p-4">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">{label}</div>
+                <div class="font-bold text-xl">{val}</div>
+              </div>
+            ))}
+          </div>
+          {data.seasonStats.reliabilityScore && (
+            <div class="mt-px bg-black px-4 py-3 flex items-center gap-4">
+              <div class="font-mono text-[8px] text-muted-foreground tracking-widests uppercase shrink-0">Reliability</div>
+              <div class="flex-1 h-1.5 bg-white/[0.06]">
+                <div class="h-full bg-[#a855f7]" style={`width:${Math.round(Number(data.seasonStats.reliabilityScore)*100)}%`} />
+              </div>
+              <div class="font-mono text-sm font-bold shrink-0">{Math.round(Number(data.seasonStats.reliabilityScore)*100)}/100</div>
+            </div>
+          )}
+        </div>
+
+        <!-- Drivers -->
+        {data.drivers.length > 0 && (
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Users size={11} />./drivers · {year}</span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
+              {data.drivers.map((d) => (
+                <a href={`/drivers/${d.id}?year=${year}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group flex items-center gap-4">
+                  <div class="w-10 h-10 border border-white/[0.08] flex items-center justify-center shrink-0">
+                    <span class="font-mono text-sm font-bold text-muted-foreground">{d.driverNumber}</span>
+                  </div>
+                  <div>
+                    <div class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 inline-block mb-1">{d.code}</div>
+                    <div class="font-semibold group-hover:text-[#a855f7] transition-colors duration-150">{d.fullName}</div>
+                    {d.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d.nationality}</div>}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <!-- Career history -->
+        {careerWithStats.length > 1 && (
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./history</span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="border border-white/[0.06]">
+              <div class="grid grid-cols-[60px_80px_80px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Year</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pts</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pos</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">W</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pod</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right hidden sm:block">Races</div>
+              </div>
+              {careerWithStats.map((y, i) => (
+                <a
+                  href={`/teams/${y.teamId}?year=${y.year}`}
+                  class={`grid grid-cols-[60px_80px_80px_60px_60px_80px] gap-0 items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${y.year === year ? 'bg-[rgba(168,85,247,0.03)]' : ''}`}
+                >
+                  <div class={`font-mono text-sm font-bold ${y.year === year ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>{y.year}</div>
+                  <div class="font-bold text-sm text-right">{y.stats ? Math.round(Number(y.stats.totalPoints)) : '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground">
+                    {y.stats?.championshipPosition ? `P${y.stats.championshipPosition}` : '—'}
+                  </div>
+                  <div class="font-mono text-sm text-right text-muted-foreground">{y.stats?.wins ?? '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground">{y.stats?.podiums ?? '—'}</div>
+                  <div class="font-mono text-sm text-right text-muted-foreground hidden sm:block">{y.stats?.racesCompleted ?? '—'}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    ) : null}
+  </div>
+</BaseLayout>

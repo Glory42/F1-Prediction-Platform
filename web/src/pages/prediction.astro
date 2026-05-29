@@ -1,0 +1,203 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { api } from '@/lib/api';
+import { formatDate } from '@/lib/utils';
+import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary } from '@/types';
+import { Cpu, Target, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import YearSelect from '@/components/YearSelect.astro';
+
+const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+
+let upcoming = null;
+let history: PredictionHistoryItem[] = [];
+let standings: IntelStandingRow[] = [];
+let seasons: SeasonSummary[] = [];
+
+const [upcomingResult, historyResult, standingsResult, seasonsResult] = await Promise.allSettled([
+  api.getUpcomingPrediction(),
+  api.getPredictionHistory(year),
+  api.getIntelStandings(year),
+  api.getSeasons(),
+]);
+
+if (upcomingResult.status === 'fulfilled') upcoming = upcomingResult.value;
+if (historyResult.status === 'fulfilled') history = historyResult.value;
+if (standingsResult.status === 'fulfilled') standings = standingsResult.value;
+if (seasonsResult.status === 'fulfilled') seasons = seasonsResult.value;
+
+const correctCount = history.filter((h) => h.correct === true).length;
+const completedCount = history.filter((h) => h.correct !== null).length;
+const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount) * 100) : null;
+---
+
+<BaseLayout title={`${year} F1 Predictions`}>
+  <div class="mt-7 space-y-10">
+
+    <!-- Header -->
+    <div class="flex items-end justify-between gap-4 flex-wrap">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Cpu size={11} />./prediction</span>
+          <div class="h-px w-16 bg-white/[0.05]" />
+        </div>
+        <h1 class="text-2xl font-bold">{year} Race Predictions</h1>
+        <p class="mt-1 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
+          Alpha-03 model · {history.length} predictions · {accuracy !== null ? `${accuracy}% accuracy` : 'no results yet'}
+        </p>
+      </div>
+      <YearSelect years={seasons} currentYear={year} basePath="/prediction" />
+    </div>
+
+    <!-- Upcoming prediction hero (if available) -->
+    {upcoming && (
+      <div class="panel p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">./next race · {upcoming.race.name}</span>
+          <div class="h-px flex-1 bg-white/[0.05]" />
+          <a href={`/prediction/${upcoming.race.id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150">
+            full prediction →
+          </a>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div class="sm:col-span-2 space-y-4">
+            <div>
+              <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted winner</div>
+              <div class="text-2xl font-bold">{upcoming.predictedWinner.fullName}</div>
+              <div class="font-mono text-[9px] text-muted-foreground">{upcoming.predictedWinner.team.name} · {Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}% win probability</div>
+            </div>
+            <div class="space-y-2">
+              {upcoming.drivers.slice(0, 5).map((d, i) => {
+                const pct = Math.round(Number(d.winProbability) * 100);
+                return (
+                  <div class="flex items-center gap-3">
+                    <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
+                    <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
+                    <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
+                      <div class="h-full bg-[#a855f7] absolute inset-y-0 left-0" style={`width:${pct}%`} />
+                    </div>
+                    <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">model confidence</div>
+            <div class="text-5xl font-bold text-[#a855f7]">{Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}</div>
+            <div class="font-mono text-[8px] text-muted-foreground">%</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcoming.modelVersion}</div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Intel standings table -->
+    {standings.length > 0 && (
+      <div>
+        <div class="flex items-center gap-3 mb-4">
+          <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><BarChart2 size={11} />./season model ratings</span>
+          <div class="h-px flex-1 bg-white/[0.05]" />
+        </div>
+        <div class="border border-white/[0.06]">
+          <div class="grid grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Rank</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Team</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden md:block">Feature Profile</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Score</div>
+          </div>
+          {standings.map((s, i) => {
+            const featureVals = [
+              Number(s.features.carPerformance),
+              Number(s.features.driverRating),
+              Number(s.features.winRate),
+              Number(s.features.luckFactor),
+              Number(s.features.weatherImpact),
+              Number(s.features.positionGain),
+            ];
+            const maxBar = Math.max(...featureVals, 0.001);
+            return (
+              <div class={`grid grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+                <div class={`font-mono text-sm font-bold ${i < 3 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
+                  {String(i+1).padStart(2,'0')}
+                </div>
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0">{s.driver.code}</span>
+                  <a href={`/drivers/${s.driver.id}?year=${year}`} class="font-semibold text-sm truncate hover:text-[#a855f7] transition-colors duration-150">{s.driver.fullName}</a>
+                </div>
+                <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[9px] text-muted-foreground truncate hidden sm:block pr-6 hover:text-foreground transition-colors duration-150">{s.driver.team.name}</a>
+                <div class="hidden md:flex items-end gap-[3px] h-7">
+                  {featureVals.map((v, fi) => (
+                    <div
+                      class="flex-1 bg-[rgba(168,85,247,0.5)] hover:bg-[#a855f7] transition-colors min-h-[3px]"
+                      style={`height:${Math.max(12, Math.round((v/maxBar)*100))}%`}
+                      title={['Car','Rating','WinRate','Luck','Weather','PosGain'][fi]}
+                    />
+                  ))}
+                </div>
+                <div class="text-right pl-5">
+                  <div class="font-bold text-sm">{s.overallScore}</div>
+                  <div class="w-full h-0.5 bg-white/[0.06] mt-1">
+                    <div class="h-full bg-[#a855f7]" style={`width:${s.overallScore}%`} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    <!-- Prediction history -->
+    {history.length > 0 && (
+      <div>
+        <div class="flex items-center gap-3 mb-4">
+          <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./prediction history</span>
+          <div class="h-px flex-1 bg-white/[0.05]" />
+          {accuracy !== null && (
+            <span class="font-mono text-[8px] text-muted-foreground">
+              {correctCount}/{completedCount} correct · <span class="text-[#a855f7]">{accuracy}%</span>
+            </span>
+          )}
+        </div>
+        <div class="border border-white/[0.06]">
+          {history.map((h, i) => (
+            <a
+              href={`/prediction/${h.raceId}`}
+              class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+            >
+              <div class="font-mono text-[9px] text-muted-foreground w-5 shrink-0">{h.roundNumber.toString().padStart(2,'0')}</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors duration-150 truncate">{h.raceName}</div>
+                <div class="font-mono text-[9px] text-muted-foreground mt-0.5">
+                  Predicted: <span class="text-foreground">{h.predictedWinner.code}</span>
+                  {h.actualWinner && (
+                    <> · Actual: <span class="text-foreground">{h.actualWinner.code}</span></>
+                  )}
+                </div>
+              </div>
+              <div class="font-mono text-[9px] text-muted-foreground hidden sm:block shrink-0">{formatDate(h.raceDate)}</div>
+              <div class="shrink-0 font-mono text-[9px] font-bold w-24 text-right">
+                {h.correct === true && <span class="flex items-center justify-end gap-1 text-green-400"><CheckCircle2 size={12} />correct</span>}
+                {h.correct === false && <span class="flex items-center justify-end gap-1 text-red-400"><XCircle size={12} />wrong</span>}
+                {h.correct === null && (
+                  <span class="flex items-center justify-end gap-1 text-muted-foreground">
+                    <Clock size={11} />{Math.round(Number(h.winProbability)*100)}%
+                  </span>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {history.length === 0 && standings.length === 0 && !upcoming && (
+      <div class="border border-white/[0.06] p-10 text-center">
+        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No intelligence data for {year}</p>
+        <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">Run qualifying ingest + compute_predictions after qualifying sessions</p>
+      </div>
+    )}
+
+  </div>
+</BaseLayout>

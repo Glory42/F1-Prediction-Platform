@@ -1,0 +1,18 @@
+---
+interface Props {
+  probability: string | number;
+  showLabel?: boolean;
+}
+const { probability, showLabel = true } = Astro.props;
+const pct = (Number(probability) * 100).toFixed(1);
+---
+
+<div class="flex items-center gap-3">
+  <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+    <div
+      class="h-full rounded-full bg-primary transition-all"
+      style={`width: ${pct}%`}
+    />
+  </div>
+  {showLabel && <span class="w-12 text-right text-sm font-mono text-muted-foreground">{pct}%</span>}
+</div>

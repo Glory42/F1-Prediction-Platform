@@ -1,0 +1,43 @@
+---
+import Navbar from '@/components/Navbar.astro';
+import { ViewTransitions } from 'astro:transitions';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'F1 race prediction and analytics platform' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="dark scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} — F1 Prediction</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <ViewTransitions />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col">
+
+
+    <Navbar />
+
+    <main class="flex-1 mx-auto w-full max-w-[1400px] px-[max(24px,4vw)] pt-[48px] pb-16 sm:pb-16 pb-24">
+      <slot />
+    </main>
+
+    <footer class="border-t border-white/[0.05] py-5 text-center font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
+      ./f1-intelligence &mdash; powered by fastf1
+    </footer>
+
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/globals.css';
+</style>

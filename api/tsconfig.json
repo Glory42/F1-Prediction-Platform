@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["ESNext"],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src/**/*.ts", "drizzle.config.ts"]
+}

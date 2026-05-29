@@ -1,0 +1,99 @@
+"""
+Full historical backfill runner.
+Usage:  python run_backfill.py 2018 2020
+        python run_backfill.py 2000 2017   (once legacy ingest jobs are ready)
+"""
+import sys
+import traceback
+
+import src.config  # noqa — triggers FastF1 cache setup
+
+from src.db.client import get_conn
+from src.jobs.sync_schedule import run as sync_schedule
+from src.jobs.sync_season import run as sync_season
+from src.jobs.ingest_qualifying import run as ingest_qualifying
+from src.jobs.ingest_race import run as ingest_race
+from src.jobs.compute_season_stats import run as compute_season_stats
+from src.jobs.compute_features import run as compute_features
+from src.jobs.compute_predictions import run as compute_predictions
+
+# Round counts per year
+ROUND_COUNTS = {
+    2000: 17, 2001: 17, 2002: 17, 2003: 16, 2004: 18,
+    2005: 19, 2006: 18, 2007: 17, 2008: 18, 2009: 17,
+    2010: 19, 2011: 19, 2012: 20, 2013: 19, 2014: 19,
+    2015: 19, 2016: 21, 2017: 20, 2018: 21, 2019: 21,
+    2020: 17, 2021: 22, 2022: 22, 2023: 22,
+}
+
+
+def safe(fn, *args, **kwargs) -> bool:
+    try:
+        fn(*args, **kwargs)
+        return True
+    except Exception as e:
+        print(f"  [WARN] {fn.__name__} failed: {e}")
+        return False
+
+
+def get_completed_race_ids(year: int) -> list[int]:
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT r.id FROM races r
+                   JOIN seasons s ON r.season_id = s.id
+                   WHERE s.year = %s AND r.status = 'completed'
+                   ORDER BY r.race_date""",
+                (year,),
+            )
+            return [row["id"] for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def backfill_year(year: int) -> None:
+    max_round = ROUND_COUNTS.get(year, 22)
+    legacy = year < 2018
+    print(f"\n{'='*52}")
+    print(f"  BACKFILLING {year}  ({max_round} rounds)  {'[LEGACY]' if legacy else ''}")
+    print(f"{'='*52}")
+
+    safe(sync_schedule, year)
+    safe(sync_season, year, 1)
+
+    if legacy:
+        from src.jobs.ingest_qualifying_legacy import run as ingest_q_legacy
+        from src.jobs.ingest_race_legacy import run as ingest_r_legacy
+        q_fn, r_fn = ingest_q_legacy, ingest_r_legacy
+    else:
+        q_fn, r_fn = ingest_qualifying, ingest_race
+
+    for r in range(1, max_round + 1):
+        print(f"\n  [{year} R{r:02d}]")
+        safe(q_fn, year, r)
+        safe(r_fn, year, r)
+
+    safe(compute_season_stats, year)
+
+    race_ids = get_completed_race_ids(year)
+    print(f"\n  Features+predictions for {len(race_ids)} completed races...")
+    for rid in race_ids:
+        safe(compute_features, rid)
+        safe(compute_predictions, rid)
+
+    print(f"\n  ✓ {year} done")
+
+
+if __name__ == "__main__":
+    start = int(sys.argv[1]) if len(sys.argv) > 1 else 2018
+    end   = int(sys.argv[2]) if len(sys.argv) > 2 else 2020
+
+    for year in range(start, end + 1):
+        try:
+            backfill_year(year)
+        except Exception:
+            print(f"\n[ERROR] Year {year} aborted:")
+            traceback.print_exc()
+
+    print("\n\n✓ BACKFILL COMPLETE")

@@ -1,0 +1,7 @@
+name = "f1-intelligence-api"
+main = "src/main.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# DATABASE_URL is set via: wrangler secret put DATABASE_URL
+# Never put secrets in this file

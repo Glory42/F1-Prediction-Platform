@@ -1,0 +1,6 @@
+name = "f1-intelligence-web"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PUBLIC_API_URL = "https://f1-intelligence-api.workers.dev"
