@@ -53,43 +53,53 @@ in the Worker context. The Python engine on Render uses `psycopg2` over TCP norm
 
 ### Root
 ```
-f1-intelligence/
-├── frontend/          # Astro on Cloudflare Pages
+f1-prediction/
+├── web/               # Astro SSR on Cloudflare Pages
 ├── api/               # Hono on Cloudflare Workers
-├── db/                # Drizzle schema + migrations (source of truth)
+├── db/                # Drizzle migrations only (schema in api/src/db/schema/)
 ├── data-engine/       # Python ETL on Render
 ├── CLAUDE.md
 ├── PLAN.md
 └── README.md
 ```
 
-### `frontend/`
+### `web/`
 ```
-frontend/
+web/
 ├── src/
 │   ├── layouts/
-│   │   └── BaseLayout.astro
+│   │   ├── BaseLayout.astro
+│   │   └── LandingLayout.astro
 │   ├── pages/
-│   │   ├── index.astro                  # Redirect → /prediction
-│   │   ├── prediction.astro
+│   │   ├── index.astro                  # Landing / upcoming race
+│   │   ├── prediction.astro             # Season model ratings
+│   │   ├── prediction/[id].astro        # Per-race prediction + compare tool
 │   │   ├── races/
-│   │   │   └── [id].astro
+│   │   │   ├── index.astro
+│   │   │   └── [id].astro               # Race detail with tab bar
 │   │   ├── drivers/
+│   │   │   ├── index.astro
 │   │   │   └── [id].astro
 │   │   └── teams/
+│   │       ├── index.astro
 │   │       └── [id].astro
 │   ├── components/
-│   │   ├── PredictionCard.astro
-│   │   ├── ProbabilityBar.astro
+│   │   ├── Navbar.astro                 # F1 car animation + nav tunnels
 │   │   ├── LapChart.astro               # Pure SVG, no chart library
-│   │   ├── DriverStatsTable.astro
-│   │   └── RaceResultsTable.astro
+│   │   ├── ProbabilityBar.astro
+│   │   ├── YearSelect.astro             # Custom year dropdown
+│   │   ├── YearSelectLinks.astro        # Year dropdown with per-year hrefs
+│   │   ├── PredictionTable.tsx
+│   │   ├── RaceResultsTable.tsx
+│   │   ├── QualifyingGrid.tsx
+│   │   ├── RecentResultsTable.tsx
+│   │   ├── DriverStatsGrid.tsx
+│   │   └── TeamStatsCard.tsx
 │   ├── lib/
 │   │   └── api.ts                       # Typed fetch wrappers
 │   └── types/
 │       └── index.ts
 ├── public/
-│   └── favicon.svg
 ├── astro.config.mjs                     # output:'server', CF adapter
 ├── wrangler.toml
 ├── tsconfig.json
@@ -100,21 +110,31 @@ frontend/
 ```
 api/
 ├── src/
-│   ├── index.ts                         # Hono app entry, register routes
+│   ├── main.ts                          # Hono app entry, register routes
+│   ├── common/types.ts                  # Bindings + all response types
+│   ├── config/database.ts               # createDb() — Neon HTTP driver
 │   ├── db/
-│   │   └── client.ts                    # neon() + drizzle() instance
-│   ├── routes/
-│   │   ├── races.ts
-│   │   ├── drivers.ts
-│   │   ├── teams.ts
-│   │   └── predictions.ts
-│   ├── services/
-│   │   ├── raceService.ts
-│   │   ├── driverService.ts
-│   │   ├── teamService.ts
-│   │   └── predictionService.ts
-│   └── types/
-│       └── index.ts
+│   │   ├── schema/                      # Drizzle table definitions (source of truth)
+│   │   │   ├── index.ts
+│   │   │   ├── circuits.ts
+│   │   │   ├── seasons.ts
+│   │   │   ├── races.ts
+│   │   │   ├── drivers.ts
+│   │   │   ├── teams.ts
+│   │   │   ├── qualifying_results.ts
+│   │   │   ├── race_results.ts
+│   │   │   ├── lap_times.ts
+│   │   │   ├── driver_season_stats.ts
+│   │   │   ├── team_season_stats.ts
+│   │   │   ├── race_predictions.ts
+│   │   │   └── driver_prediction_features.ts
+│   │   └── seed.ts
+│   └── modules/
+│       ├── races/{controller,service,module}.ts
+│       ├── drivers/{controller,service,module}.ts
+│       ├── teams/{controller,service,module}.ts
+│       ├── predictions/{controller,service,module}.ts
+│       └── seasons/{controller,service,module}.ts
 ├── wrangler.toml
 ├── tsconfig.json
 └── package.json
@@ -123,23 +143,7 @@ api/
 ### `db/`
 ```
 db/
-├── schema/
-│   ├── index.ts                         # Re-exports all tables
-│   ├── circuits.ts
-│   ├── seasons.ts
-│   ├── races.ts
-│   ├── drivers.ts
-│   ├── teams.ts
-│   ├── qualifying_results.ts
-│   ├── race_results.ts
-│   ├── lap_times.ts
-│   ├── driver_season_stats.ts
-│   ├── team_season_stats.ts
-│   ├── race_predictions.ts
-│   └── driver_prediction_features.ts   # ML-expansion anchor table
-├── migrations/
-├── drizzle.config.ts
-└── seed.ts
+└── migrations/        # Generated SQL — apply with drizzle-kit migrate
 ```
 
 ### `data-engine/`
@@ -147,21 +151,24 @@ db/
 data-engine/
 ├── src/
 │   ├── main.py                          # CLI: python main.py --job <name>
-│   ├── config.py                        # Env vars, DB connection string
-│   ├── db/
-│   │   └── client.py                    # psycopg2 connection pool
+│   ├── config.py
+│   ├── db/client.py                     # psycopg2 connection
 │   ├── jobs/
-│   │   ├── ingest_race.py               # Post-race: results + lap times
-│   │   ├── ingest_qualifying.py         # Pre-race: qualifying grid
+│   │   ├── sync_schedule.py
+│   │   ├── sync_season.py
+│   │   ├── ingest_race.py               # 2018+ FastF1 full timing
+│   │   ├── ingest_race_legacy.py        # pre-2018 Ergast results only
+│   │   ├── ingest_qualifying.py
+│   │   ├── ingest_qualifying_legacy.py
 │   │   ├── compute_features.py          # All 8 feature scores
-│   │   └── compute_predictions.py       # Softmax → race_predictions
+│   │   ├── compute_predictions.py       # Softmax → race_predictions
+│   │   └── compute_season_stats.py
 │   └── utils/
 │       ├── fastf1_helpers.py
-│       ├── math_utils.py                # softmax, normalization
-│       └── upsert.py                    # Generic upsert helper
-├── tests/
-│   └── test_features.py
-├── render.yaml                          # Cron job definitions
+│       ├── math_utils.py
+│       └── upsert.py
+├── run_backfill.py                      # Programmatic historical backfill
+├── render.yaml                          # Render cron definitions
 ├── requirements.txt
 └── .env.example
 ```
@@ -487,7 +494,7 @@ T=0.3 produces decisive probabilities. F1 is not uniform — the dominant car wi
 
 ## 6. API Routes
 
-Base: `https://api.f1intelligence.workers.dev`
+Base: `https://<worker-name>.workers.dev` (set via `wrangler.toml`)
 
 All responses envelope: `{ data: T, error: null }` | `{ data: null, error: { code, message } }`
 
@@ -572,63 +579,41 @@ GET /api/predictions/race/:race_id
 
 ---
 
-## 7. Build Roadmap
+## 7. Build Status
 
-### Week 1 — Foundation
-**Goal**: Data can flow from FastF1 into Neon, and Neon can be queried from a Worker.
+### Foundation ✓
+- Neon project configured, schema applied via Drizzle
+- Circuits seeded with 2025 calendar + historical circuits (2000–2025) + `overtake_rate`
+- Seasons 2000–2025 seeded, teams/drivers synced via `sync_season` job
+- FastF1 + psycopg2 connected and verified
 
-- [ ] Create Neon project, configure connection string
-- [ ] Write all Drizzle schema files under `db/schema/`
-- [ ] Run `drizzle-kit generate` + `drizzle-kit push` to apply migrations
-- [ ] Seed `circuits` with 2025 calendar + static `overtake_rate` values
-- [ ] Seed `seasons`, `teams`, `drivers` for 2025
-- [ ] Python: virtualenv, install FastF1/psycopg2, write `db/client.py`, test connection
-- [ ] Python: write and manually test `ingest_race.py` for one 2025 completed race
-- [ ] Python: write `ingest_qualifying.py`
-- [ ] Hono: scaffold Workers project, implement `GET /api/health`, verify Neon HTTP connection
+### ETL Pipeline ✓
+- `ingest_race` / `ingest_qualifying` for 2018+ (full FastF1 timing data)
+- `ingest_race_legacy` / `ingest_qualifying_legacy` for 2000–2017 (Ergast results only)
+- `compute_season_stats`, `compute_features`, `compute_predictions` working
+- Historical backfill: 2000–2025 in progress via `run_backfill.py`
+- `render.yaml` configured: Sat 22:00 UTC qualifying, Sun 18:00 UTC race
 
-**Exit criteria**: Python writes a race to Neon; Worker reads it.
+### API (Hono) ✓
+- All routes implemented: `/api/races`, `/api/drivers`, `/api/teams`, `/api/predictions`, `/api/seasons`
+- NestJS-style service/controller/module structure
+- Drizzle joins — no N+1 queries
 
-### Week 2 — Full ETL + Stats
-**Goal**: ETL pipeline complete, season stats computed, all API routes return real data.
+### Frontend (Astro) ✓
+- Landing page with upcoming race hero + countdown
+- Race detail with Results/Qualifying/Lap Chart/Circuit/History tabs
+- Driver and team pages with career history + year navigation
+- Prediction page with season-wide model ratings
+- Per-race prediction page with driver comparison tool
+- F1 car navbar animation with nav tunnels
+- Mobile bottom tab bar; responsive across all breakpoints
+- `YearSelect` / `YearSelectLinks` custom dropdowns for 2000–2025
 
-- [ ] Generalize ingestion jobs to accept `--year`, `--round` CLI args
-- [ ] Write `compute_season_stats.py`: aggregate to `driver_season_stats` + `team_season_stats`
-- [ ] Write `compute_features.py`: implement all 8 feature scores
-- [ ] Write `compute_predictions.py`: softmax, write `race_predictions`
-- [ ] Backfill all 2024 completed races
-- [ ] Verify predictions manually (does Bahrain 2024 predict Verstappen? He won.)
-- [ ] Implement all Hono API routes: races, drivers, teams, predictions
-
-**Exit criteria**: All API routes return real data from 2024/2025 backfill.
-
-### Week 3 — Astro Frontend
-**Goal**: All 4 pages live on Cloudflare Pages with real data.
-
-- [ ] Create Astro project with `@astrojs/cloudflare` adapter, `output: 'server'`
-- [ ] Write `lib/api.ts` typed fetch wrappers for all routes
-- [ ] Build `prediction.astro` — driver probability table with `ProbabilityBar.astro`
-- [ ] Build `races/[id].astro` — results + qualifying + SVG lap chart
-- [ ] Build `drivers/[id].astro` — season stats + recent results
-- [ ] Build `teams/[id].astro` — constructor stats + driver cards
-- [ ] Deploy API Worker via `wrangler deploy`
-- [ ] Deploy frontend to Cloudflare Pages via git (connect repo in CF dashboard)
-
-**Exit criteria**: All 4 pages render real data in production.
-
-### Week 4 — Automation, Polish, Hardening
-**Goal**: System runs unattended for a full race weekend.
-
-- [ ] Write `render.yaml` with two cron jobs (Sat 22:00 + Sun 18:00 UTC)
-- [ ] Auto-detect current round (query Neon for next unfinished race)
-- [ ] Verify ETL idempotency (run any job twice, confirm row counts unchanged)
-- [ ] Add Python error handling (try/except + structured logging)
-- [ ] Add Hono error middleware
-- [ ] Frontend: loading skeletons, error states, mobile layout
-- [ ] Backfill 2024 full season + retroactive predictions, measure accuracy rate
-- [ ] Write README with env vars, deploy steps, manual ETL trigger instructions
-
-**Exit criteria**: System survives a full race weekend unattended.
+### Known Issues (to fix)
+- `compute_features.py` L269 — qualifying delta scores assigned to wrong drivers when some drivers lack qualifying data (CRITICAL)
+- `upsert.py` — no transaction wrapping, no rollback on partial batch failure
+- `run_backfill.py` `safe()` — silently swallows exceptions, reports COMPLETE on failure
+- `run_backfill.py` `ROUND_COUNTS` — defaults to 22 for unknown years (2024 has 24 rounds)
 
 ---
 

@@ -1,4 +1,4 @@
-# F1 Intelligence Platform — Claude Code Guide
+# F1 Prediction Platform — Claude Code Guide
 
 ## Project Overview
 F1 race winner prediction platform. Uses historical + current F1 data (via FastF1) to
@@ -21,7 +21,7 @@ f1-intelligence/
 |-------|-----------|-------|
 | Frontend | Astro + Tailwind | `output: 'server'`, Cloudflare adapter |
 | API | Hono | Cloudflare Workers |
-| ORM | Drizzle ORM | TypeScript, schema lives in `db/schema/` |
+| ORM | Drizzle ORM | TypeScript, schema lives in `api/src/db/schema/` |
 | Database | Neon PostgreSQL | |
 | DB driver (Workers) | `@neondatabase/serverless` | HTTP driver — mandatory for CF Workers |
 | DB driver (Python) | `psycopg2` | TCP — fine on Render |
@@ -42,8 +42,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 ```
 
-### 2. Drizzle schema is in `db/`, shared by API
-The canonical schema lives in `db/schema/`. The `api/` package imports from it.
+### 2. Drizzle schema is in `api/src/db/schema/`
+The canonical schema lives in `api/src/db/schema/`. The `db/` folder holds only migration SQL files.
 Never define schema inline in route files.
 
 ### 3. Astro data fetching is server-side only
