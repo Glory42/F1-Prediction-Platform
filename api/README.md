@@ -1,0 +1,77 @@
+# API — Hono on Cloudflare Workers
+
+Read-only REST API for the F1 prediction platform. NestJS-style module structure (service / controller / module).
+
+## Stack
+
+- **Runtime**: Cloudflare Workers (V8 isolate — no TCP)
+- **Framework**: Hono
+- **ORM**: Drizzle ORM with `@neondatabase/serverless` (HTTP driver — mandatory)
+- **DB**: Neon PostgreSQL
+
+## Local Dev
+
+```bash
+bun install
+bun run dev      # wrangler dev on :8787
+```
+
+## Environment Variables
+
+| Variable | How to set |
+|----------|-----------|
+| `DATABASE_URL` | `wrangler secret put DATABASE_URL` (never in wrangler.toml) |
+
+## Type Check
+
+```bash
+bunx tsc --noEmit
+```
+
+Pre-existing errors in `drizzle.config.ts` and `src/db/seed.ts` (missing node types) are expected — ignore them. Only fail on new errors in `src/modules/` or `src/common/`.
+
+## Seed Database
+
+```bash
+DATABASE_URL=<your-url> bun run src/db/seed.ts
+```
+
+## Schema
+
+Drizzle table definitions live in `src/db/schema/`. To push schema changes to Neon:
+
+```bash
+DATABASE_URL=<your-url> bunx drizzle-kit push
+```
+
+Migrations are generated into `../db/migrations/`.
+
+## Routes
+
+```
+GET /api/health
+GET /api/seasons
+GET /api/races?year=N&status=S
+GET /api/races/:id
+GET /api/drivers?year=N
+GET /api/drivers/:id?year=N
+GET /api/teams?year=N
+GET /api/teams/:id?year=N
+GET /api/predictions/upcoming
+GET /api/predictions/race/:race_id
+```
+
+All responses: `{ data: T, error: null }` or `{ data: null, error: { code, message } }`
+
+## Module Structure
+
+```
+src/modules/<name>/
+  <name>.service.ts     # DB queries (Drizzle, no Hono context)
+  <name>.controller.ts  # Parse Hono context → call service → return JSON
+  <name>.module.ts      # Hono sub-router wiring routes to controllers
+```
+
+## Deploy
+
+Push to GitHub — Cloudflare Workers deploys automatically. Never run `wrangler deploy` directly.
