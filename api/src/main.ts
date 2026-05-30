@@ -13,7 +13,11 @@ import type { Bindings } from './common/types';
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use('*', logger());
-app.use('*', cors());
+app.use('*', cors({
+  origin: ['https://f1.gorkemkaryol.dev', 'http://localhost:4321', 'http://localhost:8787'],
+  allowMethods: ['GET', 'OPTIONS'],
+  allowHeaders: ['Content-Type'],
+}));
 
 app.get('/api/health', async (c) => {
   try {
