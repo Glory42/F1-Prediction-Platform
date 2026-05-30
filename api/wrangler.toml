@@ -2,6 +2,8 @@ name = "f1-intelligence-api"
 main = "src/main.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
 
-# DATABASE_URL is set via: wrangler secret put DATABASE_URL
+# DATABASE_URL is set via the Cloudflare dashboard (Variables and Secrets)
+# keep_vars = true prevents deploys from erasing dashboard-set variables
 # Never put secrets in this file

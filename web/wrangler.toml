@@ -1,6 +1,9 @@
 name = "f1-intelligence-web"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
 
 [vars]
-PUBLIC_API_URL = "https://f1-intelligence-api.workers.dev"
+# Update this to your actual Worker URL from the Cloudflare dashboard
+# Format: https://f1-intelligence-api.<your-account>.workers.dev
+PUBLIC_API_URL = "https://f1-intelligence-api.gorkemkaryol.workers.dev"
