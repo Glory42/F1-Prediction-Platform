@@ -276,6 +276,14 @@ bun run drizzle-kit push   # apply schema to Neon
 
 ---
 
+## Git / Commits
+
+- **Never commit without being explicitly asked.** Do not auto-commit after fixes, refactors, or any other changes — always wait for the user to say "commit" or invoke `/commit`.
+- **Always read `.claude/skills/commit/` before committing.** The skill contains the required format and rules; follow it exactly.
+- Never deploy to Cloudflare from the CLI. Push to GitHub and let the Cloudflare integration deploy automatically.
+
+---
+
 ## Code Style
 
 - TypeScript strict mode everywhere in `api/` and `frontend/`
