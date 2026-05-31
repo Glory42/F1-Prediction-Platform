@@ -26,6 +26,7 @@ try {
 
 const driver = data?.driver;
 const careerWithStats = career.filter((y) => y.stats !== null);
+const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.headshotUrl ?? null;
 ---
 
 <BaseLayout title={driver?.fullName ?? 'Driver'}>
@@ -53,9 +54,9 @@ const careerWithStats = career.filter((y) => y.stats !== null);
 
         <!-- Header -->
         <div class="flex items-start gap-6">
-          {driver.headshotUrl ? (
+          {headshotUrl ? (
             <img
-              src={driver.headshotUrl}
+              src={headshotUrl}
               alt={driver.fullName}
               class="w-20 h-20 object-cover object-top border border-white/[0.08] shrink-0 bg-white/[0.02]"
               loading="lazy"
@@ -127,7 +128,10 @@ const careerWithStats = career.filter((y) => y.stats !== null);
                   class={`grid grid-cols-[60px_1fr_80px_50px_50px_50px_50px] gap-0 items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${y.year === year ? 'bg-[rgba(168,85,247,0.03)]' : ''}`}
                 >
                   <div class={`font-mono text-sm font-bold ${y.year === year ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>{y.year}</div>
-                  <div class="font-mono text-[9px] text-muted-foreground group-hover:text-foreground transition-colors truncate">{y.teamName}</div>
+                  <div class="inline-flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground group-hover:text-foreground transition-colors min-w-0">
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" style={`background: ${getTeamColor(y.teamName.toLowerCase().replace(/[\s\-\.]+/g, '_'))};`} />
+                    <span class="truncate">{y.teamName}</span>
+                  </div>
                   <div class="font-bold text-sm text-right">{y.stats ? Math.round(Number(y.stats.totalPoints)) : '—'}</div>
                   <div class="font-mono text-sm text-right text-muted-foreground">
                     {y.stats?.championshipPosition ? `P${y.stats.championshipPosition}` : '—'}

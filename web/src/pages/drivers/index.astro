@@ -53,7 +53,7 @@ function champPos(pos: number | null, i: number) {
     ) : (
       <div class="border border-white/[0.06]">
         <!-- Table header -->
-        <div class="grid grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+        <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_120px_60px_60px_60px] lg:grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden md:block">Team</div>
@@ -67,30 +67,36 @@ function champPos(pos: number | null, i: number) {
         {standings.map((s, i) => (
             <a
               href={`/drivers/${s.driver.id}?year=${year}`}
-              class={`grid grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 items-center px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_120px_60px_60px_60px] lg:grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 items-start sm:items-center px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}
             >
-              <!-- Position -->
-              <div class={`font-mono text-sm font-bold ${isTopPos(s.stats.championshipPosition, i) ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
+              <!-- Position — pt-1 aligns with name text -->
+              <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${isTopPos(s.stats.championshipPosition, i) ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                 {champPos(s.stats.championshipPosition, i) === 1 ? <Trophy size={14} /> : String(champPos(s.stats.championshipPosition, i)).padStart(2, '0')}
               </div>
               <!-- Driver -->
-              <div class="flex items-center gap-2.5 min-w-0">
+              <div class="flex items-start sm:items-center gap-2.5 min-w-0">
                 <div class="w-7 h-7 border border-white/[0.08] flex items-center justify-center shrink-0">
                   <span class="font-mono text-[9px] font-bold text-muted-foreground">{s.driver.driverNumber}</span>
                 </div>
                 <div class="min-w-0">
-                  <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors duration-150 truncate">{s.driver.fullName}</div>
-                  <div class="font-mono text-[8px] text-muted-foreground tracking-wider md:hidden">{s.driver.team.name}</div>
+                  <div class="font-semibold text-sm leading-none group-hover:text-[#a855f7] transition-colors duration-150 truncate">{s.driver.fullName}</div>
+                  <!-- Team — own line, mobile only -->
+                  <div class="font-mono text-[8px] text-muted-foreground mt-1 md:hidden">{s.driver.team.name}</div>
+                  <!-- Stats — mobile only -->
+                  <div class="flex items-center gap-2 mt-0.5 sm:hidden font-mono text-[8px] text-muted-foreground/60">
+                    <span>{s.stats.wins}W</span>
+                    <span class="text-white/20">·</span>
+                    <span>{s.stats.podiums} Pod</span>
+                    <span class="text-white/20">·</span>
+                    <span>{s.stats.poles} Pole</span>
+                  </div>
                 </div>
-                <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 hidden xs:inline">{s.driver.code}</span>
               </div>
-              <!-- Team -->
-              <div class="hidden md:flex items-center gap-1.5 min-w-0">
-                <div class="w-2 h-2 rounded-full shrink-0" style={`background: ${getTeamColor(s.driver.team.teamKey)};`} />
-                <span class="font-mono text-[9px] text-muted-foreground truncate">{s.driver.team.name}</span>
-              </div>
+              <!-- Team (md+) -->
+              <div class="hidden md:block font-mono text-[9px] text-muted-foreground truncate">{s.driver.team.name}</div>
               <!-- Points -->
-              <div class="font-bold text-sm text-right">{Math.round(Number(s.stats.totalPoints))}</div>
+              <div class="font-mono text-xs sm:text-sm font-bold text-right tabular-nums pt-1 sm:pt-0">{Math.round(Number(s.stats.totalPoints))}</div>
               <!-- Wins -->
               <div class="font-mono text-sm text-right hidden sm:block">{s.stats.wins}</div>
               <!-- Podiums -->

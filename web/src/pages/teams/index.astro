@@ -48,7 +48,7 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
       </div>
     ) : (
       <div class="border border-white/[0.06]">
-        <div class="grid grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+        <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_60px_60px_60px_80px] lg:grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Constructor</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pts</div>
@@ -61,7 +61,7 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
         {standings.map((s, i) => (
             <a
               href={`/teams/${s.team.id}?year=${year}`}
-              class={`grid grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 items-center px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group relative ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_60px_60px_60px_80px] lg:grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 items-center px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group relative ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
               style={`border-left: 3px solid ${getTeamColor(s.team.teamKey)};`}
             >
               <div class={`font-mono text-sm font-bold ${isTopPos(s.stats.championshipPosition, i) ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
@@ -72,6 +72,19 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
                 {s.team.nationality && (
                   <div class="font-mono text-[8px] text-muted-foreground tracking-wider mt-0.5">{s.team.nationality}</div>
                 )}
+                <div class="flex items-center gap-2 mt-1 sm:hidden font-mono text-[8px] text-muted-foreground">
+                  <span>{s.stats.wins}W</span>
+                  <span class="text-white/20">·</span>
+                  <span>{s.stats.podiums} Pod</span>
+                  <span class="text-white/20">·</span>
+                  <span>{s.stats.racesCompleted} Races</span>
+                  {s.stats.carPerformanceScore && (
+                    <>
+                      <span class="text-white/20">·</span>
+                      <span>Car {Math.round(Number(s.stats.carPerformanceScore) * 100)}</span>
+                    </>
+                  )}
+                </div>
               </div>
               <div class="font-bold text-sm text-right">{Math.round(Number(s.stats.totalPoints))}</div>
               <div class="font-mono text-sm text-right hidden sm:block">{s.stats.wins}</div>

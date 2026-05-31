@@ -1,6 +1,7 @@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { formatMs } from '@/lib/utils';
 import type { QualifyingResult } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
 
 function fmtSector(ms: number | null): string {
   if (!ms) return '—';
@@ -39,7 +40,7 @@ export function QualifyingGrid({ qualifying, year }: Props) {
       </TableHeader>
       <TableBody>
         {qualifying.map((q) => (
-          <TableRow key={q.id}>
+          <TableRow key={q.id} style={{ borderLeft: `2px solid ${getTeamColor(q.driver.team.teamKey)}` }}>
             <TableCell>
               <span className={`font-mono text-sm font-bold ${q.gridPosition === 1 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                 P{q.gridPosition}
@@ -54,6 +55,7 @@ export function QualifyingGrid({ qualifying, year }: Props) {
               <a href={`/drivers/${q.driver.id}?year=${year}`} className="font-medium hover:text-[#a855f7] transition-colors">
                 {q.driver.fullName}
               </a>
+              <p className="font-mono text-[8px] text-muted-foreground mt-0.5">{q.driver.team.name}</p>
             </TableCell>
             <TableCell className="text-right font-mono text-sm font-bold">
               {formatMs(q.q3TimeMs ?? q.q2TimeMs ?? q.q1TimeMs)}

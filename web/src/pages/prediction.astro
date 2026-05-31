@@ -5,6 +5,7 @@ import { formatDate } from '@/lib/utils';
 import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary } from '@/types';
 import { Cpu, Target, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import YearSelect from '@/components/YearSelect.astro';
+import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -99,7 +100,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
           <div class="h-px flex-1 bg-white/[0.05]" />
         </div>
         <div class="border border-white/[0.06]">
-          <div class="grid grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] md:grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Rank</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Team</div>
@@ -117,13 +118,16 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
             ];
             const maxBar = Math.max(...featureVals, 0.001);
             return (
-              <div class={`grid grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
-                <div class={`font-mono text-sm font-bold ${i < 3 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
+              <div class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] md:grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-start sm:items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`} style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}>
+                <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${i < 3 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                   {String(i+1).padStart(2,'0')}
                 </div>
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0">{s.driver.code}</span>
-                  <a href={`/drivers/${s.driver.id}?year=${year}`} class="font-semibold text-sm truncate hover:text-[#a855f7] transition-colors duration-150">{s.driver.fullName}</a>
+                <div class="flex items-start sm:items-center gap-2 min-w-0">
+                  <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0 mt-0.5">{s.driver.code}</span>
+                  <div class="min-w-0">
+                    <a href={`/drivers/${s.driver.id}?year=${year}`} class="font-semibold text-sm leading-none block hover:text-[#a855f7] transition-colors duration-150 truncate">{s.driver.fullName}</a>
+                    <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[8px] text-muted-foreground sm:hidden hover:text-foreground transition-colors duration-150 mt-1 block">{s.driver.team.name}</a>
+                  </div>
                 </div>
                 <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[9px] text-muted-foreground truncate hidden sm:block pr-6 hover:text-foreground transition-colors duration-150">{s.driver.team.name}</a>
                 <div class="hidden md:flex items-end gap-[3px] h-7">
@@ -135,7 +139,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
                     />
                   ))}
                 </div>
-                <div class="text-right pl-5">
+                <div class="text-right pt-1 sm:pt-0">
                   <div class="font-bold text-sm">{s.overallScore}</div>
                   <div class="w-full h-0.5 bg-white/[0.06] mt-1">
                     <div class="h-full bg-[#a855f7]" style={`width:${s.overallScore}%`} />
