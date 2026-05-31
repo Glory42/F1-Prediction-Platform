@@ -114,11 +114,23 @@ const careerWithStats = career.filter((y) => y.stats !== null);
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
               {data.drivers.map((d) => (
                 <a href={`/drivers/${d.id}?year=${year}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group flex items-center gap-4" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
-                  <div class="w-10 h-10 border border-white/[0.08] flex items-center justify-center shrink-0">
-                    <span class="font-mono text-sm font-bold text-muted-foreground">{d.driverNumber}</span>
-                  </div>
+                  {d.headshotUrl ? (
+                    <img
+                      src={d.headshotUrl}
+                      alt={d.fullName}
+                      class="w-16 h-16 object-cover object-top border border-white/[0.08] shrink-0 bg-white/[0.02]"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div class="w-16 h-16 border border-white/[0.08] flex items-center justify-center shrink-0">
+                      <span class="font-mono text-lg font-bold text-[#a855f7]">{d.driverNumber}</span>
+                    </div>
+                  )}
                   <div>
-                    <div class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 inline-block mb-1">{d.code}</div>
+                    <div class="flex items-center gap-1.5 mb-1">
+                      <div class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5">{d.code}</div>
+                      <div class="font-mono text-[8px] text-muted-foreground/60">#{d.driverNumber}</div>
+                    </div>
                     <div class="font-semibold group-hover:text-[#a855f7] transition-colors duration-150">{d.fullName}</div>
                     {d.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d.nationality}</div>}
                   </div>
