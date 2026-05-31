@@ -37,15 +37,15 @@ bun run build    # production build — catches TypeScript errors
 
 | Route | Data source |
 |-------|------------|
-| `/` | `GET /api/predictions/upcoming` |
+| `/` | Static (no API call) |
+| `/prediction` | `GET /api/predictions/upcoming` |
+| `/prediction/[id]` | `GET /api/predictions/race/:id` |
 | `/races` | `GET /api/races?year=N` |
 | `/races/[id]` | `GET /api/races/:id` |
-| `/drivers` | `GET /api/drivers?year=N` |
+| `/drivers` | `GET /api/drivers/standings?year=N` |
 | `/drivers/[id]` | `GET /api/drivers/:id?year=N` |
-| `/teams` | `GET /api/teams?year=N` |
+| `/teams` | `GET /api/teams/standings?year=N` |
 | `/teams/[id]` | `GET /api/teams/:id?year=N` |
-| `/prediction` | `GET /api/predictions/upcoming` (season ratings) |
-| `/prediction/[id]` | `GET /api/predictions/race/:id` |
 
 ## Rules
 

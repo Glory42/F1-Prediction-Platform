@@ -53,6 +53,8 @@ If changes span multiple areas, use the primary one. For broad cross-cutting cha
 4. **Never deploy**: Do not run `wrangler deploy` or `bun run deploy` — user pushes to GitHub for Cloudflare to pick up.
 5. **Scope from diff**: Always read `git diff --staged` to determine the correct scope.
 6. **Specific files**: Stage with `git add <specific files>`, never `git add .` or `git add -A`.
+7. **CODEMAP.md**: After reviewing the diff, check whether any new files, directories, routes, or components were added or removed. If so, update `CODEMAP.md` to reflect the change before staging it alongside the other files.
+8. **docs/**: If the diff changes API routes, the data pipeline, the DB schema, the prediction model weights, or deployment config, check the relevant file in `docs/` and update it if it's now out of date. Stage the updated doc file with the commit.
 
 ## Workflow
 

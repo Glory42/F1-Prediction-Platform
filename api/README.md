@@ -53,12 +53,19 @@ GET /api/health
 GET /api/seasons
 GET /api/races?year=N&status=S
 GET /api/races/:id
-GET /api/drivers?year=N
+GET /api/races/circuit/:circuitKey
+GET /api/drivers?year=N&team_id=T
+GET /api/drivers/standings?year=N
 GET /api/drivers/:id?year=N
+GET /api/drivers/:id/career
 GET /api/teams?year=N
+GET /api/teams/standings?year=N
 GET /api/teams/:id?year=N
+GET /api/teams/:id/career
 GET /api/predictions/upcoming
-GET /api/predictions/race/:race_id
+GET /api/predictions/race/:raceId
+GET /api/predictions/history?year=N
+GET /api/predictions/standings?year=N
 ```
 
 All responses: `{ data: T, error: null }` or `{ data: null, error: { code, message } }`
