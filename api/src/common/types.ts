@@ -217,6 +217,7 @@ export type DriverYearStats = {
   driverId: number;
   driverNumberThatYear: number;
   teamName: string;
+  headshotUrl: string | null;
   stats: DriverSeasonStats | null;
 };
 

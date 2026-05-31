@@ -122,6 +122,7 @@ export class DriversService {
         driverId: e.drivers.id,
         driverNumberThatYear: e.drivers.driverNumber,
         teamName: e.teams.name,
+        headshotUrl: e.drivers.headshotUrl ?? null,
         stats: s ? toDriverStats(s) : null,
       };
     });

@@ -81,7 +81,7 @@ export type CircuitHistoryItem = {
   raceId: number; raceName: string; raceDate: string; year: number; winner: Driver | null;
 };
 export type DriverYearStats = {
-  year: number; driverId: number; driverNumberThatYear: number; teamName: string; stats: DriverSeasonStats | null;
+  year: number; driverId: number; driverNumberThatYear: number; teamName: string; headshotUrl: string | null; stats: DriverSeasonStats | null;
 };
 export type TeamYearStats = { year: number; teamId: number; stats: TeamSeasonStats | null };
 export type SeasonSummary = { year: number; raceCount: number };
