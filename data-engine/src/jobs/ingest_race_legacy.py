@@ -95,9 +95,11 @@ def run(year: int, round_num: int) -> None:
                 "fastest_lap": False,  # not available via Ergast
             })
 
-        if results_to_upsert:
-            upsert(conn, "race_results", results_to_upsert, ["race_id", "driver_id"])
-            print(f"  Upserted {len(results_to_upsert)} race result rows")
+        if not results_to_upsert:
+            raise RuntimeError(f"No results inserted for race {race_id} — all drivers unknown; sync_season may not have run")
+
+        upsert(conn, "race_results", results_to_upsert, ["race_id", "driver_id"])
+        print(f"  Upserted {len(results_to_upsert)} race result rows")
 
         with conn.cursor() as cur:
             cur.execute(

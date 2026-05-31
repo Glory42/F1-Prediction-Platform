@@ -94,9 +94,11 @@ def run(year: int, round_num: int) -> None:
                 "is_pit_lap": lt["is_pit_lap"],
             })
 
-        if results_to_upsert:
-            upsert(conn, "race_results", results_to_upsert, ["race_id", "driver_id"])
-            print(f"  Upserted {len(results_to_upsert)} race result rows")
+        if not results_to_upsert:
+            raise RuntimeError(f"No results inserted for race {race_id} — all driver codes unknown")
+
+        upsert(conn, "race_results", results_to_upsert, ["race_id", "driver_id"])
+        print(f"  Upserted {len(results_to_upsert)} race result rows")
 
         if laps_to_upsert:
             upsert(conn, "lap_times", laps_to_upsert, ["race_id", "driver_id", "lap_number"])

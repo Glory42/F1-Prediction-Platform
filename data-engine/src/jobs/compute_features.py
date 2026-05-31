@@ -266,7 +266,7 @@ def _compute_qualifying_delta(conn, driver_ids: list[int], race_id: int) -> dict
 
     vals = list(deltas.values())
     normalized = normalize_minmax(vals) if len(set(vals)) > 1 else [0.5] * len(vals)
-    return {driver_ids[i]: normalized[i] for i, d in enumerate(list(deltas.keys()))}
+    return {d: normalized[i] for i, d in enumerate(list(deltas.keys()))}
 
 
 def _compute_sector_strength(conn, driver_ids: list[int], race_id: int) -> dict[int, float]:

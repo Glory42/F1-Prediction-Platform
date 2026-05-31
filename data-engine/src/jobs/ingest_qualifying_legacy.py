@@ -75,7 +75,7 @@ def run(year: int, round_num: int) -> None:
 
             # Pre-2006: single best lap → store as Q1
             if q1 is None and q2 is None and q3 is None:
-                q1 = _ms(row.get("Q1")) or _ms(row.get("Time"))
+                q1 = _ms(row.get("Time"))
 
             rows_to_upsert.append({
                 "race_id": race_id,
