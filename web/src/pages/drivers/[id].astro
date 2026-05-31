@@ -4,7 +4,7 @@ import { DriverStatsGrid } from '@/components/DriverStatsGrid';
 import { RecentResultsTable } from '@/components/RecentResultsTable';
 import { api } from '@/lib/api';
 import type { DriverYearStats } from '@/types';
-import { BarChart2, History, ChevronRight, User } from 'lucide-react';
+import { BarChart2, History, ChevronRight, User, Trophy } from 'lucide-react';
 import YearSelectLinks from '@/components/YearSelectLinks.astro';
 import { getTeamColor } from '@/lib/teamColors';
 
@@ -27,6 +27,8 @@ try {
 const driver = data?.driver;
 const careerWithStats = career.filter((y) => y.stats !== null);
 const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.headshotUrl ?? null;
+const thisYear = new Date().getFullYear();
+const titles = careerWithStats.filter((y) => y.year < thisYear && y.stats?.championshipPosition === 1).length;
 ---
 
 <BaseLayout title={driver?.fullName ?? 'Driver'}>
@@ -75,7 +77,16 @@ const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.he
                 <span class="font-mono text-[9px] text-muted-foreground">{driver.nationality}</span>
               )}
             </div>
-            <h1 class="text-2xl font-bold">{driver.fullName}</h1>
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold">{driver.fullName}</h1>
+              {titles > 0 && (
+                <div class="flex items-center gap-1" title={`${titles}× World Champion`}>
+                  {Array.from({ length: titles }).map((_, i) => (
+                    <Trophy key={i} size={16} color="#a855f7" />
+                  ))}
+                </div>
+              )}
+            </div>
             <a href={`/teams/${driver.team.id}?year=${year}`} class="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors duration-150 tracking-wider">
               <div class="w-2 h-2 rounded-full shrink-0" style={`background: ${getTeamColor(driver.team.teamKey)};`} />
               {driver.team.name} · {year} Season
@@ -131,6 +142,9 @@ const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.he
                   <div class="inline-flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground group-hover:text-foreground transition-colors min-w-0">
                     <span class="w-1.5 h-1.5 rounded-full shrink-0" style={`background: ${getTeamColor(y.teamName.toLowerCase().replace(/[\s\-\.]+/g, '_'))};`} />
                     <span class="truncate">{y.teamName}</span>
+                    {y.year < thisYear && y.stats?.championshipPosition === 1 && (
+                      <Trophy size={11} color="#a855f7" className="shrink-0" />
+                    )}
                   </div>
                   <div class="font-bold text-sm text-right">{y.stats ? Math.round(Number(y.stats.totalPoints)) : '—'}</div>
                   <div class="font-mono text-sm text-right text-muted-foreground">

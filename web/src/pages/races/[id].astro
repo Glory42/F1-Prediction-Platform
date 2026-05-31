@@ -6,7 +6,9 @@ import LapChart from '@/components/LapChart.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionResponse, CircuitHistoryItem } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Flag, Zap, CheckCircle2, History, Timer } from 'lucide-react';
+import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Flag, Zap, CheckCircle2, Timer } from 'lucide-react';
+import RaceYearSelect from '@/components/RaceYearSelect.astro';
+import { formatMs } from '@/lib/utils';
 
 const { id } = Astro.params;
 
@@ -30,7 +32,7 @@ if (race) {
   ]);
   if (predResult.status === 'fulfilled') prediction = predResult.value;
   if (histResult.status === 'fulfilled') {
-    circuitHistory = histResult.value.filter((h) => h.raceId !== race.id).slice(0, 5);
+    circuitHistory = histResult.value;
   }
 }
 
@@ -41,7 +43,6 @@ const isUpcoming   = race?.status === 'scheduled';
 const hasResults   = (raceData?.results?.length ?? 0) > 0;
 const hasQualifying = (raceData?.qualifying?.length ?? 0) > 0;
 const hasLaps      = (raceData?.laps?.length ?? 0) > 0;
-const hasHistory   = circuitHistory.length > 0;
 
 // Build tab list — ordered by importance for the current status
 type Tab = { id: string; label: string };
@@ -50,7 +51,11 @@ if (isCompleted && hasResults)   tabs.push({ id: 'results',    label: 'Results' 
 if (hasQualifying)               tabs.push({ id: 'qualifying', label: 'Qualifying' });
 if (isCompleted && hasLaps)      tabs.push({ id: 'laps',       label: 'Lap Chart'  });
 if (!isCompleted)                tabs.push({ id: 'circuit',    label: 'Circuit'    });
-if (hasHistory)                  tabs.push({ id: 'history',    label: 'History'    });
+
+// Year selector items — all years this circuit has appeared, newest first
+const circuitYearItems = circuitHistory
+  .sort((a, b) => b.year - a.year)
+  .map((h) => ({ year: h.year, href: `/races/${h.raceId}` }));
 
 const defaultTab = tabs[0]?.id ?? 'circuit';
 const raceYear = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
@@ -60,6 +65,11 @@ const podium = (prediction?.drivers ?? [])
   .slice(0, 5);
 
 const actualWinner = hasResults ? raceData!.results.find((r) => r.finishPosition === 1) : null;
+const flResult = hasResults ? raceData!.results.find((r) => r.fastestLap) : null;
+const flLapMs = flResult && raceData?.laps
+  ? raceData.laps.find((l) => l.driverId === flResult.driver.id)?.fastestLapMs ?? null
+  : null;
+const flLapStr = flLapMs ? formatMs(flLapMs) : null;
 const predCorrect  = prediction && actualWinner
   ? prediction.predictedWinner.id === actualWinner.driver.id
   : null;
@@ -93,6 +103,9 @@ const predCorrect  = prediction && actualWinner
                   ./round-{race.roundNumber.toString().padStart(2,'0')}
                 </span>
                 <div class="h-px flex-1 bg-white/[0.05]" />
+                {circuitYearItems.length > 1 && (
+                  <RaceYearSelect items={circuitYearItems} currentYear={raceYear} />
+                )}
                 <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.15em] uppercase px-2 py-1 border ${
                   isCompleted
                     ? 'border-[rgba(168,85,247,0.3)] text-[rgba(168,85,247,0.7)]'
@@ -123,9 +136,9 @@ const predCorrect  = prediction && actualWinner
                 {race.weather && <><span class="text-white/20">·</span><span class="flex items-center gap-1.5 capitalize"><CloudSun size={11} />{race.weather}</span></>}
               </div>
 
-              {/* Conditions strip */}
-              {(race.safetyCarLaps || race.vscLaps || race.airTempAvg || race.trackTempAvg || race.humidityAvg) && (
-                <div class="inline-flex flex-wrap gap-px bg-white/[0.04]">
+              {/* Conditions strip + fastest lap */}
+              {(race.safetyCarLaps != null || race.vscLaps != null || race.airTempAvg || race.trackTempAvg || race.humidityAvg || flResult) && (
+              <div class="inline-flex flex-wrap gap-px bg-white/[0.04]">
                   {race.safetyCarLaps != null && (
                     <div class="bg-[#0a0a0a] px-3 py-2">
                       <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">SC Laps</div>
@@ -156,7 +169,16 @@ const predCorrect  = prediction && actualWinner
                       <div class="font-bold text-sm">{Math.round(Number(race.humidityAvg))}%</div>
                     </div>
                   )}
-                </div>
+                  {flResult && (
+                    <div class="bg-[rgba(168,85,247,0.06)] border-l-2 border-[rgba(168,85,247,0.3)] px-3 py-2">
+                      <div class="font-mono text-[7px] tracking-widest uppercase mb-0.5" style="color:rgba(168,85,247,0.55)">Fastest Lap</div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-sm" style="color:#a855f7">{flResult.driver.code}</span>
+                        {flLapStr && <span class="font-mono text-xs font-bold" style="color:#a855f7">{flLapStr}</span>}
+                      </div>
+                    </div>
+                  )}
+              </div>
               )}
 
               {/* Countdown for upcoming */}
@@ -265,7 +287,7 @@ const predCorrect  = prediction && actualWinner
             {hasResults && (
               <div id="panel-results" class={`tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
-                  <RaceResultsTable results={raceData.results} year={raceYear} />
+                  <RaceResultsTable results={raceData.results} year={raceYear} laps={raceData.laps} />
                 </div>
               </div>
             )}
@@ -309,48 +331,6 @@ const predCorrect  = prediction && actualWinner
               </div>
             )}
 
-            {/* History */}
-            {hasHistory && (
-              <div id="panel-history" class={`tab-panel ${defaultTab !== 'history' ? 'hidden' : ''}`}>
-                {isCompleted ? (
-                  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-white/[0.06]">
-                    {circuitHistory.map((h) => (
-                      <a href={`/races/${h.raceId}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group">
-                        <div class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-2">{h.year}</div>
-                        {h.winner ? (
-                          <>
-                            <div class="font-mono text-[11px] font-bold group-hover:text-[#a855f7] transition-colors">{h.winner.code}</div>
-                            <div class="font-mono text-[8px] text-muted-foreground truncate">{h.winner.team.name.split(' ')[0]}</div>
-                          </>
-                        ) : (
-                          <div class="font-mono text-[8px] text-muted-foreground">—</div>
-                        )}
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <div class="border border-white/[0.06]">
-                    {circuitHistory.map((h, i) => (
-                      <a
-                        href={`/races/${h.raceId}`}
-                        class={`flex items-start justify-between gap-3 px-4 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
-                      >
-                        <div>
-                          <div class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-0.5">{h.year}</div>
-                          <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors duration-150">{h.raceName}</div>
-                          {h.winner && (
-                            <div class="font-mono text-[9px] text-muted-foreground mt-0.5">
-                              Winner: <span class="text-foreground">{h.winner.fullName}</span>
-                            </div>
-                          )}
-                        </div>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground group-hover:text-[#a855f7] transition-colors shrink-0 mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
           </div>
         )}

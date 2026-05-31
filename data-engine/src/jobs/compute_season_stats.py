@@ -220,18 +220,12 @@ def _compute_team_stats(conn, season_id: int) -> None:
     inverted = [21.0 - f for f in avg_finishes]
     car_perf_normalized = normalize_minmax(inverted)
 
-    # Reliability score = 1 - dnf_rate, normalized
-    dnf_rates = [
-        int(t["dnf_count"]) / max(int(t["total_entries"]), 1)
-        for t in team_aggs
-    ]
-    reliability_raw = [1.0 - rate for rate in dnf_rates]
-    reliability_normalized = normalize_minmax(reliability_raw) if len(set(reliability_raw)) > 1 else [0.5] * len(reliability_raw)
-
     rows_to_upsert = []
     for i, t in enumerate(team_aggs):
         total_entries = int(t["total_entries"])
         dnf_count = int(t["dnf_count"])
+        # Raw reliability: fraction of entries completed without DNF (0.0–1.0)
+        reliability = 1.0 - (dnf_count / max(total_entries, 1))
         rows_to_upsert.append({
             "season_id": season_id,
             "team_id": t["team_id"],
@@ -243,7 +237,7 @@ def _compute_team_stats(conn, season_id: int) -> None:
             "avg_finish_position": round(float(t["avg_finish"]), 2) if t["avg_finish"] is not None else None,
             "car_performance_score": round(car_perf_normalized[i], 5),
             "dnf_count": dnf_count,
-            "reliability_score": round(reliability_normalized[i], 5),
+            "reliability_score": round(reliability, 5),
         })
 
     upsert(conn, "team_season_stats", rows_to_upsert, ["season_id", "team_id"])

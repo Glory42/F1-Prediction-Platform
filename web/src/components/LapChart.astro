@@ -31,11 +31,11 @@ const timeLabelY = barBaseY + 22;
 {withFastest.length === 0 ? (
   <p class="text-sm text-muted-foreground px-4 py-6">No lap time data available.</p>
 ) : (
-  <div class="overflow-x-auto w-full flex justify-center">
+  <div class="overflow-x-auto w-full">
+    <div style={`min-width:${chartWidth}px`}>
     <svg
       viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-      width={chartWidth}
-      height={chartHeight}
+      width="100%"
       aria-label="Fastest lap times per driver"
       style="display:block"
     >
@@ -85,5 +85,6 @@ const timeLabelY = barBaseY + 22;
         );
       })}
     </svg>
+  </div>
   </div>
 )}

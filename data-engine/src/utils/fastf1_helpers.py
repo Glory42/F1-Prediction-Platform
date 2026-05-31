@@ -75,6 +75,17 @@ def session_to_race_results(session: fastf1.core.Session) -> list[dict[str, Any]
         else:
             headshot_map[code] = None
 
+    # Derive fastest lap from lap times — FastF1 results don't have a FastestLap column
+    fastest_lap_driver: str | None = None
+    try:
+        laps = session.laps
+        valid = laps.dropna(subset=["LapTime"])
+        valid = valid[valid["LapTime"] > pd.Timedelta(0)]
+        if not valid.empty:
+            fastest_lap_driver = str(valid.loc[valid["LapTime"].idxmin(), "Driver"]).upper()
+    except Exception:
+        pass
+
     rows = []
     for _, row in results.iterrows():
         finish_pos = None
@@ -93,7 +104,7 @@ def session_to_race_results(session: fastf1.core.Session) -> list[dict[str, Any]
             "points": float(row["Points"]) if not pd.isna(row.get("Points")) else 0.0,
             "status": str(row.get("Status", "Unknown")),
             "total_race_time_ms": total_ms,
-            "fastest_lap": bool(row.get("FastestLap", False)),
+            "fastest_lap": code == fastest_lap_driver,
             "headshot_url": headshot_map.get(code),
         })
     return rows

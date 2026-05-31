@@ -92,6 +92,9 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
       </div>
     )}
 
+    <!-- Intel standings + Prediction history side by side on lg+ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
     <!-- Intel standings table -->
     {standings.length > 0 && (
       <div>
@@ -100,11 +103,11 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
           <div class="h-px flex-1 bg-white/[0.05]" />
         </div>
         <div class="border border-white/[0.06]">
-          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] md:grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] xl:grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Rank</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Team</div>
-            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden md:block">Feature Profile</div>
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden xl:block">Feature Profile</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Score</div>
           </div>
           {standings.map((s, i) => {
@@ -118,7 +121,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
             ];
             const maxBar = Math.max(...featureVals, 0.001);
             return (
-              <div class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] md:grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-start sm:items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`} style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}>
+              <div class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] xl:grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-start sm:items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`} style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}>
                 <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${i < 3 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                   {String(i+1).padStart(2,'0')}
                 </div>
@@ -130,7 +133,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
                   </div>
                 </div>
                 <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[9px] text-muted-foreground truncate hidden sm:block pr-6 hover:text-foreground transition-colors duration-150">{s.driver.team.name}</a>
-                <div class="hidden md:flex items-end gap-[3px] h-7">
+                <div class="hidden xl:flex items-end gap-[3px] h-7">
                   {featureVals.map((v, fi) => (
                     <div
                       class="flex-1 bg-[rgba(168,85,247,0.5)] hover:bg-[#a855f7] transition-colors min-h-[3px]"
@@ -154,7 +157,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
 
     <!-- Prediction history -->
     {history.length > 0 && (
-      <div>
+      <div class="min-w-0">
         <div class="flex items-center gap-3 mb-4">
           <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./prediction history</span>
           <div class="h-px flex-1 bg-white/[0.05]" />
@@ -195,6 +198,8 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
         </div>
       </div>
     )}
+
+    </div>{/* end side-by-side grid */}
 
     {history.length === 0 && standings.length === 0 && !upcoming && (
       <div class="border border-white/[0.06] p-10 text-center">

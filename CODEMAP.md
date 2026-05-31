@@ -146,6 +146,7 @@ web/
 │   │   ├── Navbar.astro           # Top navigation bar
 │   │   ├── YearSelect.astro       # Year selector (form-based, SSR navigation)
 │   │   ├── YearSelectLinks.astro  # Year selector using anchor links
+│   │   ├── RaceYearSelect.astro   # Year selector for race detail (navigates by race ID)
 │   │   ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
 │   │   ├── ProbabilityBar.astro   # Inline win probability bar
 │   │   ├── PredictionTable.tsx    # Driver prediction table with feature breakdown
