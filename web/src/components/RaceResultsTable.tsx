@@ -7,9 +7,10 @@ interface Props {
   results: RaceResult[];
   year: number;
   laps?: LapSummary[];
+  flColor?: string;
 }
 
-export function RaceResultsTable({ results, year, laps }: Props) {
+export function RaceResultsTable({ results, year, laps, flColor = '#a855f7' }: Props) {
   const lapMsMap = new Map(laps?.map((l) => [l.driverId, l.fastestLapMs]) ?? []);
 
   return (
@@ -27,27 +28,27 @@ export function RaceResultsTable({ results, year, laps }: Props) {
         </TableHeader>
         <TableBody>
           {results.map((r) => (
-            <TableRow key={r.id} className={r.fastestLap ? 'bg-[rgba(168,85,247,0.03)]' : ''} style={{ borderLeft: `2px solid ${getTeamColor(r.driver.team.teamKey)}` }}>
+            <TableRow key={r.id} style={{ borderLeft: `2px solid ${getTeamColor(r.driver.team.teamKey)}`, background: r.fastestLap ? `color-mix(in srgb, ${flColor} 4%, transparent)` : undefined }}>
               <TableCell>
-                <span className={`font-mono text-sm font-bold ${r.finishPosition === 1 ? 'text-[#a855f7]' : r.finishPosition == null ? 'text-muted-foreground' : ''}`}>
+                <span className={`font-mono text-sm font-bold ${r.finishPosition === 1 ? '' : r.finishPosition == null ? 'text-muted-foreground' : ''}`} style={r.finishPosition === 1 ? { color: flColor } : undefined}>
                   {r.finishPosition ?? 'DNF'}
                 </span>
               </TableCell>
               <TableCell>
-                <a href={`/drivers/${r.driver.id}?year=${year}`} className="font-mono text-[10px] font-bold tracking-widest hover:text-[#a855f7] transition-colors">
+                <a href={`/drivers/${r.driver.id}?year=${year}`} className="font-mono text-[10px] font-bold tracking-widest hover:text-foreground transition-colors">
                   {r.driver.code}
                 </a>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <a href={`/drivers/${r.driver.id}?year=${year}`} className="font-medium text-sm hover:text-[#a855f7] transition-colors">
+                  <a href={`/drivers/${r.driver.id}?year=${year}`} className="font-medium text-sm hover:text-foreground transition-colors">
                     {r.driver.fullName}
                   </a>
                   {r.fastestLap && (
                     <>
-                      <span className="font-mono text-[8px] tracking-widest uppercase px-1.5 py-0.5 border border-[rgba(168,85,247,0.4)] text-[rgba(168,85,247,0.8)]">FL</span>
+                      <span className="font-mono text-[8px] tracking-widest uppercase px-1.5 py-0.5 border" style={{ borderColor: `color-mix(in srgb, ${flColor} 40%, transparent)`, color: `color-mix(in srgb, ${flColor} 80%, transparent)` }}>FL</span>
                       {lapMsMap.get(r.driver.id) && (
-                        <span className="font-mono text-[9px] font-bold" style={{ color: '#a855f7' }}>
+                        <span className="font-mono text-[9px] font-bold" style={{ color: flColor }}>
                           {formatMs(lapMsMap.get(r.driver.id) ?? null)}
                         </span>
                       )}

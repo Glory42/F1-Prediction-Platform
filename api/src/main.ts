@@ -8,6 +8,7 @@ import driversModule from './modules/drivers/drivers.module';
 import teamsModule from './modules/teams/teams.module';
 import predictionsModule from './modules/predictions/predictions.module';
 import seasonsModule from './modules/seasons/seasons.module';
+import sprintModule from './modules/sprint/sprint.module';
 import type { Bindings } from './common/types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -32,6 +33,7 @@ app.route('/api/races', racesModule);
 app.route('/api/drivers', driversModule);
 app.route('/api/teams', teamsModule);
 app.route('/api/predictions', predictionsModule);
+app.route('/api/sprint', sprintModule);
 app.route('/api/seasons', seasonsModule);
 
 app.onError((err, c) => {

@@ -3,39 +3,8 @@ import type { Db } from '../../config/database';
 import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams } from '../../db/schema';
 import type { CircuitHistoryItem } from '../../common/types';
 import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary } from '../../common/types';
-
-function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferSelect) {
-  return {
-    id: d.id,
-    seasonId: d.seasonId,
-    teamId: d.teamId,
-    driverNumber: d.driverNumber,
-    code: d.code,
-    firstName: d.firstName,
-    lastName: d.lastName,
-    fullName: `${d.firstName} ${d.lastName}`,
-    nationality: d.nationality,
-    headshotUrl: d.headshotUrl ?? null,
-    team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
-  };
-}
-
-function toRace(race: typeof races.$inferSelect, circuit: typeof circuits.$inferSelect) {
-  return {
-    id: race.id, seasonId: race.seasonId, roundNumber: race.roundNumber,
-    name: race.name, raceDate: race.raceDate, status: race.status, weather: race.weather,
-    safetyCarLaps: race.safetyCarLaps ?? null,
-    vscLaps: race.vscLaps ?? null,
-    airTempAvg: race.airTempAvg ?? null,
-    trackTempAvg: race.trackTempAvg ?? null,
-    humidityAvg: race.humidityAvg ?? null,
-    circuit: {
-      id: circuit.id, circuitKey: circuit.circuitKey, name: circuit.name,
-      country: circuit.country, city: circuit.city, lapCount: circuit.lapCount,
-      trackLengthKm: circuit.trackLengthKm, overtakeRate: circuit.overtakeRate,
-    },
-  };
-}
+import { SPRINT_FORMATS } from '../../common/constants';
+import { toDriver, toRace } from '../../common/mappers';
 
 export class RacesService {
   async findAll(db: Db, year: number, status?: string): Promise<Race[]> {
@@ -82,6 +51,7 @@ export class RacesService {
         raceName: r.races.name,
         raceDate: r.races.raceDate,
         year: new Date(r.races.raceDate).getFullYear(),
+        hasSprint: (SPRINT_FORMATS as readonly string[]).includes(r.races.eventFormat),
         winner: w ? toDriver(w.drivers, w.teams) : null,
       };
     });

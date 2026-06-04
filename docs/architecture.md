@@ -59,7 +59,7 @@ The `db/` folder holds only the generated SQL migration files.
 
 ---
 
-## Data Flow: Qualifying Weekend
+## Data Flow: Conventional Weekend
 
 ```
 Saturday
@@ -74,6 +74,32 @@ Sunday
   race.status: qualifying_done → completed
 ```
 
+## Data Flow: Sprint Weekend
+
+```
+Friday
+  data-engine: ingest_sprint_qualifying → sprint_results (SQ grid + sq1/sq2/sq3 times)
+  data-engine: compute_sprint_features  → driver_sprint_features
+  data-engine: compute_sprint_predictions → sprint_predictions
+  race.status: scheduled → sprint_qualifying_done
+
+Saturday
+  data-engine: ingest_sprint        → sprint_results (finish positions), sprint_lap_times,
+                                      races (sprint_weather, sprint_safety_car_laps, etc.)
+  data-engine: compute_season_stats → updates sprint aggregates in driver_season_stats
+  race.status: sprint_qualifying_done → sprint_done
+
+  data-engine: ingest_qualifying    → qualifying_results
+  data-engine: compute_features     → driver_prediction_features
+  data-engine: compute_predictions  → race_predictions
+  race.status: sprint_done → qualifying_done
+
+Sunday
+  data-engine: ingest_race          → race_results + lap_times
+  data-engine: compute_season_stats → final season stats
+  race.status: qualifying_done → completed
+```
+
 ---
 
 ## Deployment
@@ -82,5 +108,5 @@ Sunday
 |-------|------|---------|
 | `web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-deploys |
 | `api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-deploys |
-| `data-engine/` | Render | Cron jobs (Sat 22:00 UTC, Sun 18:00 UTC) |
+| `data-engine/` | Render | Cron jobs (see `data-pipeline.md` for schedule) |
 | DB migrations | Neon | Manual: `bun run drizzle-kit push` from `db/` |

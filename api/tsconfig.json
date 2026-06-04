@@ -11,5 +11,6 @@
     "verbatimModuleSyntax": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src/**/*.ts", "drizzle.config.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/db/seed.ts"]
 }

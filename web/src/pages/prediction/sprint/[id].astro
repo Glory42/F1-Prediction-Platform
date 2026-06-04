@@ -1,0 +1,354 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { api } from '@/lib/api';
+import { formatDate } from '@/lib/utils';
+import type { SprintPredictionResponse, SprintDetailResponse } from '@/types';
+import { Users, Sliders, Zap, GitCompare } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
+
+const { id } = Astro.params;
+const raceId = Number(id);
+
+let prediction: SprintPredictionResponse | null = null;
+let sprintDetail: SprintDetailResponse | null = null;
+let error: string | null = null;
+
+const [predResult, detailResult] = await Promise.allSettled([
+  api.getSprintByRaceId(raceId),
+  api.getSprintDetail(raceId),
+]);
+
+if (predResult.status === 'fulfilled') prediction = predResult.value;
+else error = 'No sprint prediction available for this race';
+if (detailResult.status === 'fulfilled') sprintDetail = detailResult.value;
+
+const race = prediction?.race ?? sprintDetail?.race ?? null;
+const raceYear = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
+
+const sprintWinner = sprintDetail?.results?.find((r) => r.finishPosition === 1) ?? null;
+const correct = prediction && sprintWinner
+  ? prediction.predictedWinner.id === sprintWinner.driver.id
+  : null;
+
+const SPRINT_WEIGHTS: Record<string, number> = {
+  carPerformance: 25, startingPosition: 22, trackOvertake: 12,
+  shortRunPace: 10, driverRating: 10, weatherImpact: 8, winRate: 8, luckFactor: 5,
+};
+const FEATURE_LABELS: [string, string][] = [
+  ['Car Performance',  'carPerformance'],
+  ['Starting Position','startingPosition'],
+  ['Track Overtake',   'trackOvertake'],
+  ['Short Run Pace',   'shortRunPace'],
+  ['Driver Rating',    'driverRating'],
+  ['Weather Impact',   'weatherImpact'],
+  ['Win Rate',         'winRate'],
+  ['Luck Factor',      'luckFactor'],
+];
+---
+
+<BaseLayout title={race ? `Sprint Prediction · ${race.name}` : 'Sprint Prediction'}>
+  <div class="mt-7 space-y-8">
+
+    <div class="mb-6 flex items-center gap-4">
+      <a href={`/races/${id}/sprint`} class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
+        ← sprint race
+      </a>
+    </div>
+
+    {error && !prediction ? (
+      <div class="border border-white/[0.06] p-10 text-center">
+        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No sprint prediction for this race</p>
+        <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">{error}</p>
+      </div>
+    ) : prediction && race ? (
+      <>
+
+        <!-- Race header -->
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
+              ./round-{race.roundNumber.toString().padStart(2,'00')} · sprint prediction
+            </span>
+            <div class="h-px w-12 bg-white/[0.05]" />
+          </div>
+          <h1 class="text-3xl font-bold">{race.name}</h1>
+          <p class="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mt-1">
+            {race.circuit.city}, {race.circuit.country} · {formatDate(race.sprintDate ?? race.raceDate)}
+          </p>
+          <p class="font-mono text-[9px] text-muted-foreground mt-0.5">
+            Model: {prediction.modelVersion} · Computed: {new Date(prediction.computedAt).toLocaleString()}
+          </p>
+        </div>
+
+        <!-- Outcome banner (if sprint completed) -->
+        {correct !== null && sprintWinner && (
+          <div class={`panel p-5 border-l-2 ${correct ? 'border-l-green-500' : 'border-l-red-500'}`}>
+            <div class="flex items-center gap-6 flex-wrap">
+              <div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted</div>
+                <div class="font-bold text-lg">{prediction.predictedWinner.fullName}</div>
+              </div>
+              <div class="font-mono text-2xl text-muted-foreground">→</div>
+              <div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">actual sprint winner</div>
+                <div class="font-bold text-lg">{sprintWinner.driver.fullName}</div>
+              </div>
+              <div class={`font-mono text-sm font-bold ml-auto ${correct ? 'text-green-400' : 'text-red-400'}`}>
+                {correct ? '✓ CORRECT' : '✗ INCORRECT'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
+
+          <!-- Left: full driver prediction table -->
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
+                <Users size={11} />./all drivers
+              </span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="border border-white/[0.06]">
+              <div class="grid grid-cols-[32px_1fr_80px] sm:grid-cols-[32px_1fr_80px_100px_100px] gap-0 px-4 py-2.5 border-b border-white/[0.06]">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Win %</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Car</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Grid</div>
+              </div>
+              {prediction.drivers.map((d, i) => {
+                const pct      = Math.round(Number(d.winProbability) * 100);
+                const isActual = sprintWinner?.driver.id === d.driver.id;
+                const isPred   = prediction!.predictedWinner.id === d.driver.id;
+                const gridPos  = Math.round((1 - Number(d.features.startingPosition)) * 20) + 1;
+                return (
+                  <div class={`grid grid-cols-[32px_1fr_80px] sm:grid-cols-[32px_1fr_80px_100px_100px] gap-0 items-start sm:items-center px-4 py-3 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isPred ? 'bg-orange-500/[0.04]' : ''}`} style={`border-left: 2px solid ${getTeamColor(d.driver.team.teamKey)};`}>
+                    <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${isPred ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                      {String(i+1).padStart(2,'0')}
+                    </div>
+                    <div class="flex items-start sm:items-center gap-2 min-w-0">
+                      <a href={`/drivers/${d.driver.id}?year=${raceYear}`} class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0 mt-0.5 hover:text-orange-400 hover:border-orange-500/30 transition-colors duration-150">{d.driver.code}</a>
+                      <div class="min-w-0">
+                        <a href={`/drivers/${d.driver.id}?year=${raceYear}`} class="font-medium text-sm leading-none block hover:text-orange-400 transition-colors duration-150 truncate">{d.driver.fullName}</a>
+                        {isActual && <span class="font-mono text-[8px] text-green-400 block mt-1">✓ sprint winner</span>}
+                        <div class="flex items-center gap-2 mt-1 sm:hidden font-mono text-[8px] text-muted-foreground">
+                          <span>Car {Math.round(Number(d.features.carPerformance) * 100)}</span>
+                          <span class="text-white/20">·</span>
+                          <span>P{gridPos}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="text-right pt-1 sm:pt-0">
+                      <div class="font-bold text-sm" style={isPred ? 'color:#fb923c' : ''}>{pct}%</div>
+                      <div class="w-full h-0.5 bg-white/[0.06] mt-1">
+                        <div class="h-full bg-orange-500" style={`width:${pct}%`} />
+                      </div>
+                    </div>
+                    <div class="font-mono text-[9px] text-muted-foreground text-center hidden sm:block">
+                      {Math.round(Number(d.features.carPerformance)*100)}
+                    </div>
+                    <div class="font-mono text-[9px] text-muted-foreground text-center hidden sm:block">
+                      P{gridPos}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <!-- Right: compare tool + model weights -->
+          <div class="space-y-6">
+
+            <!-- Compare drivers -->
+            <div>
+              <div class="flex items-center gap-3 mb-4">
+                <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
+                  <GitCompare size={11} />./compare drivers
+                </span>
+                <div class="h-px flex-1 bg-white/[0.05]" />
+              </div>
+              <div id="sprint-compare-tool" class="panel p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Driver Alpha</div>
+                    <div class="relative" id="sp-wrap-a">
+                      <button type="button" id="sp-btn-a" class="w-full bg-black border border-white/[0.08] px-2 py-2 font-mono text-[10px] tracking-wider text-left text-foreground hover:border-orange-500/30 focus:outline-none flex items-center justify-between">
+                        <span id="sp-label-a">{prediction.drivers[0]?.driver.code} – {prediction.drivers[0]?.driver.lastName}</span>
+                        <span class="text-muted-foreground ml-2">▾</span>
+                      </button>
+                      <div id="sp-panel-a" class="absolute z-50 w-full border border-white/[0.12] hidden" style="max-height:180px;overflow-y:auto;top:100%;left:0;background:#080808">
+                        {prediction.drivers.map((d, i) => (
+                          <div class="sp-dd-opt px-2 py-[7px] font-mono text-[10px] tracking-wider cursor-pointer hover:bg-white/[0.05]" data-idx={i} style={i === 0 ? 'background:rgba(249,115,22,0.08);color:#fb923c' : ''}>
+                            {d.driver.code} – {d.driver.lastName}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Driver Beta</div>
+                    <div class="relative" id="sp-wrap-b">
+                      <button type="button" id="sp-btn-b" class="w-full bg-black border border-white/[0.08] px-2 py-2 font-mono text-[10px] tracking-wider text-left text-foreground hover:border-orange-500/30 focus:outline-none flex items-center justify-between">
+                        <span id="sp-label-b">{prediction.drivers[1]?.driver.code} – {prediction.drivers[1]?.driver.lastName}</span>
+                        <span class="text-muted-foreground ml-2">▾</span>
+                      </button>
+                      <div id="sp-panel-b" class="absolute z-50 w-full border border-white/[0.12] hidden" style="max-height:180px;overflow-y:auto;top:100%;left:0;background:#080808">
+                        {prediction.drivers.map((d, i) => (
+                          <div class="sp-dd-opt px-2 py-[7px] font-mono text-[10px] tracking-wider cursor-pointer hover:bg-white/[0.05]" data-idx={i} style={i === 1 ? 'background:rgba(249,115,22,0.08);color:#fb923c' : ''}>
+                            {d.driver.code} – {d.driver.lastName}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div id="sp-compare-bars" class="space-y-3"></div>
+              </div>
+            </div>
+
+            <!-- Model weights -->
+            <div class="hidden xl:block border border-white/[0.06] p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
+                  <Sliders size={11} />./sprint weights
+                </span>
+                <div class="h-px flex-1 bg-white/[0.05]" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                {FEATURE_LABELS.map(([label, key]) => (
+                  <div class="flex items-center justify-between gap-2 border border-white/[0.06] px-3 py-2">
+                    <span class="font-mono text-[9px] text-muted-foreground">{label}</span>
+                    <span class="font-mono text-[9px] font-bold" style="color:#fb923c">{SPRINT_WEIGHTS[key]}%</span>
+                  </div>
+                ))}
+              </div>
+              <p class="font-mono text-[7px] text-muted-foreground/50 mt-3 leading-relaxed">
+                Grid position weighted higher — no pit stop strategy in ~17 lap sprint.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Model weights mobile -->
+        <div class="xl:hidden border border-white/[0.06] p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
+              <Sliders size={11} />./sprint weights
+            </span>
+            <div class="h-px flex-1 bg-white/[0.05]" />
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {FEATURE_LABELS.map(([label, key]) => (
+              <div class="flex items-center justify-between gap-2 border border-white/[0.06] px-3 py-2">
+                <span class="font-mono text-[9px] text-muted-foreground">{label}</span>
+                <span class="font-mono text-[9px] font-bold" style="color:#fb923c">{SPRINT_WEIGHTS[key]}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </>
+    ) : null}
+  </div>
+</BaseLayout>
+
+<script define:vars={{ driversJson: prediction?.drivers ?? [] }}>
+  const drivers = driversJson;
+  const barsEl = document.getElementById('sp-compare-bars');
+
+  const FEATURES = [
+    ['Car Performance',   'carPerformance'],
+    ['Starting Pos',      'startingPosition'],
+    ['Track Overtake',    'trackOvertake'],
+    ['Short Run Pace',    'shortRunPace'],
+    ['Driver Rating',     'driverRating'],
+    ['Weather',           'weatherImpact'],
+    ['Win Rate',          'winRate'],
+    ['Luck Factor',       'luckFactor'],
+  ];
+
+  let idxA = 0;
+  let idxB = 1;
+
+  function makeDropdown(btnId, panelId, labelId, onSelect) {
+    const btn   = document.getElementById(btnId);
+    const panel = document.getElementById(panelId);
+    const label = document.getElementById(labelId);
+    btn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const otherId = panelId === 'sp-panel-a' ? 'sp-panel-b' : 'sp-panel-a';
+      document.getElementById(otherId)?.classList.add('hidden');
+      panel?.classList.toggle('hidden');
+    });
+    panel?.querySelectorAll('.sp-dd-opt').forEach((opt) => {
+      opt.addEventListener('click', () => {
+        const idx = Number(opt.dataset.idx);
+        if (label) label.textContent = opt.textContent?.trim() ?? '';
+        panel.querySelectorAll('.sp-dd-opt').forEach((o) => { o.style.background = ''; o.style.color = ''; });
+        opt.style.background = 'rgba(249,115,22,0.08)';
+        opt.style.color = '#fb923c';
+        panel.classList.add('hidden');
+        onSelect(idx);
+      });
+    });
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('sp-panel-a')?.classList.add('hidden');
+    document.getElementById('sp-panel-b')?.classList.add('hidden');
+  });
+
+  makeDropdown('sp-btn-a', 'sp-panel-a', 'sp-label-a', (idx) => { idxA = idx; render(); });
+  makeDropdown('sp-btn-b', 'sp-panel-b', 'sp-label-b', (idx) => { idxB = idx; render(); });
+
+  function render() {
+    if (!barsEl) return;
+    const dA = drivers[idxA];
+    const dB = drivers[idxB];
+    if (!dA || !dB) return;
+
+    barsEl.innerHTML = FEATURES.map(([label, key]) => {
+      const rawA = dA.features[key];
+      const rawB = dB.features[key];
+      if (rawA == null && rawB == null) return '';
+      const a = Math.round(Number(rawA ?? 0) * 100);
+      const b = Math.round(Number(rawB ?? 0) * 100);
+      return `
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+            <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em">${label}</span>
+            <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5)">${a} / ${b}</span>
+          </div>
+          <div style="position:relative;height:4px;background:rgba(255,255,255,0.05)">
+            <div style="position:absolute;left:0;top:0;height:100%;background:#fb923c;opacity:0.8;width:${a}%"></div>
+          </div>
+          <div style="position:relative;height:4px;background:rgba(255,255,255,0.05);margin-top:2px">
+            <div style="position:absolute;left:0;top:0;height:100%;background:#60a5fa;opacity:0.8;width:${b}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const pA = Math.round(Number(dA.winProbability) * 100);
+    const pB = Math.round(Number(dB.winProbability) * 100);
+    barsEl.innerHTML += `
+      <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
+        <div style="text-align:center">
+          <div style="font-family:monospace;font-size:8px;color:rgba(249,115,22,0.6);text-transform:uppercase;letter-spacing:0.15em">${dA.driver.code}</div>
+          <div style="font-size:24px;font-weight:bold;color:#fb923c">${pA}%</div>
+        </div>
+        <div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3)">win prob</div>
+        <div style="text-align:center">
+          <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${dB.driver.code}</div>
+          <div style="font-size:24px;font-weight:bold;color:#60a5fa">${pB}%</div>
+        </div>
+      </div>
+    `;
+  }
+
+  render();
+</script>

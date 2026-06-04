@@ -2,7 +2,13 @@ import { pgTable, serial, integer, varchar, numeric, date, timestamp, uniqueInde
 import { seasons } from './seasons';
 import { circuits } from './circuits';
 
-export const raceStatusEnum = pgEnum('race_status', ['scheduled', 'qualifying_done', 'completed']);
+export const raceStatusEnum = pgEnum('race_status', [
+  'scheduled',
+  'sprint_qualifying_done',
+  'sprint_done',
+  'qualifying_done',
+  'completed',
+]);
 
 export const races = pgTable('races', {
   id: serial('id').primaryKey(),
@@ -12,12 +18,22 @@ export const races = pgTable('races', {
   name: varchar('name', { length: 100 }).notNull(),
   raceDate: date('race_date').notNull(),
   status: raceStatusEnum('status').notNull().default('scheduled'),
+  eventFormat: varchar('event_format', { length: 30 }).notNull().default('conventional'),
+  qualifyingDate: timestamp('qualifying_date', { withTimezone: true }),
+  sprintDate: timestamp('sprint_date', { withTimezone: true }),
+  sprintQualifyingDate: timestamp('sprint_qualifying_date', { withTimezone: true }),
   weather: varchar('weather', { length: 30 }),
   safetyCarLaps: integer('safety_car_laps').default(0),
   vscLaps: integer('vsc_laps').default(0),
   airTempAvg: numeric('air_temp_avg', { precision: 4, scale: 1 }),
   trackTempAvg: numeric('track_temp_avg', { precision: 4, scale: 1 }),
   humidityAvg: numeric('humidity_avg', { precision: 4, scale: 1 }),
+  sprintWeather: varchar('sprint_weather', { length: 30 }),
+  sprintSafetyCarLaps: integer('sprint_safety_car_laps'),
+  sprintVscLaps: integer('sprint_vsc_laps'),
+  sprintAirTempAvg: numeric('sprint_air_temp_avg', { precision: 4, scale: 1 }),
+  sprintTrackTempAvg: numeric('sprint_track_temp_avg', { precision: 4, scale: 1 }),
+  sprintHumidityAvg: numeric('sprint_humidity_avg', { precision: 4, scale: 1 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('races_season_round_idx').on(t.seasonId, t.roundNumber),

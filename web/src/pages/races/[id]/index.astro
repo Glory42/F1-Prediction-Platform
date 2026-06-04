@@ -6,7 +6,7 @@ import LapChart from '@/components/LapChart.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionResponse, CircuitHistoryItem } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Flag, Zap, CheckCircle2, Timer } from 'lucide-react';
+import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer } from 'lucide-react';
 import RaceYearSelect from '@/components/RaceYearSelect.astro';
 import { formatMs } from '@/lib/utils';
 
@@ -31,14 +31,14 @@ if (race) {
     api.getCircuitHistory(race.circuit.circuitKey),
   ]);
   if (predResult.status === 'fulfilled') prediction = predResult.value;
-  if (histResult.status === 'fulfilled') {
-    circuitHistory = histResult.value;
-  }
+  if (histResult.status === 'fulfilled') circuitHistory = histResult.value;
 }
 
-const isCompleted  = race?.status === 'completed';
-const isQualiDone  = race?.status === 'qualifying_done';
-const isUpcoming   = race?.status === 'scheduled';
+const isCompleted     = race?.status === 'completed';
+const isQualiDone     = race?.status === 'qualifying_done';
+const isSprintDone    = race?.status === 'sprint_done';
+const isSprintQualiDone = race?.status === 'sprint_qualifying_done';
+const isUpcoming      = race?.status === 'scheduled';
 
 const hasResults   = (raceData?.results?.length ?? 0) > 0;
 const hasQualifying = (raceData?.qualifying?.length ?? 0) > 0;
@@ -111,10 +111,12 @@ const predCorrect  = prediction && actualWinner
                     ? 'border-[rgba(168,85,247,0.3)] text-[rgba(168,85,247,0.7)]'
                     : isQualiDone
                     ? 'border-yellow-500/30 text-yellow-400/70'
+                    : (isSprintDone || isSprintQualiDone)
+                    ? 'border-orange-500/30 text-orange-400/70'
                     : 'border-white/[0.08] text-muted-foreground'
                 }`}>
-                  {isCompleted ? <CheckCircle2 size={10} /> : isQualiDone ? <Zap size={10} /> : <Timer size={10} />}
-                  {race.status.replace('_', ' ')}
+                  {isCompleted ? <CheckCircle2 size={10} /> : (isQualiDone || isSprintDone || isSprintQualiDone) ? <Zap size={10} /> : <Timer size={10} />}
+                  {race.status.replace(/_/g, ' ')}
                 </span>
               </div>
 
@@ -261,6 +263,7 @@ const predCorrect  = prediction && actualWinner
 
           </div>
         </div>
+
 
         {/* ── TAB BAR ───────────────────────────────────────────────── */}
         {tabs.length > 0 && (

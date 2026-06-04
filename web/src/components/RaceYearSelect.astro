@@ -2,16 +2,20 @@
 interface Props {
   items: { year: number; href: string }[];
   currentYear: number;
+  variant?: 'purple' | 'orange';
 }
-const { items, currentYear } = Astro.props;
+const { items, currentYear, variant = 'purple' } = Astro.props;
 const uid = `rys-${Math.random().toString(36).slice(2, 7)}`;
+const color      = variant === 'orange' ? '#fb923c' : '#a855f7';
+const colorAlpha = variant === 'orange' ? 'rgba(249,115,22' : 'rgba(168,85,247';
 ---
 
 <div class="relative" id={uid}>
   <button
     type="button"
     id={`${uid}-btn`}
-    class="flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] uppercase px-3 py-1.5 border border-[rgba(168,85,247,0.5)] text-[#a855f7] bg-[rgba(168,85,247,0.08)] hover:bg-[rgba(168,85,247,0.14)] transition-colors duration-150 focus:outline-none"
+    class="flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] uppercase px-3 py-1.5 border transition-colors duration-150 focus:outline-none"
+    style={`border-color:${colorAlpha},0.5);color:${color};background:${colorAlpha},0.08)`}
   >
     {currentYear}
     <span id={`${uid}-arrow`} class="text-[8px] transition-transform duration-150">▾</span>
@@ -19,17 +23,16 @@ const uid = `rys-${Math.random().toString(36).slice(2, 7)}`;
 
   <div
     id={`${uid}-panel`}
-    class="absolute right-0 top-full mt-1 z-50 hidden border border-[rgba(168,85,247,0.25)] bg-[#080808] min-w-[80px]"
-    style="max-height: calc(6 * 34px); overflow-y: auto;"
+    class="absolute right-0 top-full mt-1 z-50 hidden bg-[#080808] min-w-[80px]"
+    style={`border:1px solid ${colorAlpha},0.25);max-height:calc(6 * 34px);overflow-y:auto`}
   >
     {items.map((item) => (
       <a
         href={item.href}
         class={`block px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase transition-colors duration-100 ${
-          item.year === currentYear
-            ? 'text-[#a855f7] bg-[rgba(168,85,247,0.12)]'
-            : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
+          item.year === currentYear ? '' : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
         }`}
+        style={item.year === currentYear ? `color:${color};background:${colorAlpha},0.12)` : ''}
       >
         {item.year}
       </a>

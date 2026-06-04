@@ -15,6 +15,34 @@
       "when": 1780095359832,
       "tag": "0001_useful_old_lace",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780492692325,
+      "tag": "0002_loud_hannibal_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780494015209,
+      "tag": "0003_lean_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1748908800000,
+      "tag": "0004_sprint_laps_conditions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1748995200000,
+      "tag": "0005_sprint_sq_sectors",
+      "breakpoints": true
     }
   ]
 }
