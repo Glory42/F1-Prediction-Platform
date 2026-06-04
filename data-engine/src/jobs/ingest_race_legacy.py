@@ -7,6 +7,7 @@ import pandas as pd
 from typing import Any
 from src.db.client import get_conn
 from src.utils.upsert import upsert
+from src.utils.fastf1_helpers import ms_to_int as _ms
 
 
 def _get_session(year: int, round_num: int) -> Any:
@@ -14,15 +15,6 @@ def _get_session(year: int, round_num: int) -> Any:
     # Skip laps — pre-2018 has no timing data, loading saves time
     session.load(laps=False, telemetry=False, weather=True, messages=False)
     return session
-
-
-def _ms(val) -> int | None:
-    if pd.isna(val):
-        return None
-    try:
-        return int(pd.to_timedelta(val).total_seconds() * 1000)
-    except Exception:
-        return None
 
 
 def run(year: int, round_num: int) -> None:

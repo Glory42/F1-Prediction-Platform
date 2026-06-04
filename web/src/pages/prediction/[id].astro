@@ -281,7 +281,7 @@ const WEIGHTS: Record<string, number> = {
   let idxA = 0;
   let idxB = 1;
 
-  function makeDropdown(btnId, panelId, labelId, _initialIdx, onSelect) {
+  function makeDropdown(btnId, panelId, labelId, onSelect) {
     const btn = document.getElementById(btnId);
     const panel = document.getElementById(panelId);
     const label = document.getElementById(labelId);
@@ -317,8 +317,8 @@ const WEIGHTS: Record<string, number> = {
     document.getElementById('panel-b')?.classList.add('hidden');
   });
 
-  makeDropdown('btn-a', 'panel-a', 'label-a', 0, (idx) => { idxA = idx; render(); });
-  makeDropdown('btn-b', 'panel-b', 'label-b', 1, (idx) => { idxB = idx; render(); });
+  makeDropdown('btn-a', 'panel-a', 'label-a', (idx) => { idxA = idx; render(); });
+  makeDropdown('btn-b', 'panel-b', 'label-b', (idx) => { idxB = idx; render(); });
 
   function render() {
     if (!barsEl) return;

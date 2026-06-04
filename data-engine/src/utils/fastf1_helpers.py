@@ -12,7 +12,8 @@ def get_session(year: int, round_num: int, session_type: str, messages: bool = F
     return session
 
 
-def _ms(val) -> int | None:
+def ms_to_int(val) -> int | None:
+    """Convert a pandas timedelta-like value to integer milliseconds."""
     if pd.isna(val):
         return None
     try:
@@ -53,9 +54,9 @@ def session_to_quali_results(session: Session) -> list[dict[str, Any]]:
         rows.append({
             "driver_code": code,
             "grid_position": int(row["Position"]),
-            "q1_time_ms": _ms(row.get("Q1")),
-            "q2_time_ms": _ms(row.get("Q2")),
-            "q3_time_ms": _ms(row.get("Q3")),
+            "q1_time_ms": ms_to_int(row.get("Q1")),
+            "q2_time_ms": ms_to_int(row.get("Q2")),
+            "q3_time_ms": ms_to_int(row.get("Q3")),
             "sector1_ms": sectors.get("sector1_ms"),
             "sector2_ms": sectors.get("sector2_ms"),
             "sector3_ms": sectors.get("sector3_ms"),

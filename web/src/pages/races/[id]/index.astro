@@ -53,7 +53,7 @@ if (isCompleted && hasLaps)      tabs.push({ id: 'laps',       label: 'Lap Chart
 if (!isCompleted)                tabs.push({ id: 'circuit',    label: 'Circuit'    });
 
 // Year selector items — all years this circuit has appeared, newest first
-const circuitYearItems = circuitHistory
+const circuitYearItems = [...circuitHistory]
   .sort((a, b) => b.year - a.year)
   .map((h) => ({ year: h.year, href: `/races/${h.raceId}` }));
 
