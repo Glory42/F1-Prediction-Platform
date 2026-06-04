@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { createDb } from '../config/database';
 import { circuits, seasons } from './schema';
 
