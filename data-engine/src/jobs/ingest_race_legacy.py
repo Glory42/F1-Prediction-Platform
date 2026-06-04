@@ -4,11 +4,12 @@ Uses Ergast data via FastF1 — no lap timing data, results only.
 """
 import fastf1
 import pandas as pd
+from typing import Any
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 
 
-def _get_session(year: int, round_num: int) -> fastf1.core.Session:
+def _get_session(year: int, round_num: int) -> Any:
     session = fastf1.get_session(year, round_num, "R")
     # Skip laps — pre-2018 has no timing data, loading saves time
     session.load(laps=False, telemetry=False, weather=True, messages=False)

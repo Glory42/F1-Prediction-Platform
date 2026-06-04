@@ -1,4 +1,3 @@
-import json
 import datetime
 from src.db.client import get_conn
 from src.utils.fastf1_helpers import get_session, session_to_quali_results

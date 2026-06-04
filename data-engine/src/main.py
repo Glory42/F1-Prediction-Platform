@@ -1,9 +1,8 @@
 import argparse
 import sys
-import json
 from datetime import date
 
-import src.config  # noqa: F401 — triggers FastF1 cache setup
+import src.config as _config  # triggers FastF1 cache setup
 
 
 def auto_detect_race(year: int | None, conn) -> tuple[int, int]:

@@ -1,10 +1,13 @@
 import fastf1
+import pandas as pd
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 
 # FastF1 uses Location (city-level) — map to our circuit_key
 LOCATION_TO_CIRCUIT_KEY: dict[str, str] = {
+    # Current calendar
     "Sakhir": "bahrain",
+    "Bahrain": "bahrain",
     "Jeddah": "jeddah",
     "Melbourne": "albert_park",
     "Suzuka": "suzuka",
@@ -17,61 +20,50 @@ LOCATION_TO_CIRCUIT_KEY: dict[str, str] = {
     "Montréal": "canada",
     "Montreal": "canada",              # ASCII fallback
     "Barcelona": "catalunya",
-    "Spielberg": "red_bull_ring",
+    "Spielberg": "red_bull_ring",      # FastF1 uses "Spielberg" for both A1-Ring and Red Bull Ring;
+                                       # maps to red_bull_ring (2014+); a1_ring (pre-2004) needs year context
     "Silverstone": "silverstone",
     "Budapest": "hungaroring",
     "Spa-Francorchamps": "spa",
+    "Spa": "spa",
     "Zandvoort": "zandvoort",
     "Monza": "monza",
     "Baku": "baku",
     "Marina Bay": "singapore",
+    "Singapore": "singapore",
     "Austin": "austin",
     "Mexico City": "mexico_city",
     "São Paulo": "interlagos",
+    "Sao Paulo": "interlagos",         # ASCII fallback
+    "Interlagos": "interlagos",
     "Las Vegas": "las_vegas",
     "Lusail": "lusail",
     "Yas Island": "yas_marina",
+    "Yas Marina": "yas_marina",
+    "Abu Dhabi": "yas_marina",
+    "Madrid": "madrid",
+    # 2018-2020 historical
     "Portimão": "portimao",
     "Sochi": "sochi",
     "Istanbul": "istanbul",
     "Le Castellet": "paul_ricard",
-    "Madrid": "madrid",
-    "Miami Gardens": "miami",
-    "Yas Marina": "yas_marina",
-    # 2018-2020 historical
     "Hockenheim": "hockenheim",
     "Nürburg": "nurburgring",
     "Nürburgring": "nurburgring",
     "Mugello": "mugello",
-    "Singapore": "singapore",
-    "São Paulo": "interlagos",
-    "Sao Paulo": "interlagos",
-    "Abu Dhabi": "yas_marina",
     # 2000-2017 historical
-    "Spa": "spa",
-    "Spa-Francorchamps": "spa",
     "Magny Cours": "magny_cours",       # FastF1 omits hyphen
     "Magny-Cours": "magny_cours",
     "Oyama": "fuji_speedway",           # Japanese GP at Fuji 2007-2008
     "Yeongam County": "korea",
+    "Yeongam": "korea",
     "Uttar Pradesh": "india",
+    "Greater Noida": "india",
+    "New Delhi": "india",
     "Kuala Lumpur": "sepang",
     "Sepang": "sepang",
     "Indianapolis": "indianapolis",
-    "Magny-Cours": "magny_cours",
-    "Spielberg": "a1_ring",        # pre-2004 A1-Ring (same location as Red Bull Ring)
     "Valencia": "valencia",
-    "Yeongam": "korea",
-    "Greater Noida": "india",
-    "New Delhi": "india",
-    "Imola": "imola",              # already in dict above but added for clarity
-    "Bahrain": "bahrain",          # alternate location name
-    "Shanghai": "shanghai",        # already above
-    "Suzuka": "suzuka",            # already above
-    "Interlagos": "interlagos",
-    "Melbourne": "albert_park",    # already above
-    "Monte Carlo": "monaco",       # already above
-    "Montreal": "canada",          # already above
 }
 
 
@@ -122,7 +114,7 @@ def run(year: int) -> None:
                 continue
 
             event_date = event["EventDate"]
-            race_date = event_date.date().isoformat() if hasattr(event_date, "date") else str(event_date)[:10]
+            race_date = event_date.date().isoformat() if isinstance(event_date, pd.Timestamp) else str(event_date)[:10]
 
             event_format = str(event.get("EventFormat", "conventional")).lower()
             is_sprint = event_format in SPRINT_FORMATS

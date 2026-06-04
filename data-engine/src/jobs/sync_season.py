@@ -1,5 +1,4 @@
 import fastf1
-import pandas as pd
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 

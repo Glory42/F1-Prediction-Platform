@@ -2,8 +2,10 @@ import fastf1
 import pandas as pd
 from typing import Any
 
+Session = Any  # fastf1 has no type stubs; Session is Session at runtime
 
-def get_session(year: int, round_num: int, session_type: str, messages: bool = False) -> fastf1.core.Session:
+
+def get_session(year: int, round_num: int, session_type: str, messages: bool = False) -> Session:
     session = fastf1.get_session(year, round_num, session_type)
     telemetry = session_type in ("FP1", "FP2", "FP3")
     session.load(laps=True, telemetry=telemetry, weather=True, messages=messages)
@@ -20,7 +22,7 @@ def _ms(val) -> int | None:
         return None
 
 
-def session_to_quali_results(session: fastf1.core.Session) -> list[dict[str, Any]]:
+def session_to_quali_results(session: Session) -> list[dict[str, Any]]:
     results = session.results
 
     # Build best sector times per driver from laps
@@ -62,7 +64,7 @@ def session_to_quali_results(session: fastf1.core.Session) -> list[dict[str, Any
     return rows
 
 
-def session_to_race_results(session: fastf1.core.Session) -> list[dict[str, Any]]:
+def session_to_race_results(session: Session) -> list[dict[str, Any]]:
     results = session.results
 
     # Extract headshot URLs from results if available
@@ -110,7 +112,7 @@ def session_to_race_results(session: fastf1.core.Session) -> list[dict[str, Any]
     return rows
 
 
-def session_to_lap_times(session: fastf1.core.Session) -> list[dict[str, Any]]:
+def session_to_lap_times(session: Session) -> list[dict[str, Any]]:
     try:
         laps = session.laps.pick_accurate()
     except Exception:
@@ -158,7 +160,7 @@ def session_to_lap_times(session: fastf1.core.Session) -> list[dict[str, Any]]:
     return rows
 
 
-def get_weather(session: fastf1.core.Session) -> str:
+def get_weather(session: Session) -> str:
     try:
         weather_df = session.weather_data
         if weather_df.empty:
@@ -173,7 +175,7 @@ def get_weather(session: fastf1.core.Session) -> str:
         return "dry"
 
 
-def get_weather_details(session: fastf1.core.Session) -> dict[str, float | None]:
+def get_weather_details(session: Session) -> dict[str, float | None]:
     try:
         w = session.weather_data
         if w.empty:
@@ -187,7 +189,7 @@ def get_weather_details(session: fastf1.core.Session) -> dict[str, float | None]
         return {"air_temp_avg": None, "track_temp_avg": None, "humidity_avg": None}
 
 
-def get_sc_vsc_laps(session: fastf1.core.Session) -> dict[str, int]:
+def get_sc_vsc_laps(session: Session) -> dict[str, int]:
     """Count unique lap numbers affected by Safety Car (4) or VSC (6)."""
     try:
         laps = session.laps

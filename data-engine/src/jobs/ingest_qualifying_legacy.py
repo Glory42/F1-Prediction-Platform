@@ -6,6 +6,7 @@ Pre-2006: single-lap qualifying (no Q1/Q2/Q3 split).
 """
 import fastf1
 import pandas as pd
+from typing import Any
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 
@@ -19,7 +20,7 @@ def _ms(val) -> int | None:
         return None
 
 
-def _get_session(year: int, round_num: int) -> fastf1.core.Session:
+def _get_session(year: int, round_num: int) -> Any:
     session = fastf1.get_session(year, round_num, "Q")
     session.load(laps=False, telemetry=False, weather=False, messages=False)
     return session

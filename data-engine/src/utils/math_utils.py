@@ -15,7 +15,7 @@ def softmax(scores: list[float], temperature: float = 0.3) -> list[float]:
     return (exp_s / exp_s.sum()).tolist()
 
 
-def bayesian_win_rate(wins: int, races: int) -> float:
+def bayesian_win_rate(wins: int | float, races: int | float) -> float:
     return (wins + 0.5) / (races + 2)
 
 

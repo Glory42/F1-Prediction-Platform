@@ -16,7 +16,7 @@ import argparse
 import sys
 
 sys.path.insert(0, ".")
-import src.config  # noqa: F401 — triggers FastF1 cache + env setup
+import src.config as _config  # triggers FastF1 cache + env setup
 
 from src.db.client import get_conn
 
