@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
-import type { Race, PredictionResponse } from '@/types';
+import type { Race, PredictionResponse, ModelInfo } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { CalendarDays, RotateCcw, Gauge, MapPin, Trophy, History, Zap, ChevronRight, Flag } from 'lucide-react';
 
@@ -9,14 +9,19 @@ const year = new Date().getFullYear();
 
 let races: Race[] = [];
 let prediction: PredictionResponse | null = null;
+let modelInfo: ModelInfo | null = null;
 
-const [racesResult, predictionResult] = await Promise.allSettled([
+const [racesResult, predictionResult, modelInfoResult] = await Promise.allSettled([
   api.getRaces(year),
   api.getUpcomingPrediction(),
+  api.getModelInfo(),
 ]);
 
 if (racesResult.status === 'fulfilled') races = racesResult.value;
 if (predictionResult.status === 'fulfilled') prediction = predictionResult.value;
+if (modelInfoResult.status === 'fulfilled') modelInfo = modelInfoResult.value;
+
+const gpVersion = prediction?.modelVersion ?? modelInfo?.gpVersion ?? 'weighted-v3';
 
 const completed = races.filter((r) => r.status === 'completed').sort((a, b) => b.roundNumber - a.roundNumber);
 const upcoming  = races.filter((r) => r.status !== 'completed').sort((a, b) => a.roundNumber - b.roundNumber);
@@ -125,8 +130,8 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
             <div class="flex items-center gap-3">
               <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Zap size={11} />./prediction</span>
               <div class="h-px flex-1 bg-white/[0.05]" />
+              <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">{gpVersion}</span>
             </div>
-            <p class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Alpha-03 model forecast</p>
 
             {confidence !== null ? (
               <>

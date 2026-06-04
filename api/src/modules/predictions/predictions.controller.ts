@@ -37,4 +37,9 @@ export const PredictionsController = {
     const data = await service.findIntelStandings(createDb(c.env.DATABASE_URL), year);
     return c.json({ data, error: null });
   },
+
+  getModelInfo: async (c: Context<{ Bindings: Bindings }>) => {
+    const data = await service.getModelInfo(createDb(c.env.DATABASE_URL));
+    return c.json({ data, error: null });
+  },
 };

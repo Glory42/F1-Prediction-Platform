@@ -145,6 +145,10 @@ def session_to_lap_times(session: Session) -> list[dict[str, Any]]:
         if "FreshTyre" in lap and not pd.isna(lap.get("FreshTyre")):
             fresh_tyre = bool(lap["FreshTyre"])
 
+        stint_number = None
+        if "Stint" in lap.index and not pd.isna(lap.get("Stint")):
+            stint_number = int(lap["Stint"])
+
         rows.append({
             "driver_code": str(lap["Driver"]).upper(),
             "lap_number": int(lap["LapNumber"]),
@@ -157,6 +161,7 @@ def session_to_lap_times(session: Session) -> list[dict[str, Any]]:
             "tyre_life": tyre_life,
             "fresh_tyre": fresh_tyre,
             "is_pit_lap": bool(lap.get("PitInTime") is not None and not pd.isna(lap.get("PitInTime"))),
+            "stint_number": stint_number,
         })
     return rows
 

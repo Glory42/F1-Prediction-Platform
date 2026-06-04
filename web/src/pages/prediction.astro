@@ -2,7 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary, SprintPredictionResponse } from '@/types';
+import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary, SprintPredictionResponse, ModelInfo } from '@/types';
 import { Cpu, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import YearSelect from '@/components/YearSelect.astro';
 import { getTeamColor } from '@/lib/teamColors';
@@ -14,18 +14,23 @@ let upcomingSprint: SprintPredictionResponse | null = null;
 let history: PredictionHistoryItem[] = [];
 let standings: IntelStandingRow[] = [];
 let seasons: SeasonSummary[] = [];
+let modelInfo: ModelInfo | null = null;
 
-const [upcomingResult, historyResult, standingsResult, seasonsResult] = await Promise.allSettled([
+const [upcomingResult, historyResult, standingsResult, seasonsResult, modelInfoResult] = await Promise.allSettled([
   api.getUpcomingPrediction(),
   api.getPredictionHistory(year),
   api.getIntelStandings(year),
   api.getSeasons(),
+  api.getModelInfo(),
 ]);
 
 if (upcomingResult.status === 'fulfilled') upcoming = upcomingResult.value;
 if (historyResult.status === 'fulfilled') history = historyResult.value;
 if (standingsResult.status === 'fulfilled') standings = standingsResult.value;
 if (seasonsResult.status === 'fulfilled') seasons = seasonsResult.value;
+if (modelInfoResult.status === 'fulfilled') modelInfo = modelInfoResult.value;
+
+const gpVersion = upcoming?.modelVersion ?? modelInfo?.gpVersion ?? 'weighted-v3';
 
 // For sprint weekends: fetch sprint prediction for the upcoming race, or standalone sprint upcoming
 if (upcoming?.race.hasSprint) {
@@ -52,7 +57,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
         </div>
         <h1 class="text-2xl font-bold">{year} Race Predictions</h1>
         <p class="mt-1 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-          Alpha-03 model · {history.length} predictions · {accuracy !== null ? `${accuracy}% accuracy` : 'no results yet'}
+          {gpVersion} · {history.length} predictions · {accuracy !== null ? `${accuracy}% accuracy` : 'no results yet'}
         </p>
       </div>
       <YearSelect years={seasons} currentYear={year} basePath="/prediction" />
@@ -226,7 +231,7 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
         <div class="border border-white/[0.06]">
           {history.map((h, i) => (
             <a
-              href={h.isSprint ? `/races/${h.raceId}/sprint` : `/prediction/${h.raceId}`}
+              href={h.isSprint ? `/prediction/sprint/${h.raceId}` : `/prediction/${h.raceId}`}
               class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
             >
               <div class="font-mono text-[9px] text-muted-foreground w-5 shrink-0">{h.roundNumber.toString().padStart(2,'0')}</div>

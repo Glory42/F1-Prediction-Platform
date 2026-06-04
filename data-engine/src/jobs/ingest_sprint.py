@@ -129,6 +129,7 @@ def run(year: int, round_num: int) -> None:
                 "tyre_life": lap["tyre_life"],
                 "fresh_tyre": lap["fresh_tyre"],
                 "is_pit_lap": lap["is_pit_lap"],
+                "stint_number": lap["stint_number"],
             })
 
         if laps_to_upsert:

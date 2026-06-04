@@ -42,10 +42,11 @@ def run(race_id: int) -> None:
             cur.execute(
                 """
                 INSERT INTO race_predictions (race_id, predicted_winner_id, computed_at, model_version)
-                VALUES (%s, %s, %s, 'weighted-v2')
+                VALUES (%s, %s, %s, 'weighted-v3')
                 ON CONFLICT (race_id) DO UPDATE SET
                     predicted_winner_id = EXCLUDED.predicted_winner_id,
-                    computed_at = EXCLUDED.computed_at
+                    computed_at = EXCLUDED.computed_at,
+                    model_version = EXCLUDED.model_version
                 """,
                 (race_id, predicted_winner_id, datetime.now(timezone.utc)),
             )

@@ -68,6 +68,7 @@ Static track data, seeded once. Not season-scoped.
 | `overtake_rate` | numeric(4,3) | 0.0–1.0; used in prediction model |
 | `number_of_corners` | integer | null for pre-DRS-era circuits |
 | `drs_zones` | integer | null for pre-DRS-era circuits |
+| `sc_probability` | numeric(4,3) | Historical SC deployment rate (completed races); null for circuits with no completed races |
 
 ---
 
@@ -204,6 +205,7 @@ One row per lap per driver — 2018+ only.
 | `tyre_life` | integer | Laps on current tyre |
 | `fresh_tyre` | boolean | |
 | `is_pit_lap` | boolean | Excluded from pace calculations |
+| `stint_number` | integer | Stint index within the race — used for tyre degradation slope |
 | UNIQUE | `(race_id, driver_id, lap_number)` | |
 
 ---
@@ -251,7 +253,24 @@ Per-lap data for sprint races — mirrors `lap_times` structure. 2018+ only.
 | `tyre_life` | integer | |
 | `fresh_tyre` | boolean | |
 | `is_pit_lap` | boolean | |
+| `stint_number` | integer | Stint index within the sprint |
 | UNIQUE | `(race_id, driver_id, lap_number)` | |
+
+---
+
+### `fp2_long_run_times`
+FP2 long-run stint data per driver per race. Populated by `ingest_fp2`. 2018+ only.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | |
+| `compound` | varchar(20) | `SOFT`, `MEDIUM`, `HARD` |
+| `median_lap_ms` | integer | MEDIUM-normalised median stint lap time (Soft +500ms, Hard −400ms) |
+| `stint_length` | integer | Number of laps in the long-run stint (≥5) |
+| `fp2_best_lap_ms` | integer | Driver's single fastest raw lap in FP2 |
+| UNIQUE | `(race_id, driver_id, compound)` | Best (shortest) stint per compound kept |
 
 ---
 
@@ -309,12 +328,15 @@ One row per driver per grand prix race. Written by `compute_features`, updated b
 | `win_rate_score` | numeric(6,5) | |
 | `luck_factor_score` | numeric(6,5) | |
 | `weather_impact_score` | numeric(6,5) | |
-| `track_overtake_score` | numeric(6,5) | |
-| `position_gain_score` | numeric(6,5) | |
-| `long_run_pace_score` | numeric(6,5) | |
+| `track_overtake_score` | numeric(6,5) | **Deprecated** — always NULL in weighted-v3; value baked into circuit-adjusted scores |
+| `position_gain_score` | numeric(6,5) | Raw avg position gain (kept for display only) |
+| `long_run_pace_score` | numeric(6,5) | FP2 primary, historical fallback |
 | `reliability_score` | numeric(6,5) | |
-| `qualifying_delta_score` | numeric(6,5) | |
+| `qualifying_delta_score` | numeric(6,5) | Rolling 5-race weighted teammate delta |
 | `sector_strength_score` | numeric(6,5) | |
+| `tyre_deg_score` | numeric(6,5) | REGR_SLOPE-derived degradation score — lower slope = higher score |
+| `circuit_adj_start_pos_score` | numeric(6,5) | Starting position scaled by overtake_rate × sc_probability |
+| `circuit_adj_position_gain_score` | numeric(6,5) | Position gain scaled by overtake_rate |
 | `raw_weighted_score` | numeric(8,6) | Weighted sum before softmax |
 | `win_probability` | numeric(6,5) | After softmax — sums to 1.0 per race |
 | `predicted_position` | integer | 1 = predicted winner |
@@ -330,7 +352,7 @@ One row per grand prix — the single predicted winner.
 | `race_id` | FK → races UNIQUE | |
 | `predicted_winner_id` | FK → drivers | |
 | `computed_at` | timestamptz | |
-| `model_version` | varchar(20) | `weighted-v2` |
+| `model_version` | varchar(20) | `weighted-v3` |
 
 ---
 
@@ -342,13 +364,15 @@ One row per driver per sprint weekend. Written by `compute_sprint_features`, upd
 | `race_id` | FK → races | |
 | `driver_id` | FK → drivers | |
 | `car_performance_score` | numeric(6,5) | 0–1 |
-| `starting_position_score` | numeric(6,5) | Based on SQ grid position |
+| `starting_position_score` | numeric(6,5) | Raw SQ grid score (kept for display) |
 | `driver_rating_score` | numeric(6,5) | Sprint-specific when ≥3 sprint races recorded |
-| `track_overtake_score` | numeric(6,5) | |
+| `track_overtake_score` | numeric(6,5) | **Deprecated** — always NULL in sprint-v2 |
 | `short_run_pace_score` | numeric(6,5) | Best SQ lap time, falls back to main qualifying |
-| `weather_impact_score` | numeric(6,5) | Based on sprint_weather field |
+| `weather_impact_score` | numeric(6,5) | Based on sprint_weather field; cross-season |
 | `win_rate_score` | numeric(6,5) | Sprint-specific when ≥3 sprint races recorded |
-| `luck_factor_score` | numeric(6,5) | Rolling 5-race delta vs expectation |
+| `luck_factor_score` | numeric(6,5) | Rolling 5-race delta — cross-season |
+| `circuit_adj_start_pos_score` | numeric(6,5) | SQ grid scaled by overtake_rate × sc_probability |
+| `sq_qualifying_delta_score` | numeric(6,5) | Rolling 5-sprint SQ teammate delta |
 | `raw_weighted_score` | numeric(8,6) | |
 | `win_probability` | numeric(6,5) | After softmax |
 | `predicted_position` | integer | |
@@ -364,4 +388,4 @@ One row per sprint weekend — the single predicted sprint winner.
 | `race_id` | FK → races UNIQUE | |
 | `predicted_winner_id` | FK → drivers | |
 | `computed_at` | timestamptz | |
-| `model_version` | varchar(20) | `sprint-v1` |
+| `model_version` | varchar(20) | `sprint-v2` |

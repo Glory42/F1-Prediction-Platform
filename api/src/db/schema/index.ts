@@ -14,3 +14,4 @@ export * from './race_predictions';
 export * from './sprint_predictions';
 export * from './driver_prediction_features';
 export * from './driver_sprint_features';
+export * from './fp2_long_run_times';

@@ -16,7 +16,7 @@ function toSprintFeatures(f: typeof driverSprintFeatures.$inferSelect): SprintFe
     carPerformance: f.carPerformanceScore,
     startingPosition: f.startingPositionScore,
     driverRating: f.driverRatingScore,
-    trackOvertake: f.trackOvertakeScore,
+    trackOvertake: f.trackOvertakeScore ?? null,
     shortRunPace: f.shortRunPaceScore,
     weatherImpact: f.weatherImpactScore,
     winRate: f.winRateScore,

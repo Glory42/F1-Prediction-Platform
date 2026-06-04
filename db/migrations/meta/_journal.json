@@ -50,6 +50,20 @@
       "when": 1748995200001,
       "tag": "0006_circuit_corners_drs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1749081600000,
+      "tag": "0007_sc_probability_stint_fp2",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1749081600001,
+      "tag": "0008_sprint_feature_cols",
+      "breakpoints": true
     }
   ]
 }

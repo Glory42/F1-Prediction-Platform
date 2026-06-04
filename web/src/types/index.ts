@@ -1,7 +1,7 @@
 export type Circuit = {
   id: number; circuitKey: string; name: string; country: string; city: string;
   lapCount: number; trackLengthKm: string; overtakeRate: string | null;
-  numberOfCorners: number | null; drsZones: number | null;
+  numberOfCorners: number | null; drsZones: number | null; scProbability: string | null;
 };
 export type Team = {
   id: number; seasonId: number; teamKey: string; name: string; nationality: string | null;
@@ -96,6 +96,8 @@ export type DriverYearStats = {
 };
 export type TeamYearStats = { year: number; teamId: number; stats: TeamSeasonStats | null };
 export type SeasonSummary = { year: number; raceCount: number };
+
+export type ModelInfo = { gpVersion: string; sprintVersion: string };
 
 export type SprintResult = {
   id: number; raceId: number; driverId: number; finishPosition: number | null;

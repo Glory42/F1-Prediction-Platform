@@ -3,7 +3,7 @@ import type {
   Race, Driver, Team, DriverStanding, TeamStanding,
   PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem,
   DriverYearStats, TeamYearStats, SeasonSummary,
-  SprintPredictionResponse, SprintDetailResponse,
+  SprintPredictionResponse, SprintDetailResponse, ModelInfo,
 } from '@/types';
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
@@ -18,6 +18,7 @@ async function get<T>(path: string): Promise<T> {
 
 export const api = {
   // Predictions
+  getModelInfo: () => get<ModelInfo>('/api/predictions/model-info'),
   getUpcomingPrediction: () => get<PredictionResponse>('/api/predictions/upcoming'),
   getPredictionByRace: (raceId: number) => get<PredictionResponse>(`/api/predictions/race/${raceId}`),
   getPredictionHistory: (year: number) => get<PredictionHistoryItem[]>(`/api/predictions/history?year=${year}`),

@@ -103,6 +103,7 @@ def main() -> None:
         "sync_schedule",
         "sync_season",
         "ingest_qualifying",
+        "ingest_fp2",
         "ingest_sprint_qualifying",
         "ingest_sprint",
         "ingest_race",
@@ -133,6 +134,15 @@ def main() -> None:
         round_num = args.round_num or 1
         from src.jobs.sync_season import run
         run(args.year, round_num)
+
+    elif job == "ingest_fp2":
+        from src.db.client import get_conn
+        conn = get_conn()
+        year, round_num = (args.year, args.round_num) if args.year and args.round_num \
+            else auto_detect_race(args.year, conn)
+        conn.close()
+        from src.jobs.ingest_fp2 import run
+        run(year, round_num)
 
     elif job == "ingest_qualifying":
         from src.db.client import get_conn

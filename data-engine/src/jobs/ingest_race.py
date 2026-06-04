@@ -13,7 +13,7 @@ def run(year: int, round_num: int) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT r.id, r.season_id FROM races r "
+                "SELECT r.id, r.season_id, r.circuit_id FROM races r "
                 "JOIN seasons s ON r.season_id = s.id "
                 "WHERE s.year = %s AND r.round_number = %s",
                 (year, round_num),
@@ -24,6 +24,7 @@ def run(year: int, round_num: int) -> None:
 
         race_id = race_row["id"]
         season_id = race_row["season_id"]
+        circuit_id = race_row["circuit_id"]
 
         with conn.cursor() as cur:
             cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
@@ -92,6 +93,7 @@ def run(year: int, round_num: int) -> None:
                 "tyre_life": lt["tyre_life"],
                 "fresh_tyre": lt["fresh_tyre"],
                 "is_pit_lap": lt["is_pit_lap"],
+                "stint_number": lt["stint_number"],
             })
 
         if not results_to_upsert:
@@ -124,6 +126,24 @@ def run(year: int, round_num: int) -> None:
                     weather_details["humidity_avg"],
                     race_id,
                 ),
+            )
+        # Refresh sc_probability for this circuit from all completed races
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE circuits
+                SET sc_probability = (
+                    SELECT ROUND(
+                        COUNT(*) FILTER (WHERE r2.safety_car_laps > 0)::numeric /
+                        NULLIF(COUNT(*) FILTER (WHERE r2.status = 'completed'), 0),
+                        3
+                    )
+                    FROM races r2
+                    WHERE r2.circuit_id = circuits.id AND r2.status = 'completed'
+                )
+                WHERE circuits.id = %s
+                """,
+                (circuit_id,),
             )
         conn.commit()
         print(

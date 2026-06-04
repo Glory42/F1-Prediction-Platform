@@ -4,6 +4,7 @@ import { PredictionsController } from './predictions.controller';
 
 const predictionsModule = new Hono<{ Bindings: Bindings }>();
 
+predictionsModule.get('/model-info', PredictionsController.getModelInfo);
 predictionsModule.get('/upcoming', PredictionsController.getUpcoming);
 predictionsModule.get('/history', PredictionsController.getHistory);
 predictionsModule.get('/standings', PredictionsController.getIntelStandings);

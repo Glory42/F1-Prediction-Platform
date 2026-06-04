@@ -62,6 +62,7 @@ api/
 │   │   │   ├── race_predictions.ts
 │   │   │   ├── driver_prediction_features.ts
 │   │   │   ├── driver_sprint_features.ts  # 8-feature sprint scores
+│   │   │   ├── fp2_long_run_times.ts      # FP2 per-driver long-run stint data
 │   │   │   └── sprint_predictions.ts      # Sprint predicted winner
 │   │   └── seed.ts                # DB seed helpers
 │   └── modules/                   # Feature modules (service / controller / module)
@@ -78,9 +79,9 @@ api/
 │       │   ├── teams.controller.ts
 │       │   └── teams.module.ts    # GET /, /standings, /:id, /:id/career
 │       ├── predictions/
-│       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), standings
+│       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), standings, model-info
 │       │   ├── predictions.controller.ts
-│       │   └── predictions.module.ts  # GET /upcoming, /race/:id, /history, /standings
+│       │   └── predictions.module.ts  # GET /model-info, /upcoming, /race/:id, /history, /standings
 │       ├── sprint/
 │       │   ├── sprint.service.ts  # Sprint detail — results, SQ grid, lap summaries, prediction
 │       │   ├── sprint.controller.ts
@@ -123,6 +124,7 @@ Each module follows the same three-file pattern:
 | GET | `/api/teams/standings` | `year` |
 | GET | `/api/teams/:id` | `year` |
 | GET | `/api/teams/:id/career` | — |
+| GET | `/api/predictions/model-info` | — |
 | GET | `/api/predictions/upcoming` | — |
 | GET | `/api/predictions/race/:raceId` | — |
 | GET | `/api/predictions/history` | `year` |
@@ -191,7 +193,7 @@ web/
 │   │                              #   DriverStanding, TeamStanding, PredictionHistoryItem (isSprint),
 │   │                              #   IntelStandingRow, CircuitHistoryItem (hasSprint), SeasonSummary,
 │   │                              #   SprintResult, SprintFeatureScores, DriverSprintPrediction,
-│   │                              #   SprintPredictionResponse, SprintDetailResponse
+│   │                              #   SprintPredictionResponse, SprintDetailResponse, ModelInfo
 │   ├── styles/
 │   │   └── globals.css            # Tailwind base + CSS custom properties
 │   └── env.d.ts                   # Astro env type declarations
@@ -272,6 +274,7 @@ data-engine/
 │   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
 │   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
 │   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
+│   │   ├── ingest_fp2.py               # FP2 long-run stint data → fp2_long_run_times
 │   │   ├── ingest_sprint.py            # Sprint results + sprint_lap_times + sprint conditions
 │   │   ├── compute_season_stats.py     # Aggregate driver/team stats including sprint aggregates
 │   │   ├── compute_features.py         # 12 feature scores per driver per GP
@@ -284,6 +287,8 @@ data-engine/
 │       │                          # get_weather(), get_weather_details(), get_sc_vsc_laps()
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp()
 │       └── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
+├── backfill_all_predictions.py    # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
+├── backfill_fp2.py                # Backfill FP2 long-run data for 2018+ completed races
 ├── backfill_full.py               # Full historical backfill: sync + ingest + sprint + predictions
 ├── backfill_sprint.py             # Sprint-only backfill for specific years
 ├── render.yaml                    # Render cron job definitions
@@ -302,6 +307,7 @@ data-engine/
 | `ingest_race` | `--year --round` | Race results + per-lap timing + conditions — 2018+ |
 | `ingest_race_legacy` | `--year --round` | Race results only via Ergast — pre-2018 |
 | `ingest_sprint_qualifying` | `--year --round` | SQ session → sprint_results (sq1/sq2/sq3 + sector times + speed); date guard rejects future rounds |
+| `ingest_fp2` | `--year --round` | FP2 long-run stints → `fp2_long_run_times`; used as primary long-run pace signal |
 | `ingest_sprint` | `--year --round` | Sprint results + sprint_lap_times + sprint conditions; sprint weekends only |
 | `compute_season_stats` | `--year` | Rolling aggregates for drivers and teams, including sprint stats |
 | `compute_features` | `--race_id` | 12 feature scores per driver for a GP |

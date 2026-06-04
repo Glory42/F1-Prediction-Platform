@@ -16,6 +16,7 @@ export const lapTimes = pgTable('lap_times', {
   tyreLife: integer('tyre_life'),
   freshTyre: boolean('fresh_tyre'),
   isPitLap: boolean('is_pit_lap').notNull().default(false),
+  stintNumber: integer('stint_number'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('lap_times_race_driver_lap_idx').on(t.raceId, t.driverId, t.lapNumber),

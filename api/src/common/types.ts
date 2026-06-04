@@ -1,5 +1,10 @@
 export type SeasonSummary = { year: number; raceCount: number };
 
+export type ModelInfo = {
+  gpVersion: string;
+  sprintVersion: string;
+};
+
 export type Bindings = {
   DATABASE_URL: string;
 };
@@ -19,6 +24,7 @@ export type Circuit = {
   overtakeRate: string | null;
   numberOfCorners: number | null;
   drsZones: number | null;
+  scProbability: string | null;
 };
 
 export type Team = {
@@ -143,7 +149,7 @@ export type FeatureScores = {
   winRate: string;
   luckFactor: string;
   weatherImpact: string;
-  trackOvertake: string;
+  trackOvertake: string | null;
   positionGain: string;
   longRunPace: string | null;
   reliability: string | null;
@@ -268,7 +274,7 @@ export type SprintFeatureScores = {
   carPerformance: string;
   startingPosition: string;
   driverRating: string;
-  trackOvertake: string;
+  trackOvertake: string | null;
   shortRunPace: string;
   weatherImpact: string;
   winRate: string;

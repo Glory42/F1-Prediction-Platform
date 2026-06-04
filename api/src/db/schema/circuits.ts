@@ -11,5 +11,6 @@ export const circuits = pgTable('circuits', {
   overtakeRate: numeric('overtake_rate', { precision: 4, scale: 3 }),
   numberOfCorners: integer('number_of_corners'),
   drsZones: integer('drs_zones'),
+  scProbability: numeric('sc_probability', { precision: 4, scale: 3 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

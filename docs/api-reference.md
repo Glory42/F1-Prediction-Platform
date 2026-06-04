@@ -121,6 +121,21 @@ Returns a team's stats across all seasons they have data in.
 
 ## Predictions (Grand Prix)
 
+### `GET /api/predictions/model-info`
+
+Returns the most recently computed model versions for GP and sprint predictions. Updates automatically whenever `compute_predictions` or `compute_sprint_predictions` runs — no deploy needed.
+
+```json
+{
+  "data": {
+    "gpVersion": "weighted-v3",
+    "sprintVersion": "sprint-v2"
+  }
+}
+```
+
+---
+
 ### `GET /api/predictions/upcoming`
 
 Returns the prediction for the next `qualifying_done` race with `race_date >= today`. Ordered ascending so the chronologically next race always wins — historical races stuck in `qualifying_done` from a partial backfill are excluded by the date guard.
@@ -143,7 +158,7 @@ Returns the prediction for the next `qualifying_done` race with `race_date >= to
           "winRate": "0.77000",
           "luckFactor": "0.62000",
           "weatherImpact": "0.50000",
-          "trackOvertake": "0.35000",
+          "trackOvertake": null,
           "positionGain": "0.70000",
           "longRunPace": "0.81000",
           "reliability": "0.90000",

@@ -19,6 +19,7 @@ export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
     trackLengthKm: circuit.trackLengthKm, overtakeRate: circuit.overtakeRate,
     numberOfCorners: circuit.numberOfCorners ?? null,
     drsZones: circuit.drsZones ?? null,
+    scProbability: circuit.scProbability ?? null,
   };
 }
 

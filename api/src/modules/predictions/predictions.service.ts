@@ -7,7 +7,7 @@ import {
 } from '../../db/schema';
 import type {
   PredictionResponse, DriverPrediction, Driver,
-  PredictionHistoryItem, IntelStandingRow,
+  PredictionHistoryItem, IntelStandingRow, ModelInfo,
 } from '../../common/types';
 import { toDriver, toRace, toCircuit } from '../../common/mappers';
 
@@ -19,7 +19,7 @@ function toFeatures(f: typeof driverPredictionFeatures.$inferSelect) {
     winRate: f.winRateScore,
     luckFactor: f.luckFactorScore,
     weatherImpact: f.weatherImpactScore,
-    trackOvertake: f.trackOvertakeScore,
+    trackOvertake: f.trackOvertakeScore ?? null,
     positionGain: f.positionGainScore,
     longRunPace: f.longRunPaceScore ?? null,
     reliability: f.reliabilityScore ?? null,
@@ -345,6 +345,23 @@ export class PredictionsService {
       computedAt: prediction.computedAt.toISOString(),
       modelVersion: prediction.modelVersion,
       drivers: driverPredictions,
+    };
+  }
+
+  async getModelInfo(db: Db): Promise<ModelInfo> {
+    const [gp, sprint] = await Promise.all([
+      db.select({ version: racePredictions.modelVersion })
+        .from(racePredictions)
+        .orderBy(desc(racePredictions.computedAt))
+        .limit(1),
+      db.select({ version: sprintPredictions.modelVersion })
+        .from(sprintPredictions)
+        .orderBy(desc(sprintPredictions.computedAt))
+        .limit(1),
+    ]);
+    return {
+      gpVersion: gp[0]?.version ?? 'weighted-v3',
+      sprintVersion: sprint[0]?.version ?? 'sprint-v2',
     };
   }
 }
