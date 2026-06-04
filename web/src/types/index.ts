@@ -1,6 +1,7 @@
 export type Circuit = {
   id: number; circuitKey: string; name: string; country: string; city: string;
   lapCount: number; trackLengthKm: string; overtakeRate: string | null;
+  numberOfCorners: number | null; drsZones: number | null;
 };
 export type Team = {
   id: number; seasonId: number; teamKey: string; name: string; nationality: string | null;

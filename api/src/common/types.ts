@@ -17,6 +17,8 @@ export type Circuit = {
   lapCount: number;
   trackLengthKm: string;
   overtakeRate: string | null;
+  numberOfCorners: number | null;
+  drsZones: number | null;
 };
 
 export type Team = {

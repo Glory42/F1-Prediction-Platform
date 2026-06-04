@@ -6,7 +6,8 @@ import LapChart from '@/components/LapChart.astro';
 import { api } from '@/lib/api';
 import { formatDate, formatMs } from '@/lib/utils';
 import type { SprintDetailResponse, RaceResult, QualifyingResult } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer } from 'lucide-react';
+import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer, Flag, CornerDownRight, Wind } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import RaceYearSelect from '@/components/RaceYearSelect.astro';
 
 const { id } = Astro.params;
@@ -74,7 +75,7 @@ const tabs: Tab[] = [];
 if (isSprintDone && hasResults) tabs.push({ id: 'results',    label: 'Results'       });
 if (hasGrid)                    tabs.push({ id: 'qualifying', label: 'Sprint Quali'  });
 if (isSprintDone && hasLaps)    tabs.push({ id: 'laps',       label: 'Lap Chart'     });
-if (isUpcoming)                 tabs.push({ id: 'circuit',    label: 'Circuit'       });
+                                tabs.push({ id: 'circuit',    label: 'Circuit'       });
 
 const defaultTab = tabs[0]?.id ?? 'circuit';
 const raceYear   = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
@@ -84,6 +85,16 @@ const circuitYearItems = circuitHistory
   .filter((h) => h.hasSprint)
   .sort((a, b) => b.year - a.year)
   .map((h) => ({ year: h.year, href: `/races/${h.raceId}/sprint` }));
+
+const sprintDistKm = race ? (17 * Number(race.circuit.trackLengthKm)).toFixed(1) : null;
+const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
+  { Icon: RotateCcw,       label: 'Sprint Laps',   val: '~17' },
+  { Icon: Gauge,           label: 'Length',        val: `${race.circuit.trackLengthKm} km` },
+  { Icon: Flag,            label: 'Sprint Dist',   val: `${sprintDistKm} km` },
+  { Icon: CornerDownRight, label: 'Corners',       val: race.circuit.numberOfCorners ?? '—' },
+  { Icon: Wind,            label: 'DRS Zones',     val: race.circuit.drsZones ?? '—' },
+  { Icon: Zap,             label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate)*100)}%` : '—' },
+] : [];
 
 ---
 
@@ -321,25 +332,18 @@ const circuitYearItems = circuitHistory
             )}
 
             {/* Circuit */}
-            {isUpcoming && (
-              <div id="sprint-panel-circuit" class={`sprint-tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06]">
-                  {([
-                    [RotateCcw, 'Sprint Laps',   '~17'],
-                    [Gauge,     'Length',         `${race.circuit.trackLengthKm} km`],
-                    [MapPin,    'Country',        race.circuit.country],
-                    [Zap,       'Overtake Rate',  race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate)*100)}%` : '—'],
-                  ].map(([Icon, label, val]) => (
-                    <div class="bg-black p-5">
-                      <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
-                        <Icon size={10} />{label}
-                      </div>
-                      <div class="font-bold text-xl">{val}</div>
+            <div id="sprint-panel-circuit" class={`sprint-tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
+                {sprintStats.map(({ Icon, label, val }) => (
+                  <div class="bg-black p-5">
+                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
+                      <Icon size={10} />{label}
                     </div>
-                  )))}
-                </div>
+                    <div class="font-bold text-xl">{val}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
           </div>
         )}

@@ -17,6 +17,8 @@ export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
     id: circuit.id, circuitKey: circuit.circuitKey, name: circuit.name,
     country: circuit.country, city: circuit.city, lapCount: circuit.lapCount,
     trackLengthKm: circuit.trackLengthKm, overtakeRate: circuit.overtakeRate,
+    numberOfCorners: circuit.numberOfCorners ?? null,
+    drsZones: circuit.drsZones ?? null,
   };
 }
 

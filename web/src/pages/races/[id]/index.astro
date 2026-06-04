@@ -6,7 +6,7 @@ import LapChart from '@/components/LapChart.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionResponse, CircuitHistoryItem } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer } from 'lucide-react';
+import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer, Flag, CornerDownRight, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import RaceYearSelect from '@/components/RaceYearSelect.astro';
 import { formatMs } from '@/lib/utils';
@@ -50,7 +50,7 @@ const tabs: Tab[] = [];
 if (isCompleted && hasResults)   tabs.push({ id: 'results',    label: 'Results'    });
 if (hasQualifying)               tabs.push({ id: 'qualifying', label: 'Qualifying' });
 if (isCompleted && hasLaps)      tabs.push({ id: 'laps',       label: 'Lap Chart'  });
-if (!isCompleted)                tabs.push({ id: 'circuit',    label: 'Circuit'    });
+                                 tabs.push({ id: 'circuit',    label: 'Circuit'    });
 
 // Year selector items — all years this circuit has appeared, newest first
 const circuitYearItems = [...circuitHistory]
@@ -74,11 +74,16 @@ const predCorrect  = prediction && actualWinner
   ? prediction.predictedWinner.id === actualWinner.driver.id
   : null;
 
+const raceDistanceKm = race
+  ? (race.circuit.lapCount * Number(race.circuit.trackLengthKm)).toFixed(1)
+  : null;
 const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
-  { Icon: RotateCcw, label: 'Laps',         val: race.circuit.lapCount },
-  { Icon: Gauge,     label: 'Length',        val: `${race.circuit.trackLengthKm} km` },
-  { Icon: MapPin,    label: 'Country',       val: race.circuit.country },
-  { Icon: Zap,       label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
+  { Icon: RotateCcw,        label: 'Laps',          val: race.circuit.lapCount },
+  { Icon: Gauge,            label: 'Length',         val: `${race.circuit.trackLengthKm} km` },
+  { Icon: Flag,             label: 'Race Dist',      val: `${raceDistanceKm} km` },
+  { Icon: CornerDownRight,  label: 'Corners',        val: race.circuit.numberOfCorners ?? '—' },
+  { Icon: Wind,             label: 'DRS Zones',      val: race.circuit.drsZones ?? '—' },
+  { Icon: Zap,              label: 'Overtake Rate',  val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
 ] : [];
 ---
 
@@ -320,21 +325,19 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               </div>
             )}
 
-            {/* Circuit (upcoming) */}
-            {!isCompleted && (
-              <div id="panel-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06]">
-                  {circuitStats.map(({ Icon, label, val }) => (
-                    <div class="bg-black p-5">
-                      <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
-                        <Icon size={10} />{label}
-                      </div>
-                      <div class="font-bold text-xl">{val}</div>
+            {/* Circuit */}
+            <div id="panel-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
+                {circuitStats.map(({ Icon, label, val }) => (
+                  <div class="bg-black p-5">
+                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
+                      <Icon size={10} />{label}
                     </div>
-                  ))}
-                </div>
+                    <div class="font-bold text-xl">{val}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
 
           </div>

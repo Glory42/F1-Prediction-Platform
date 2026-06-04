@@ -43,6 +43,13 @@
       "when": 1748995200000,
       "tag": "0005_sprint_sq_sectors",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1748995200001,
+      "tag": "0006_circuit_corners_drs",
+      "breakpoints": true
     }
   ]
 }

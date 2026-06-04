@@ -66,6 +66,8 @@ Static track data, seeded once. Not season-scoped.
 | `lap_count` | integer | |
 | `track_length_km` | numeric(5,3) | |
 | `overtake_rate` | numeric(4,3) | 0.0–1.0; used in prediction model |
+| `number_of_corners` | integer | null for pre-DRS-era circuits |
+| `drs_zones` | integer | null for pre-DRS-era circuits |
 
 ---
 

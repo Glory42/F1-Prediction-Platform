@@ -9,5 +9,7 @@ export const circuits = pgTable('circuits', {
   lapCount: integer('lap_count').notNull(),
   trackLengthKm: numeric('track_length_km', { precision: 5, scale: 3 }).notNull(),
   overtakeRate: numeric('overtake_rate', { precision: 4, scale: 3 }),
+  numberOfCorners: integer('number_of_corners'),
+  drsZones: integer('drs_zones'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
