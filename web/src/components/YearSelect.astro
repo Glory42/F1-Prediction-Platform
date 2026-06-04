@@ -3,8 +3,9 @@ interface Props {
   years: { year: number; raceCount: number }[];
   currentYear: number;
   basePath: string;
+  extraParams?: string;
 }
-const { years, currentYear, basePath } = Astro.props;
+const { years, currentYear, basePath, extraParams = '' } = Astro.props;
 const activeYears = years.filter((y) => y.raceCount > 0);
 const uid = `ys-${Math.random().toString(36).slice(2, 7)}`;
 ---
@@ -28,7 +29,7 @@ const uid = `ys-${Math.random().toString(36).slice(2, 7)}`;
   >
     {activeYears.map((s) => (
       <a
-        href={`${basePath}?year=${s.year}`}
+        href={`${basePath}?year=${s.year}${extraParams}`}
         class={`block px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase transition-colors duration-100 ${
           s.year === currentYear
             ? 'text-[#a855f7] bg-[rgba(168,85,247,0.12)]'

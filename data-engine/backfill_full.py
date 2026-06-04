@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""
+Full historical backfill: 2000–2026 (or any range).
+
+For every year this script:
+  1. sync_schedule        — populate race calendar + sprint dates
+  2. sync_season          — populate drivers / teams
+  3. For each round:
+       ingest_qualifying  — main qualifying grid
+       ingest_race        — race results + lap times
+  4. For sprint rounds additionally:
+       ingest_sprint_qualifying  — SQ grid (needed before sprint prediction)
+       compute_sprint_features
+       compute_sprint_predictions
+       ingest_sprint             — actual sprint race results
+  5. compute_season_stats  — once per year
+  6. compute_features + compute_predictions  — for every completed race
+
+FastF1 data notes:
+  - Reliable qualifying + lap data from 2018 onwards.
+  - Sprint format introduced in 2021 (British GP, Italian GP, Brazilian GP).
+  - Older years (2000–2017) will attempt but may fail gracefully on missing sessions.
+
+Usage:
+  python backfill_full.py                        # 2000–2026
+  python backfill_full.py --start 2018           # 2018–2026
+  python backfill_full.py --start 2025 --end 2026
+  python backfill_full.py --start 2026 --end 2026  # current season only
+"""
+
+import argparse
+import sys
+
+sys.path.insert(0, ".")
+import src.config  # noqa: F401 — FastF1 cache + env
+
+from src.db.client import get_conn
+
+
+# ── DB helpers ────────────────────────────────────────────────────────────────
+
+def get_rounds(conn, year: int) -> list[dict]:
+    """Return all rounds for a year with their race_id, sprint flag, and status."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.id, r.round_number, r.status,
+                   r.event_format,
+                   r.sprint_date IS NOT NULL AS has_sprint
+            FROM races r
+            JOIN seasons s ON r.season_id = s.id
+            WHERE s.year = %s
+            ORDER BY r.round_number
+            """,
+            (year,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_completed_race_ids(conn, year: int) -> list[int]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.id FROM races r
+            JOIN seasons s ON r.season_id = s.id
+            WHERE s.year = %s AND r.status = 'completed'
+              AND r.event_format = 'conventional'
+            ORDER BY r.race_date
+            """,
+            (year,),
+        )
+        return [row["id"] for row in cur.fetchall()]
+
+
+def get_completed_sprint_race_ids(conn, year: int) -> list[tuple[int, int]]:
+    """Returns (race_id, round_number) for completed sprint rounds."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.id, r.round_number FROM races r
+            JOIN seasons s ON r.season_id = s.id
+            WHERE s.year = %s
+              AND r.sprint_date IS NOT NULL
+              AND r.status IN ('sprint_done', 'qualifying_done', 'completed')
+            ORDER BY r.race_date
+            """,
+            (year,),
+        )
+        return [(row["id"], row["round_number"]) for row in cur.fetchall()]
+
+
+# ── Per-job wrappers (all return True on success, False on failure) ───────────
+
+def _run(label: str, fn, *args) -> bool:
+    try:
+        fn(*args)
+        return True
+    except Exception as e:
+        print(f"    [SKIP] {label}: {e}")
+        return False
+
+
+# ── Main per-year logic ───────────────────────────────────────────────────────
+
+def process_year(year: int) -> None:
+    print(f"\n{'='*52}")
+    print(f"  BACKFILL  {year}")
+    print(f"{'='*52}")
+
+    # 1 ── Sync schedule (idempotent — safe to re-run)
+    print(f"\n[{year}] sync_schedule ...")
+    from src.jobs.sync_schedule import run as sync_schedule
+    if not _run(f"sync_schedule {year}", sync_schedule, year):
+        print(f"  FATAL: sync_schedule failed for {year} — skipping year")
+        return
+
+    # 2 ── Sync season (drivers + teams) — try round 1 first, fall back to 2
+    print(f"[{year}] sync_season ...")
+    from src.jobs.sync_season import run as sync_season
+    if not _run(f"sync_season {year} r1", sync_season, year, 1):
+        _run(f"sync_season {year} r2", sync_season, year, 2)
+
+    # 3 ── Per-round ingestion
+    conn = get_conn()
+    rounds = get_rounds(conn, year)
+    conn.close()
+
+    if not rounds:
+        print(f"  No rounds found for {year} — skipping")
+        return
+
+    print(f"[{year}] ingesting {len(rounds)} rounds ...")
+
+    from src.jobs.ingest_qualifying import run as ingest_qualifying
+    from src.jobs.ingest_race       import run as ingest_race
+
+    for r in rounds:
+        rn = r["round_number"]
+        tag = f"{year} R{rn:02d}"
+
+        # Main qualifying
+        _run(f"{tag} ingest_qualifying", ingest_qualifying, year, rn)
+
+        # Main race
+        _run(f"{tag} ingest_race",       ingest_race,       year, rn)
+
+    # 4 ── Sprint ingestion (for rounds that are sprint weekends)
+    # For completed sprints the FastF1 SQ session has no classification positions,
+    # so we load the sprint race session ("S") which contains both GridPosition
+    # (SQ result) and Position (finish). Order: ingest_sprint → csf → csp.
+    sprint_rounds = [r for r in rounds if r["has_sprint"]]
+    if sprint_rounds:
+        print(f"[{year}] sprint pipeline for {len(sprint_rounds)} sprint rounds ...")
+
+        from src.jobs.compute_sprint_features    import run as csf
+        from src.jobs.compute_sprint_predictions import run as csp
+        from src.jobs.ingest_sprint              import run as ingest_sprint
+
+        for r in sprint_rounds:
+            rn  = r["round_number"]
+            rid = r["id"]
+            tag = f"{year} R{rn:02d} sprint"
+
+            ok = _run(f"{tag} ingest_sprint", ingest_sprint, year, rn)
+            if not ok:
+                continue
+            ok = _run(f"{tag} csf", csf, rid)
+            if ok:
+                _run(f"{tag} csp", csp, rid)
+
+    # 5 ── Season stats (includes sprint aggregates)
+    print(f"[{year}] compute_season_stats ...")
+    from src.jobs.compute_season_stats import run as css
+    _run(f"compute_season_stats {year}", css, year)
+
+    # 6 ── Main race features + predictions for every completed race
+    conn = get_conn()
+    completed_ids = get_completed_race_ids(conn, year)
+    conn.close()
+
+    if completed_ids:
+        print(f"[{year}] compute_features + predictions for {len(completed_ids)} completed races ...")
+        from src.jobs.compute_features   import run as cf
+        from src.jobs.compute_predictions import run as cp
+        for rid in completed_ids:
+            _run(f"compute_features race={rid}",    cf, rid)
+            _run(f"compute_predictions race={rid}", cp, rid)
+
+    # 7 ── Sprint features + predictions for completed sprint rounds
+    conn = get_conn()
+    completed_sprint_ids = get_completed_sprint_race_ids(conn, year)
+    conn.close()
+
+    if completed_sprint_ids:
+        print(f"[{year}] sprint features + predictions for {len(completed_sprint_ids)} sprint rounds ...")
+        from src.jobs.compute_sprint_features    import run as csf2
+        from src.jobs.compute_sprint_predictions import run as csp2
+        for rid, rn in completed_sprint_ids:
+            _run(f"sprint features race={rid}", csf2, rid)
+            _run(f"sprint predictions race={rid}", csp2, rid)
+
+    print(f"\n  ✓ {year} complete")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Full F1 historical backfill (2000–2026)")
+    parser.add_argument("--start", type=int, default=2000, help="First year (default 2000)")
+    parser.add_argument("--end",   type=int, default=2026, help="Last year  (default 2026)")
+    args = parser.parse_args()
+
+    years = list(range(args.start, args.end + 1))
+    print(f"Backfilling {len(years)} years: {years[0]}–{years[-1]}")
+
+    for year in years:
+        try:
+            process_year(year)
+        except Exception as e:
+            print(f"\n  ERROR in year {year}: {e} — continuing to next year")
+
+    print(f"\n{'='*52}")
+    print("  FULL BACKFILL COMPLETE")
+    print(f"{'='*52}\n")
+
+
+if __name__ == "__main__":
+    main()

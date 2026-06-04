@@ -11,9 +11,10 @@ function fmtSector(ms: number | null): string {
 interface Props {
   qualifying: QualifyingResult[];
   year: number;
+  labelPrefix?: string;
 }
 
-export function QualifyingGrid({ qualifying, year }: Props) {
+export function QualifyingGrid({ qualifying, year, labelPrefix = 'Q' }: Props) {
   const hasQ2 = qualifying.some((q) => q.q2TimeMs);
   const hasQ3 = qualifying.some((q) => q.q3TimeMs);
   const hasSectors = qualifying.some((q) => q.sector1Ms || q.sector2Ms || q.sector3Ms);
@@ -26,9 +27,9 @@ export function QualifyingGrid({ qualifying, year }: Props) {
             <TableHead className="w-10">Grid</TableHead>
             <TableHead className="w-14">Code</TableHead>
             <TableHead>Driver</TableHead>
-            <TableHead className="text-right">Q1</TableHead>
-            {hasQ2 && <TableHead className="text-right">Q2</TableHead>}
-            {hasQ3 && <TableHead className="text-right">Q3</TableHead>}
+            <TableHead className="text-right">{labelPrefix}1</TableHead>
+            {hasQ2 && <TableHead className="text-right">{labelPrefix}2</TableHead>}
+            {hasQ3 && <TableHead className="text-right">{labelPrefix}3</TableHead>}
             {hasSectors && (
               <>
                 <TableHead className="text-right hidden lg:table-cell">S1</TableHead>

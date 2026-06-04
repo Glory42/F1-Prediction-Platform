@@ -15,6 +15,9 @@ export const teamSeasonStats = pgTable('team_season_stats', {
   carPerformanceScore: numeric('car_performance_score', { precision: 5, scale: 4 }),
   dnfCount: integer('dnf_count').notNull().default(0),
   reliabilityScore: numeric('reliability_score', { precision: 5, scale: 4 }),
+  sprintWins: integer('sprint_wins').notNull().default(0),
+  sprintPodiums: integer('sprint_podiums').notNull().default(0),
+  sprintTotalPoints: numeric('sprint_total_points', { precision: 6, scale: 1 }).notNull().default('0'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('team_season_stats_season_team_idx').on(t.seasonId, t.teamId),

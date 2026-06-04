@@ -23,6 +23,13 @@ export const driverSeasonStats = pgTable('driver_season_stats', {
   avgSector3Ms: integer('avg_sector3_ms'),
   topSpeedAvg: numeric('top_speed_avg', { precision: 5, scale: 1 }),
   teammateQualiDelta: numeric('teammate_quali_delta', { precision: 6, scale: 4 }),
+  // Sprint-specific aggregates — kept separate because sprint max points (8) ≠ race max points (25)
+  sprintRacesEntered: integer('sprint_races_entered').notNull().default(0),
+  sprintWins: integer('sprint_wins').notNull().default(0),
+  sprintPodiums: integer('sprint_podiums').notNull().default(0),
+  sprintTotalPoints: numeric('sprint_total_points', { precision: 6, scale: 1 }).notNull().default('0'),
+  sprintAvgFinishPosition: numeric('sprint_avg_finish_position', { precision: 4, scale: 2 }),
+  sprintWinRate: numeric('sprint_win_rate', { precision: 5, scale: 4 }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('driver_season_stats_season_driver_idx').on(t.seasonId, t.driverId),

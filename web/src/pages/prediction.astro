@@ -2,14 +2,15 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary } from '@/types';
-import { Cpu, Target, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary, SprintPredictionResponse } from '@/types';
+import { Cpu, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import YearSelect from '@/components/YearSelect.astro';
 import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
 let upcoming = null;
+let upcomingSprint: SprintPredictionResponse | null = null;
 let history: PredictionHistoryItem[] = [];
 let standings: IntelStandingRow[] = [];
 let seasons: SeasonSummary[] = [];
@@ -25,6 +26,14 @@ if (upcomingResult.status === 'fulfilled') upcoming = upcomingResult.value;
 if (historyResult.status === 'fulfilled') history = historyResult.value;
 if (standingsResult.status === 'fulfilled') standings = standingsResult.value;
 if (seasonsResult.status === 'fulfilled') seasons = seasonsResult.value;
+
+// For sprint weekends: fetch sprint prediction for the upcoming race, or standalone sprint upcoming
+if (upcoming?.race.hasSprint) {
+  try { upcomingSprint = await api.getSprintByRaceId(upcoming.race.id); } catch {}
+}
+if (!upcomingSprint) {
+  try { upcomingSprint = await api.getSprintUpcoming(); } catch {}
+}
 
 const correctCount = history.filter((h) => h.correct === true).length;
 const completedCount = history.filter((h) => h.correct !== null).length;
@@ -49,46 +58,100 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
       <YearSelect years={seasons} currentYear={year} basePath="/prediction" />
     </div>
 
-    <!-- Upcoming prediction hero (if available) -->
-    {upcoming && (
-      <div class="panel p-6">
-        <div class="flex items-center gap-3 mb-5">
-          <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">./next race · {upcoming.race.name}</span>
-          <div class="h-px flex-1 bg-white/[0.05]" />
-          <a href={`/prediction/${upcoming.race.id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150">
-            full prediction →
-          </a>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div class="sm:col-span-2 space-y-4">
-            <div>
-              <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted winner</div>
-              <div class="text-2xl font-bold">{upcoming.predictedWinner.fullName}</div>
-              <div class="font-mono text-[9px] text-muted-foreground">{upcoming.predictedWinner.team.name} · {Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}% win probability</div>
+    <!-- Upcoming prediction hero -->
+    {(upcoming || upcomingSprint) && (
+      <div class={`grid gap-4 ${upcoming && upcomingSprint ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+
+        <!-- Sprint prediction panel -->
+        {upcomingSprint && (
+          <div class="panel p-6 border-t-2 border-t-orange-500/40">
+            <div class="flex items-center gap-3 mb-5">
+              <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-orange-400/60">
+                <Zap size={10} className="inline mr-1" />./sprint · {upcomingSprint.race.name}
+              </span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+              <a href={`/races/${upcomingSprint.race.id}/sprint`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-orange-400 transition-colors duration-150">
+                detail →
+              </a>
             </div>
-            <div class="space-y-2">
-              {upcoming.drivers.slice(0, 5).map((d, i) => {
-                const pct = Math.round(Number(d.winProbability) * 100);
-                return (
-                  <div class="flex items-center gap-3">
-                    <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
-                    <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
-                    <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                      <div class="h-full bg-[#a855f7] absolute inset-y-0 left-0" style={`width:${pct}%`} />
-                    </div>
-                    <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
-                  </div>
-                );
-              })}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div class="sm:col-span-2 space-y-4">
+                <div>
+                  <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted sprint winner</div>
+                  <div class="text-2xl font-bold">{upcomingSprint.predictedWinner.fullName}</div>
+                  <div class="font-mono text-[9px] text-muted-foreground">{upcomingSprint.predictedWinner.team.name} · {Math.round(Number(upcomingSprint.drivers[0]?.winProbability)*100)}% win probability</div>
+                </div>
+                <div class="space-y-2">
+                  {upcomingSprint.drivers.slice(0, 5).map((d, i) => {
+                    const pct = Math.round(Number(d.winProbability) * 100);
+                    return (
+                      <div class="flex items-center gap-3">
+                        <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
+                        <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
+                        <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
+                          <div class="h-full bg-orange-500 absolute inset-y-0 left-0" style={`width:${pct}%`} />
+                        </div>
+                        <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">sprint confidence</div>
+                <div class="text-5xl font-bold text-orange-400">{Math.round(Number(upcomingSprint.drivers[0]?.winProbability)*100)}</div>
+                <div class="font-mono text-[8px] text-muted-foreground">%</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcomingSprint.modelVersion}</div>
+              </div>
             </div>
           </div>
-          <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
-            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">model confidence</div>
-            <div class="text-5xl font-bold text-[#a855f7]">{Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}</div>
-            <div class="font-mono text-[8px] text-muted-foreground">%</div>
-            <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcoming.modelVersion}</div>
+        )}
+
+        <!-- Grand Prix prediction panel -->
+        {upcoming && (
+          <div class="panel p-6">
+            <div class="flex items-center gap-3 mb-5">
+              <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">
+                {upcoming.race.hasSprint ? '⬟ grand prix · ' : './next race · '}{upcoming.race.name}
+              </span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+              <a href={`/prediction/${upcoming.race.id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150">
+                full prediction →
+              </a>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div class="sm:col-span-2 space-y-4">
+                <div>
+                  <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted winner</div>
+                  <div class="text-2xl font-bold">{upcoming.predictedWinner.fullName}</div>
+                  <div class="font-mono text-[9px] text-muted-foreground">{upcoming.predictedWinner.team.name} · {Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}% win probability</div>
+                </div>
+                <div class="space-y-2">
+                  {upcoming.drivers.slice(0, 5).map((d, i) => {
+                    const pct = Math.round(Number(d.winProbability) * 100);
+                    return (
+                      <div class="flex items-center gap-3">
+                        <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
+                        <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
+                        <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
+                          <div class="h-full bg-[#a855f7] absolute inset-y-0 left-0" style={`width:${pct}%`} />
+                        </div>
+                        <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">model confidence</div>
+                <div class="text-5xl font-bold text-[#a855f7]">{Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}</div>
+                <div class="font-mono text-[8px] text-muted-foreground">%</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcoming.modelVersion}</div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
       </div>
     )}
 
@@ -103,25 +166,15 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
           <div class="h-px flex-1 bg-white/[0.05]" />
         </div>
         <div class="border border-white/[0.06]">
-          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] xl:grid-cols-[40px_1fr_120px_200px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Rank</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Team</div>
-            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden xl:block">Feature Profile</div>
             <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Score</div>
           </div>
           {standings.map((s, i) => {
-            const featureVals = [
-              Number(s.features.carPerformance),
-              Number(s.features.driverRating),
-              Number(s.features.winRate),
-              Number(s.features.luckFactor),
-              Number(s.features.weatherImpact),
-              Number(s.features.positionGain),
-            ];
-            const maxBar = Math.max(...featureVals, 0.001);
             return (
-              <div class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] xl:grid-cols-[40px_1fr_120px_200px_60px] gap-0 items-start sm:items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`} style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}>
+              <div class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_120px_60px] gap-0 items-start sm:items-center px-5 py-3 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`} style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}>
                 <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${i < 3 ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                   {String(i+1).padStart(2,'0')}
                 </div>
@@ -129,19 +182,22 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
                   <span class="font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0 mt-0.5">{s.driver.code}</span>
                   <div class="min-w-0">
                     <a href={`/drivers/${s.driver.id}?year=${year}`} class="font-semibold text-sm leading-none block hover:text-[#a855f7] transition-colors duration-150 truncate">{s.driver.fullName}</a>
-                    <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[8px] text-muted-foreground sm:hidden hover:text-foreground transition-colors duration-150 mt-1 block">{s.driver.team.name}</a>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[8px] text-muted-foreground sm:hidden hover:text-foreground transition-colors duration-150">{s.driver.team.name}</a>
+                      {s.sprintWins > 0 && (
+                        <span class="font-mono text-[7px] tracking-[0.1em] uppercase px-1.5 py-0.5 border border-orange-500/30 text-orange-400/70">
+                          {s.sprintWins}W sprint
+                        </span>
+                      )}
+                      {s.sprintPodiums > 0 && s.sprintWins === 0 && (
+                        <span class="font-mono text-[7px] tracking-[0.1em] uppercase px-1.5 py-0.5 border border-orange-500/20 text-orange-400/50">
+                          {s.sprintPodiums}P sprint
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <a href={`/teams/${s.driver.team.id}?year=${year}`} class="font-mono text-[9px] text-muted-foreground truncate hidden sm:block pr-6 hover:text-foreground transition-colors duration-150">{s.driver.team.name}</a>
-                <div class="hidden xl:flex items-end gap-[3px] h-7">
-                  {featureVals.map((v, fi) => (
-                    <div
-                      class="flex-1 bg-[rgba(168,85,247,0.5)] hover:bg-[#a855f7] transition-colors min-h-[3px]"
-                      style={`height:${Math.max(12, Math.round((v/maxBar)*100))}%`}
-                      title={['Car','Rating','WinRate','Luck','Weather','PosGain'][fi]}
-                    />
-                  ))}
-                </div>
                 <div class="text-right pt-1 sm:pt-0">
                   <div class="font-bold text-sm">{s.overallScore}</div>
                   <div class="w-full h-0.5 bg-white/[0.06] mt-1">
@@ -170,12 +226,15 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
         <div class="border border-white/[0.06]">
           {history.map((h, i) => (
             <a
-              href={`/prediction/${h.raceId}`}
+              href={h.isSprint ? `/races/${h.raceId}/sprint` : `/prediction/${h.raceId}`}
               class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
             >
               <div class="font-mono text-[9px] text-muted-foreground w-5 shrink-0">{h.roundNumber.toString().padStart(2,'0')}</div>
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors duration-150 truncate">{h.raceName}</div>
+                <div class="flex items-center gap-2">
+                  <span class={`font-semibold text-sm transition-colors duration-150 truncate ${h.isSprint ? 'group-hover:text-orange-400' : 'group-hover:text-[#a855f7]'}`}>{h.raceName}</span>
+                  {h.isSprint && <span class="font-mono text-[7px] tracking-[0.1em] uppercase px-1.5 py-0.5 border border-orange-500/30 text-orange-400/70 shrink-0">sprint</span>}
+                </div>
                 <div class="font-mono text-[9px] text-muted-foreground mt-0.5">
                   Predicted: <span class="text-foreground">{h.predictedWinner.code}</span>
                   {h.actualWinner && (

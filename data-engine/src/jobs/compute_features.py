@@ -168,6 +168,7 @@ def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id
             """
             SELECT id FROM races
             WHERE circuit_id = %s AND status = 'completed' AND id != %s
+              AND event_format = 'conventional'
             ORDER BY race_date DESC LIMIT 6
             """,
             (circuit_id, race_id),

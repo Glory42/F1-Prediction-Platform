@@ -41,6 +41,8 @@ api/
 ├── src/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
+│   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
+│   ├── common/mappers.ts          # toDriver(), toRace(), toCircuit() — canonical mappers used by all services
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)
@@ -49,14 +51,18 @@ api/
 │   │   │   ├── circuits.ts
 │   │   │   ├── teams.ts
 │   │   │   ├── drivers.ts
-│   │   │   ├── races.ts
+│   │   │   ├── races.ts           # Includes sprint condition columns + event_format
 │   │   │   ├── qualifying_results.ts
 │   │   │   ├── race_results.ts
 │   │   │   ├── lap_times.ts
-│   │   │   ├── driver_season_stats.ts
+│   │   │   ├── sprint_results.ts  # Sprint finish + SQ1/SQ2/SQ3 times + sq sector times
+│   │   │   ├── sprint_lap_times.ts# Per-lap sprint data
+│   │   │   ├── driver_season_stats.ts  # Includes sprint aggregates
 │   │   │   ├── team_season_stats.ts
 │   │   │   ├── race_predictions.ts
-│   │   │   └── driver_prediction_features.ts
+│   │   │   ├── driver_prediction_features.ts
+│   │   │   ├── driver_sprint_features.ts  # 8-feature sprint scores
+│   │   │   └── sprint_predictions.ts      # Sprint predicted winner
 │   │   └── seed.ts                # DB seed helpers
 │   └── modules/                   # Feature modules (service / controller / module)
 │       ├── races/
@@ -72,16 +78,21 @@ api/
 │       │   ├── teams.controller.ts
 │       │   └── teams.module.ts    # GET /, /standings, /:id, /:id/career
 │       ├── predictions/
-│       │   ├── predictions.service.ts # Upcoming, by race, history, intel standings
+│       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), standings
 │       │   ├── predictions.controller.ts
 │       │   └── predictions.module.ts  # GET /upcoming, /race/:id, /history, /standings
+│       ├── sprint/
+│       │   ├── sprint.service.ts  # Sprint detail — results, SQ grid, lap summaries, prediction
+│       │   ├── sprint.controller.ts
+│       │   └── sprint.module.ts   # GET /upcoming, /race/:id
 │       └── seasons/
 │           ├── seasons.service.ts # Season list
 │           ├── seasons.controller.ts
 │           └── seasons.module.ts  # GET /
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # Points to api/src/db/schema
-├── tsconfig.json
+├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
+├── tsconfig.node.json             # Node target for drizzle.config.ts + seed.ts (@types/node)
 └── package.json
 ```
 
@@ -116,6 +127,8 @@ Each module follows the same three-file pattern:
 | GET | `/api/predictions/race/:raceId` | — |
 | GET | `/api/predictions/history` | `year` |
 | GET | `/api/predictions/standings` | `year` |
+| GET | `/api/sprint/upcoming` | — |
+| GET | `/api/sprint/race/:raceId` | — |
 
 ---
 
@@ -128,11 +141,16 @@ web/
 ├── src/
 │   ├── pages/                     # File-based routes
 │   │   ├── index.astro            # Landing page (static)
-│   │   ├── prediction.astro       # Upcoming race prediction
-│   │   ├── prediction/[id].astro  # Historical prediction by race
+│   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged)
+│   │   ├── prediction/[id].astro  # Historical GP prediction by race
 │   │   ├── races/
-│   │   │   ├── index.astro        # Race calendar list
-│   │   │   └── [id].astro         # Race detail — results, qualifying, lap chart
+│   │   │   ├── index.astro        # Race calendar — sprint-aware cards
+│   │   │   └── [id]/
+│   │   │       ├── index.astro    # Race detail — results, qualifying, lap chart
+│   │   │       └── sprint.astro   # Sprint detail — results, SQ grid, lap chart, conditions
+│   │   ├── prediction/
+│   │   │   └── sprint/
+│   │   │       └── [id].astro     # Sprint prediction detail page
 │   │   ├── drivers/
 │   │   │   ├── index.astro        # Driver standings table
 │   │   │   └── [id].astro         # Driver profile — stats, recent results
@@ -144,15 +162,15 @@ web/
 │   │   └── LandingLayout.astro    # Landing-specific layout (no navbar chrome)
 │   ├── components/
 │   │   ├── Navbar.astro           # Top navigation bar
-│   │   ├── YearSelect.astro       # Year selector (form-based, SSR navigation)
+│   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
 │   │   ├── YearSelectLinks.astro  # Year selector using anchor links
-│   │   ├── RaceYearSelect.astro   # Year selector for race detail (navigates by race ID)
+│   │   ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
 │   │   ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
 │   │   ├── ProbabilityBar.astro   # Inline win probability bar
 │   │   ├── PredictionTable.tsx    # Driver prediction table with feature breakdown
-│   │   ├── RaceResultsTable.tsx   # Race results with team color dots
+│   │   ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
 │   │   ├── RecentResultsTable.tsx # Compact recent results table
-│   │   ├── QualifyingGrid.tsx     # Qualifying session grid
+│   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
 │   │   └── ui/                    # Shadcn/ui primitives
@@ -170,8 +188,10 @@ web/
 │   │                              #   DriverSeasonStats, TeamSeasonStats, FeatureScores,
 │   │                              #   DriverPrediction, PredictionResponse, RaceDetailResponse,
 │   │                              #   DriverDetailResponse, TeamDetailResponse,
-│   │                              #   DriverStanding, TeamStanding, PredictionHistoryItem,
-│   │                              #   IntelStandingRow, CircuitHistoryItem, SeasonSummary
+│   │                              #   DriverStanding, TeamStanding, PredictionHistoryItem (isSprint),
+│   │                              #   IntelStandingRow, CircuitHistoryItem (hasSprint), SeasonSummary,
+│   │                              #   SprintResult, SprintFeatureScores, DriverSprintPrediction,
+│   │                              #   SprintPredictionResponse, SprintDetailResponse
 │   ├── styles/
 │   │   └── globals.css            # Tailwind base + CSS custom properties
 │   └── env.d.ts                   # Astro env type declarations
@@ -189,10 +209,11 @@ web/
 | Route | Data source | Notes |
 |-------|-------------|-------|
 | `/` | Static | Landing — no API call |
-| `/prediction` | `GET /api/predictions/upcoming` | Upcoming race prediction |
-| `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical prediction |
-| `/races` | `GET /api/races?year=N` | Race calendar with year select |
-| `/races/[id]` | `GET /api/races/:id` | Results, qualifying, lap chart |
+| `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` | GP + sprint upcoming; history merged |
+| `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction |
+| `/races` | `GET /api/races?year=N` | Race calendar — filter (ALL/SPRINT/GP), sort (ASC/DESC), sprint weekends as two cards |
+| `/races/[id]` | `GET /api/races/:id` | GP results, qualifying, lap chart |
+| `/races/[id]/sprint` | `GET /api/sprint/race/:id` | Sprint results, SQ grid, sprint lap chart, conditions |
 | `/drivers` | `GET /api/drivers/standings?year=N` | Standings table |
 | `/drivers/[id]` | `GET /api/drivers/:id?year=N` | Profile + career |
 | `/teams` | `GET /api/teams/standings?year=N` | Standings table |
@@ -244,24 +265,27 @@ data-engine/
 │   │   ├── client.py              # get_conn() — psycopg2 RealDictCursor connection
 │   │   └── __init__.py
 │   ├── jobs/
-│   │   ├── sync_schedule.py       # Populate races table for a season from FastF1
-│   │   ├── sync_season.py         # Populate teams + drivers from FastF1 session data
-│   │   ├── ingest_qualifying.py   # Qualifying results + sector times — 2018+ (FastF1)
-│   │   ├── ingest_qualifying_legacy.py  # Qualifying from Ergast — pre-2018
-│   │   ├── ingest_race.py         # Race results + full lap timing — 2018+ (FastF1)
-│   │   ├── ingest_race_legacy.py  # Race results from Ergast (no laps) — pre-2018
-│   │   ├── compute_season_stats.py# Aggregate driver_season_stats + team_season_stats
-│   │   ├── compute_features.py    # Compute 12 feature scores per driver per race
-│   │   └── compute_predictions.py # Softmax on feature scores → win probabilities
+│   │   ├── sync_schedule.py            # Populate races table — includes sprint_date, event_format
+│   │   ├── sync_season.py              # Populate teams + drivers from FastF1 session data
+│   │   ├── ingest_qualifying.py        # Q1/Q2/Q3 + sector times — 2018+; date guard rejects future rounds
+│   │   ├── ingest_qualifying_legacy.py # Qualifying from Ergast — pre-2018
+│   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
+│   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
+│   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
+│   │   ├── ingest_sprint.py            # Sprint results + sprint_lap_times + sprint conditions
+│   │   ├── compute_season_stats.py     # Aggregate driver/team stats including sprint aggregates
+│   │   ├── compute_features.py         # 12 feature scores per driver per GP
+│   │   ├── compute_predictions.py      # Softmax on GP feature scores → win probabilities
+│   │   ├── compute_sprint_features.py  # 8 sprint feature scores per driver
+│   │   └── compute_sprint_predictions.py # Softmax on sprint scores → sprint win probabilities
 │   └── utils/
-│       ├── fastf1_helpers.py      # get_session(), session_to_race_results(),
+│       ├── fastf1_helpers.py      # get_session(messages=False), session_to_race_results(),
 │       │                          # session_to_quali_results(), session_to_lap_times(),
 │       │                          # get_weather(), get_weather_details(), get_sc_vsc_laps()
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp()
-│       └── upsert.py              # Generic INSERT ... ON CONFLICT DO UPDATE helper
-├── run_backfill.py                # Full historical backfill runner for a year range
-├── backfill_historical.sh         # Shell wrapper for run_backfill.py
-├── populate_all.sh                # Shell wrapper for full population
+│       └── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
+├── backfill_full.py               # Full historical backfill: sync + ingest + sprint + predictions
+├── backfill_sprint.py             # Sprint-only backfill for specific years
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 └── .env.example                   # DATABASE_URL template
@@ -271,23 +295,27 @@ data-engine/
 
 | Job | Input | Purpose |
 |-----|-------|---------|
-| `sync_schedule` | `--year` | Populates the `races` table from FastF1 |
+| `sync_schedule` | `--year` | Populates `races` table with sprint dates and event_format |
 | `sync_season` | `--year [--round]` | Populates `teams` and `drivers`; must run before any ingest |
 | `ingest_qualifying` | `--year --round` | Q1/Q2/Q3 times, sector times, grid positions — 2018+ |
 | `ingest_qualifying_legacy` | `--year --round` | Grid positions and Q times via Ergast — pre-2018 |
-| `ingest_race` | `--year --round` | Race results + per-lap timing — 2018+ |
+| `ingest_race` | `--year --round` | Race results + per-lap timing + conditions — 2018+ |
 | `ingest_race_legacy` | `--year --round` | Race results only via Ergast — pre-2018 |
-| `compute_season_stats` | `--year` | Rolling aggregates for all drivers and teams |
-| `compute_features` | `--race_id` | 12 feature scores per driver for a specific race |
-| `compute_predictions` | `--race_id` | Softmax → win probabilities and predicted positions |
+| `ingest_sprint_qualifying` | `--year --round` | SQ session → sprint_results (sq1/sq2/sq3 + sector times + speed); date guard rejects future rounds |
+| `ingest_sprint` | `--year --round` | Sprint results + sprint_lap_times + sprint conditions; sprint weekends only |
+| `compute_season_stats` | `--year` | Rolling aggregates for drivers and teams, including sprint stats |
+| `compute_features` | `--race_id` | 12 feature scores per driver for a GP |
+| `compute_predictions` | `--race_id` | Softmax → GP win probabilities and predicted positions |
+| `compute_sprint_features` | `--race_id` | 8 sprint feature scores per driver |
+| `compute_sprint_predictions` | `--race_id` | Softmax → sprint win probabilities and predicted positions |
 
 ### Utilities
 
 | File | Key functions |
 |------|--------------|
-| `fastf1_helpers.py` | `get_session()` — loads FastF1 session with correct options per type; `session_to_quali_results()`, `session_to_race_results()`, `session_to_lap_times()` — extract structured dicts from FastF1 DataFrames |
+| `fastf1_helpers.py` | `get_session(year, round, type, messages=False)` — loads FastF1 session (SQ sessions need `messages=True`); `session_to_quali_results()`, `session_to_race_results()`, `session_to_lap_times()` — extract structured dicts from FastF1 DataFrames |
 | `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=0.3)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)` |
-| `upsert.py` | `upsert(conn, table, rows, conflict_cols)` — idempotent bulk write using `ON CONFLICT DO UPDATE` |
+| `upsert.py` | `upsert(conn, table, rows, conflict_cols, exclude_update=[])` — idempotent bulk write; `exclude_update` prevents overwriting specified columns (used to protect sprint race data from SQ re-ingest) |
 
 ---
 

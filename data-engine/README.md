@@ -14,50 +14,58 @@ cp .env.example .env   # fill in DATABASE_URL
 ## Running Jobs
 
 ```bash
-# Sync race schedule for a year
-python -m src.main --job sync_schedule --year 2025
+# Sync race schedule and driver/team roster
+python -m src.main --job sync_schedule --year 2026
+python -m src.main --job sync_season   --year 2026 --round 1
 
-# Sync driver/team roster
-python -m src.main --job sync_season --year 2025 --round 1
-
-# Ingest qualifying (2018+: FastF1 full timing)
-python -m src.main --job ingest_qualifying --year 2025 --round 14
-
-# Ingest qualifying (pre-2018: Ergast results only)
-python -m src.main --job ingest_qualifying_legacy --year 2010 --round 5
-
-# Ingest race results
-python -m src.main --job ingest_race --year 2025 --round 14
-python -m src.main --job ingest_race_legacy --year 2010 --round 5
-
-# Compute features for a race (run after qualifying is ingested)
-python -m src.main --job compute_features --race_id 42
-
-# Compute predictions (run after features)
+# Main qualifying + race pipeline
+python -m src.main --job ingest_qualifying --year 2026 --round 6
+python -m src.main --job ingest_race       --year 2026 --round 6
+python -m src.main --job compute_season_stats --year 2026
+python -m src.main --job compute_features    --race_id 42
 python -m src.main --job compute_predictions --race_id 42
 
-# Recompute season stats (run after race results are ingested)
-python -m src.main --job compute_season_stats --year 2025
+# Sprint pipeline (sprint weekends only)
+python -m src.main --job ingest_sprint_qualifying --year 2026 --round 9
+python -m src.main --job compute_sprint_features  --race_id 55
+python -m src.main --job compute_sprint_predictions --race_id 55
+python -m src.main --job ingest_sprint            --year 2026 --round 9
+
+# Pre-2018 legacy jobs (Ergast — no lap data)
+python -m src.main --job ingest_qualifying_legacy --year 2010 --round 5
+python -m src.main --job ingest_race_legacy       --year 2010 --round 5
 ```
 
 ## Historical Backfill
 
 ```bash
-# Full backfill for a year range (sync → ingest → compute)
-python run_backfill.py 2000 2025
+# Full backfill — sync + all rounds + sprint pipeline + predictions
+python backfill_full.py --start 2018           # recommended: full FastF1 coverage
+python backfill_full.py --start 2000           # 2000–2026, older years skip gracefully
 
-# Background with log
-python run_backfill.py 2019 2023 > /tmp/backfill.log 2>&1 &
+# Sprint-only backfill — re-run sprint pipeline for specific years
+python backfill_sprint.py --years 2021 2022 2024 2026
 ```
 
 Data coverage:
-- **2018–present**: FastF1 full timing (lap times, sector times, telemetry)
-- **2000–2017**: Ergast results only (no lap times)
+- **2018–present**: FastF1 full timing (qualifying, lap times, sprint lap times, conditions)
+- **2000–2017**: Ergast results only (no lap times; no sprint — format started 2021)
 
 ## Cron Schedule (Render)
 
+### Conventional Weekend
+
 | Time (UTC) | Jobs |
 |------------|------|
+| Saturday 22:00 | `ingest_qualifying` → `compute_features` → `compute_predictions` |
+| Sunday 18:00 | `ingest_race` → `compute_season_stats` |
+
+### Sprint Weekend
+
+| Time (UTC) | Jobs |
+|------------|------|
+| Friday 22:00 | `ingest_sprint_qualifying` → `compute_sprint_features` → `compute_sprint_predictions` |
+| Saturday 16:00 | `ingest_sprint` → `compute_season_stats` |
 | Saturday 22:00 | `ingest_qualifying` → `compute_features` → `compute_predictions` |
 | Sunday 18:00 | `ingest_race` → `compute_season_stats` |
 
@@ -70,7 +78,7 @@ import fastf1
 fastf1.Cache.enable_cache('./cache')
 ```
 
-The `cache/` directory is gitignored.
+The `cache/` directory is gitignored. Already enabled via `src/config.py`.
 
 ## Environment Variables
 
@@ -81,6 +89,7 @@ The `cache/` directory is gitignored.
 ## Rules
 
 - All jobs are idempotent — safe to re-run (`INSERT ... ON CONFLICT DO UPDATE`)
+- Sprint qualifying ingest never overwrites existing sprint race finish positions (`exclude_update` guard)
 - Jobs exit with code 1 on failure (Render marks the job failed for manual retrigger)
 - No `sleep()` inside jobs — Render has a job timeout
 - Structured logging: `{"job": "ingest_race", "round": 14, "status": "failed", "error": "..."}`

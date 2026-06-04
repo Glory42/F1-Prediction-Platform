@@ -3,10 +3,10 @@ import pandas as pd
 from typing import Any
 
 
-def get_session(year: int, round_num: int, session_type: str) -> fastf1.core.Session:
+def get_session(year: int, round_num: int, session_type: str, messages: bool = False) -> fastf1.core.Session:
     session = fastf1.get_session(year, round_num, session_type)
     telemetry = session_type in ("FP1", "FP2", "FP3")
-    session.load(laps=True, telemetry=telemetry, weather=True, messages=False)
+    session.load(laps=True, telemetry=telemetry, weather=True, messages=messages)
     return session
 
 

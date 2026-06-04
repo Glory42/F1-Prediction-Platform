@@ -69,18 +69,26 @@ Running any job twice must produce identical results, never duplicate rows.
 ### Key Tables
 - `circuits` — static track data, seeded once (includes `overtake_rate`)
 - `seasons` — one row per year
-- `races` — one per race event; `status` field controls ETL flow
+- `races` — one per race event; `status` + `event_format` control ETL flow; includes sprint condition columns and sprint dates
 - `teams` / `drivers` — season-scoped (change year to year)
-- `qualifying_results` / `race_results` / `lap_times` — raw ingested data
-- `driver_season_stats` / `team_season_stats` — aggregated after each race
-- `driver_prediction_features` — 8 normalized feature scores per driver per race (ML anchor)
-- `race_predictions` — one predicted winner per race
+- `qualifying_results` / `race_results` / `lap_times` — raw GP ingested data
+- `sprint_results` — sprint finish data + SQ1/SQ2/SQ3 qualifying times
+- `sprint_lap_times` — per-lap sprint data (mirrors `lap_times` structure)
+- `driver_season_stats` / `team_season_stats` — aggregated after each race (includes sprint aggregates)
+- `driver_prediction_features` — 12 normalized feature scores per driver per GP
+- `race_predictions` — one predicted GP winner per race
+- `driver_sprint_features` — 8 sprint-specific feature scores per driver per sprint weekend
+- `sprint_predictions` — one predicted sprint winner per sprint weekend
 
 ### Race Status Flow
 ```
+conventional:
 'scheduled' → 'qualifying_done' → 'completed'
-                     ↓                  ↓
-             run predictions      ingest results
+
+sprint weekend:
+'scheduled' → 'sprint_qualifying_done' → 'sprint_done' → 'qualifying_done' → 'completed'
+                         ↓                      ↓                ↓
+               sprint features/predictions  ingest sprint  GP features/predictions
 ```
 
 ---
@@ -97,7 +105,8 @@ api/src/
 │   ├── races/{controller,service,module}.ts
 │   ├── drivers/{controller,service,module}.ts
 │   ├── teams/{controller,service,module}.ts
-│   └── predictions/{controller,service,module}.ts
+│   ├── predictions/{controller,service,module}.ts
+│   └── sprint/{controller,service,module}.ts
 └── main.ts                            # Entry point, route registration
 ```
 
@@ -128,6 +137,9 @@ GET /api/teams?year=N
 GET /api/teams/:id?year=N
 GET /api/predictions/upcoming
 GET /api/predictions/race/:race_id
+GET /api/predictions/history?year=N
+GET /api/sprint/upcoming
+GET /api/sprint/race/:race_id
 ```
 
 No authentication. No write endpoints (ETL writes directly to DB).
@@ -180,6 +192,13 @@ python src/main.py --job compute_season_stats --year 2025
 ```
 
 ### Cron schedule (Render)
+**Conventional weekend:**
+- **Saturday 22:00 UTC**: `ingest_qualifying` → `compute_features` → `compute_predictions`
+- **Sunday 18:00 UTC**: `ingest_race` → `compute_season_stats`
+
+**Sprint weekend:**
+- **Friday 22:00 UTC**: `ingest_sprint_qualifying` → `compute_sprint_features` → `compute_sprint_predictions`
+- **Saturday 16:00 UTC**: `ingest_sprint` → `compute_season_stats`
 - **Saturday 22:00 UTC**: `ingest_qualifying` → `compute_features` → `compute_predictions`
 - **Sunday 18:00 UTC**: `ingest_race` → `compute_season_stats`
 

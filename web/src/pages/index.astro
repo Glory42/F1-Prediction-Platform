@@ -23,7 +23,15 @@ const upcoming  = races.filter((r) => r.status !== 'completed').sort((a, b) => a
 
 const heroRace = prediction?.race ?? upcoming[0] ?? null;
 const calendarRaces = upcoming.filter((r) => r.id !== heroRace?.id).slice(0, 6);
-const archiveRaces  = completed.slice(0, 6);
+// For sprint weekends, show both a sprint entry and a GP entry
+const archiveEntries = completed.slice(0, 6).flatMap((race) =>
+  race.hasSprint
+    ? [
+        { race, isSprint: true,  date: race.sprintDate ?? race.raceDate, href: `/races/${race.id}/sprint` },
+        { race, isSprint: false, date: race.raceDate,                    href: `/races/${race.id}` },
+      ]
+    : [{ race, isSprint: false, date: race.raceDate, href: `/races/${race.id}` }]
+).slice(0, 8);
 
 const podium = (prediction?.drivers ?? [])
   .sort((a, b) => (a.predictedPosition ?? 99) - (b.predictedPosition ?? 99))
@@ -49,8 +57,16 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
                 ./round-{heroRace.roundNumber.toString().padStart(2,'0')}
               </span>
               <div class="h-px flex-1 bg-white/[0.05]" />
-              <span class="font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
-                {heroRace.status === 'qualifying_done' ? 'qualifying done' : 'upcoming'}
+              <span class="font-mono text-[9px] tracking-[0.2em] uppercase" style={
+                heroRace.status === 'qualifying_done'         ? 'color:rgba(168,85,247,0.7)' :
+                heroRace.status === 'sprint_done'             ? 'color:rgba(249,115,22,0.7)' :
+                heroRace.status === 'sprint_qualifying_done'  ? 'color:rgba(249,115,22,0.7)' :
+                'color:rgba(255,255,255,0.3)'
+              }>
+                {heroRace.status === 'qualifying_done'         ? 'qualifying done'  :
+                 heroRace.status === 'sprint_done'             ? 'sprint done'      :
+                 heroRace.status === 'sprint_qualifying_done'  ? 'sprint quali done':
+                 'upcoming'}
               </span>
             </div>
 
@@ -198,8 +214,11 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
             href={`/races/${race.id}`}
             class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group"
           >
-            <div class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase mb-3">
-              <Flag size={10} />R{race.roundNumber.toString().padStart(2, '0')} · {race.circuit.country}
+            <div class="flex items-center gap-2 font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase mb-3">
+              <span class="flex items-center gap-1.5"><Flag size={10} />R{race.roundNumber.toString().padStart(2, '0')} · {race.circuit.country}</span>
+              {race.hasSprint && (
+                <span class="font-mono text-[7px] tracking-[0.15em] uppercase px-1.5 py-0.5 border border-orange-500/35 text-orange-400/75">SPRINT</span>
+              )}
             </div>
             <div class="font-semibold text-sm leading-snug mb-2 group-hover:text-[#a855f7] transition-colors duration-150">
               {race.name}
@@ -214,7 +233,7 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
   )}
 
   <!-- ── ARCHIVE ──────────────────────────────────────────────────── -->
-  {archiveRaces.length > 0 && (
+  {archiveEntries.length > 0 && (
     <section>
       <div class="flex items-center gap-3 mb-5">
         <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./archive</span>
@@ -226,21 +245,26 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
       <h2 class="text-xl font-bold mb-5">Recent Results</h2>
 
       <div class="border border-white/[0.06]">
-        {archiveRaces.map((race, i) => (
-          <div class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+        {archiveEntries.map(({ race, isSprint, date, href }, i) => (
+          <div class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isSprint ? 'bg-[rgba(249,115,22,0.02)]' : ''}`}>
             <span class="font-mono text-[10px] text-muted-foreground w-7 shrink-0">
               {race.roundNumber.toString().padStart(2, '0')}
             </span>
             <div class="flex-1 min-w-0">
-              <div class="font-medium text-sm truncate">{race.name}</div>
+              <div class="flex items-center gap-2">
+                <div class="font-medium text-sm truncate">{race.name}</div>
+                {isSprint && (
+                  <span class="shrink-0 font-mono text-[7px] tracking-[0.15em] uppercase px-1.5 py-0.5 border border-orange-500/35 text-orange-400/75 hidden sm:inline">sprint</span>
+                )}
+              </div>
               <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground mt-0.5 truncate">
                 <MapPin size={9} />{race.circuit.city}, {race.circuit.country}
               </div>
             </div>
-            <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground hidden sm:flex shrink-0"><CalendarDays size={10} />{formatDate(race.raceDate)}</span>
+            <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground hidden sm:flex shrink-0"><CalendarDays size={10} />{formatDate(date)}</span>
             <a
-              href={`/races/${race.id}`}
-              class="flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150 shrink-0"
+              href={href}
+              class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase transition-colors duration-150 shrink-0 ${isSprint ? 'text-orange-400/60 hover:text-orange-400' : 'text-muted-foreground hover:text-[#a855f7]'}`}
             >
               results <ChevronRight size={10} />
             </a>

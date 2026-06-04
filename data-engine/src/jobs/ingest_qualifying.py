@@ -1,6 +1,10 @@
 import json
+import datetime
 from src.db.client import get_conn
 from src.utils.fastf1_helpers import get_session, session_to_quali_results
+
+
+SUPPORTED_FORMATS = {"conventional", "sprint_qualifying", "sprint", "sprint_shootout"}
 
 
 def run(year: int, round_num: int) -> None:
@@ -9,16 +13,30 @@ def run(year: int, round_num: int) -> None:
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            # Resolve race_id and season_id
+            # Resolve race_id, season_id, event_format, and qualifying_date
             cur.execute(
-                "SELECT r.id, r.season_id FROM races r "
-                "JOIN seasons s ON r.season_id = s.id "
+                "SELECT r.id, r.season_id, r.event_format, "
+                "       COALESCE(r.qualifying_date::date, r.race_date::date - 1) AS quali_day "
+                "FROM races r JOIN seasons s ON r.season_id = s.id "
                 "WHERE s.year = %s AND r.round_number = %s",
                 (year, round_num),
             )
             race_row = cur.fetchone()
         if not race_row:
             raise ValueError(f"Race not found in DB for year={year} round={round_num}")
+
+        if race_row["quali_day"] > datetime.date.today():
+            raise RuntimeError(
+                f"Qualifying for {year} R{round_num} is on {race_row['quali_day']} — not yet. Skipping."
+            )
+
+        event_format = race_row["event_format"] or "conventional"
+        if event_format not in SUPPORTED_FORMATS:
+            raise ValueError(
+                f"Cannot run ingest_qualifying for event_format='{event_format}' "
+                f"(round {round_num}). Only standard qualifying formats are supported."
+            )
+        print(f"  event_format={event_format} — ingesting Session4 (main qualifying)")
 
         race_id = race_row["id"]
         season_id = race_row["season_id"]
@@ -51,10 +69,12 @@ def run(year: int, round_num: int) -> None:
                 "speed_st": qr.get("speed_st"),
             })
 
-        if rows_to_upsert:
-            from src.utils.upsert import upsert
-            upsert(conn, "qualifying_results", rows_to_upsert, ["race_id", "driver_id"])
-            print(f"  Upserted {len(rows_to_upsert)} qualifying rows")
+        if not rows_to_upsert:
+            raise RuntimeError(f"No qualifying results found for {year} R{round_num} — session may not have data yet")
+
+        from src.utils.upsert import upsert
+        upsert(conn, "qualifying_results", rows_to_upsert, ["race_id", "driver_id"])
+        print(f"  Upserted {len(rows_to_upsert)} qualifying rows")
 
         with conn.cursor() as cur:
             cur.execute(
@@ -62,7 +82,7 @@ def run(year: int, round_num: int) -> None:
                 (race_id,),
             )
         conn.commit()
-        print(f"  Race {race_id} status → qualifying_done (if was scheduled)")
+        print(f"  Race {race_id} status → qualifying_done")
 
     finally:
         conn.close()

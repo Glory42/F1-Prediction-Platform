@@ -25,7 +25,7 @@ Checks API and DB connectivity.
   "data": {
     "status": "ok",
     "db": "connected",
-    "timestamp": "2025-06-01T12:00:00.000Z"
+    "timestamp": "2026-06-04T12:00:00.000Z"
   }
 }
 ```
@@ -42,7 +42,7 @@ Returns all seasons with data.
 {
   "data": [
     { "id": 1, "year": 2000 },
-    { "id": 26, "year": 2025 }
+    { "id": 27, "year": 2026 }
   ]
 }
 ```
@@ -56,17 +56,23 @@ Returns all seasons with data.
 | Param | Required | Default | Notes |
 |-------|----------|---------|-------|
 | `year` | no | current year | |
-| `status` | no | all | `scheduled` \| `qualifying_done` \| `completed` |
+| `status` | no | all | `scheduled` \| `sprint_qualifying_done` \| `sprint_done` \| `qualifying_done` \| `completed` |
 
-Returns all races for the year, each with circuit info.
+Returns all races for the year. Each race includes `eventFormat`, `hasSprint`, `sprintDate`, and sprint condition fields for sprint weekends.
 
 ### `GET /api/races/:id`
 
-Returns a single race with circuit, results (if completed), and prediction (if available).
+Returns a single race with circuit, results (if completed), qualifying, and lap summaries.
+
+The `Race` object includes:
+- `eventFormat` — `conventional` | `sprint` | `sprint_qualifying` | `sprint_shootout`
+- `hasSprint` — boolean derived from eventFormat
+- `sprintDate` / `sprintQualifyingDate` — ISO strings, null for conventional weekends
+- `sprintWeather`, `sprintSafetyCarLaps`, `sprintVscLaps`, `sprintAirTempAvg`, `sprintTrackTempAvg`, `sprintHumidityAvg` — sprint-specific conditions
 
 ### `GET /api/races/circuit/:circuitKey`
 
-Returns historical race results at a specific circuit across all years.
+Returns historical race results at a specific circuit across all years. Each item includes `hasSprint: boolean`.
 
 ---
 
@@ -78,8 +84,6 @@ Returns historical race results at a specific circuit across all years.
 |-------|----------|---------|-------|
 | `year` | no | current year | |
 | `team_id` | no | all teams | Filter by team |
-
-Returns all drivers for the season with their team.
 
 ### `GET /api/drivers/standings?year=N`
 
@@ -115,17 +119,18 @@ Returns a team's stats across all seasons they have data in.
 
 ---
 
-## Predictions
+## Predictions (Grand Prix)
 
 ### `GET /api/predictions/upcoming`
 
-Returns the prediction for the next scheduled or qualifying-done race. Includes per-driver feature breakdown.
+Returns the prediction for the next `qualifying_done` race with `race_date >= today`. Ordered ascending so the chronologically next race always wins — historical races stuck in `qualifying_done` from a partial backfill are excluded by the date guard.
 
 ```json
 {
   "data": {
-    "race": { "id": 200, "name": "Monaco Grand Prix", "raceDate": "2025-05-25", ... },
+    "race": { "id": 200, "name": "Monaco Grand Prix", "raceDate": "2026-06-07", "hasSprint": false, ... },
     "predictedWinner": { "id": 42, "fullName": "Max Verstappen", ... },
+    "modelVersion": "weighted-v2",
     "drivers": [
       {
         "predictedPosition": 1,
@@ -139,7 +144,11 @@ Returns the prediction for the next scheduled or qualifying-done race. Includes 
           "luckFactor": "0.62000",
           "weatherImpact": "0.50000",
           "trackOvertake": "0.35000",
-          "positionGain": "0.70000"
+          "positionGain": "0.70000",
+          "longRunPace": "0.81000",
+          "reliability": "0.90000",
+          "qualifyingDelta": "0.68000",
+          "sectorStrength": "0.74000"
         }
       }
     ]
@@ -149,15 +158,91 @@ Returns the prediction for the next scheduled or qualifying-done race. Includes 
 
 ### `GET /api/predictions/race/:raceId`
 
-Returns the prediction for a specific race by ID. Same shape as `/upcoming`.
+Returns the prediction for a specific grand prix by race ID. Same shape as `/upcoming`.
 
 ### `GET /api/predictions/history?year=N`
 
-Returns all predictions for the year with actual results alongside predicted results, for accuracy tracking.
+Returns all predictions for the year — both grand prix and sprint races merged and sorted by date descending. Includes actual results alongside predicted results for accuracy tracking.
+
+Each item includes `isSprint: boolean`. Sprint items link to `/races/:id/sprint`; main race items link to `/prediction/:id`.
+
+```json
+{
+  "data": [
+    {
+      "raceId": 210,
+      "raceName": "Canadian Grand Prix",
+      "raceDate": "2026-05-24",
+      "roundNumber": 5,
+      "isSprint": false,
+      "predictedWinner": { "code": "ANT", ... },
+      "actualWinner": { "code": "ANT", ... },
+      "correct": true,
+      "winProbability": "0.31200",
+      "computedAt": "2026-05-23T20:00:00.000Z"
+    },
+    {
+      "raceId": 205,
+      "raceName": "Chinese Grand Prix",
+      "raceDate": "2026-03-15",
+      "roundNumber": 2,
+      "isSprint": true,
+      "predictedWinner": { "code": "ANT", ... },
+      "actualWinner": { "code": "RUS", ... },
+      "correct": false,
+      "winProbability": "0.29000",
+      "computedAt": "2026-03-14T18:00:00.000Z"
+    }
+  ]
+}
+```
 
 ### `GET /api/predictions/standings?year=N`
 
-Returns the "Intelligence Standings" — driver rankings by prediction accuracy (how often each driver was correctly predicted to win or finish in top positions).
+Returns the "Intelligence Standings" — driver rankings by average prediction score. Each row includes sprint aggregates (`sprintWins`, `sprintPodiums`, `sprintTotalPoints`).
+
+---
+
+## Sprint Predictions
+
+### `GET /api/sprint/upcoming`
+
+Returns the sprint prediction for the next upcoming sprint weekend. Same envelope as the grand prix upcoming prediction but uses sprint model features and `modelVersion: "sprint-v1"`.
+
+### `GET /api/sprint/race/:raceId`
+
+Returns the sprint prediction for a specific race ID. Includes sprint results if the sprint has been completed, and sprint lap summaries.
+
+```json
+{
+  "data": {
+    "race": { "id": 205, "name": "Chinese Grand Prix", "hasSprint": true, "sprintDate": "2026-03-15", ... },
+    "prediction": {
+      "predictedWinner": { "code": "ANT", ... },
+      "modelVersion": "sprint-v1",
+      "drivers": [
+        {
+          "predictedPosition": 1,
+          "winProbability": "0.29000",
+          "driver": { ... },
+          "features": {
+            "carPerformance": "0.88000",
+            "startingPosition": "1.00000",
+            "driverRating": "0.75000",
+            "trackOvertake": "0.42000",
+            "shortRunPace": "0.91000",
+            "weatherImpact": "0.50000",
+            "winRate": "0.65000",
+            "luckFactor": "0.55000"
+          }
+        }
+      ]
+    },
+    "results": [ ... ],
+    "laps": [ ... ]
+  }
+}
+```
 
 ---
 

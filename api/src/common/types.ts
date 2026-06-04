@@ -47,13 +47,24 @@ export type Race = {
   roundNumber: number;
   name: string;
   raceDate: string;
-  status: 'scheduled' | 'qualifying_done' | 'completed';
+  status: 'scheduled' | 'sprint_qualifying_done' | 'sprint_done' | 'qualifying_done' | 'completed';
+  eventFormat: string;
+  qualifyingDate: string | null;
+  sprintDate: string | null;
+  sprintQualifyingDate: string | null;
+  hasSprint: boolean;
   weather: string | null;
   safetyCarLaps: number | null;
   vscLaps: number | null;
   airTempAvg: string | null;
   trackTempAvg: string | null;
   humidityAvg: string | null;
+  sprintWeather: string | null;
+  sprintSafetyCarLaps: number | null;
+  sprintVscLaps: number | null;
+  sprintAirTempAvg: string | null;
+  sprintTrackTempAvg: string | null;
+  sprintHumidityAvg: string | null;
   circuit: Circuit;
 };
 
@@ -193,6 +204,7 @@ export type PredictionHistoryItem = {
   winProbability: string;
   correct: boolean | null;
   computedAt: string;
+  isSprint: boolean;
 };
 
 export type IntelStandingRow = {
@@ -202,6 +214,9 @@ export type IntelStandingRow = {
   winProbability: string;
   predictedPosition: number | null;
   overallScore: number;
+  sprintWins: number;
+  sprintPodiums: number;
+  sprintTotalPoints: string;
 };
 
 export type CircuitHistoryItem = {
@@ -209,6 +224,7 @@ export type CircuitHistoryItem = {
   raceName: string;
   raceDate: string;
   year: number;
+  hasSprint: boolean;
   winner: Driver | null;
 };
 
@@ -225,4 +241,56 @@ export type TeamYearStats = {
   year: number;
   teamId: number;
   stats: TeamSeasonStats | null;
+};
+
+export type SprintResult = {
+  id: number;
+  raceId: number;
+  driverId: number;
+  finishPosition: number | null;
+  gridPosition: number;
+  points: string;
+  status: string;
+  fastestLap: boolean;
+  sq1TimeMs: number | null;
+  sq2TimeMs: number | null;
+  sq3TimeMs: number | null;
+  sqSector1Ms: number | null;
+  sqSector2Ms: number | null;
+  sqSector3Ms: number | null;
+  sqSpeedSt: string | null;
+  driver: Driver;
+};
+
+export type SprintFeatureScores = {
+  carPerformance: string;
+  startingPosition: string;
+  driverRating: string;
+  trackOvertake: string;
+  shortRunPace: string;
+  weatherImpact: string;
+  winRate: string;
+  luckFactor: string;
+};
+
+export type DriverSprintPrediction = {
+  driver: Driver;
+  winProbability: string;
+  predictedPosition: number | null;
+  features: SprintFeatureScores;
+};
+
+export type SprintPredictionResponse = {
+  race: Race;
+  predictedWinner: Driver;
+  computedAt: string;
+  modelVersion: string;
+  drivers: DriverSprintPrediction[];
+};
+
+export type SprintDetailResponse = {
+  race: Race;
+  prediction: SprintPredictionResponse | null;
+  results: SprintResult[];
+  laps: LapSummary[];
 };

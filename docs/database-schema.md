@@ -24,11 +24,15 @@ seasons
   └── teams          (season-scoped)
   └── drivers        (season-scoped, FK → teams)
   └── races          (FK → circuits)
-        └── qualifying_results  (FK → drivers)
-        └── race_results        (FK → drivers)
-        └── lap_times           (FK → drivers)
+        └── qualifying_results      (FK → drivers)
+        └── race_results            (FK → drivers)
+        └── lap_times               (FK → drivers)
         └── driver_prediction_features (FK → drivers)
-        └── race_predictions    (FK → drivers)
+        └── race_predictions        (FK → drivers)
+        └── sprint_results          (FK → drivers)  ← sprint weekends only
+        └── sprint_lap_times        (FK → drivers)  ← sprint weekends only
+        └── driver_sprint_features  (FK → drivers)  ← sprint weekends only
+        └── sprint_predictions      (FK → drivers)  ← sprint weekends only
   └── driver_season_stats  (FK → drivers)
   └── team_season_stats    (FK → teams)
 
@@ -45,7 +49,7 @@ One row per calendar year.
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | serial PK | |
-| `year` | integer UNIQUE | e.g. 2025 |
+| `year` | integer UNIQUE | e.g. 2026 |
 
 ---
 
@@ -98,7 +102,7 @@ Season-scoped — a driver row exists per year they raced.
 ---
 
 ### `races`
-One row per race event.
+One row per race event. Sprint weekends have one race row (covering both the sprint and grand prix).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -107,20 +111,43 @@ One row per race event.
 | `circuit_id` | FK → circuits | |
 | `round_number` | integer | |
 | `name` | varchar(100) | e.g. `Monaco Grand Prix` |
-| `race_date` | date | |
-| `status` | enum | `scheduled` \| `qualifying_done` \| `completed` |
-| `weather` | varchar(30) | `dry` \| `wet` \| `mixed` |
+| `race_date` | date | Grand Prix date |
+| `qualifying_date` | date | Saturday qualifying date |
+| `sprint_date` | date | Sprint race date (sprint weekends only) |
+| `sprint_qualifying_date` | date | SQ session date (sprint weekends only) |
+| `event_format` | varchar(30) | `conventional` \| `sprint` \| `sprint_qualifying` \| `sprint_shootout` |
+| `status` | varchar(30) | See status flow below |
+| `weather` | varchar(30) | `dry` \| `wet` \| `mixed` — main race weather |
 | `safety_car_laps` | integer | 2018+ only |
 | `vsc_laps` | integer | 2018+ only |
 | `air_temp_avg` | numeric(4,1) | 2018+ only |
 | `track_temp_avg` | numeric(4,1) | 2018+ only |
 | `humidity_avg` | numeric(4,1) | 2018+ only |
+| `sprint_weather` | varchar(30) | Sprint-specific weather — sprint weekends only |
+| `sprint_safety_car_laps` | integer | Sprint SC laps |
+| `sprint_vsc_laps` | integer | Sprint VSC laps |
+| `sprint_air_temp_avg` | numeric(4,1) | Sprint session air temp |
+| `sprint_track_temp_avg` | numeric(4,1) | Sprint session track temp |
+| `sprint_humidity_avg` | numeric(4,1) | Sprint session humidity |
 | UNIQUE | `(season_id, round_number)` | |
+
+#### Race Status Flow
+
+```
+conventional weekend:
+  scheduled → qualifying_done → completed
+
+sprint weekend:
+  scheduled → sprint_qualifying_done → sprint_done → qualifying_done → completed
+                      ↓                     ↓                ↓
+               sprint features      ingest sprint       main qualifying
+               sprint predictions   sprint season stats features + predictions
+```
 
 ---
 
 ### `qualifying_results`
-One row per driver per race qualifying session.
+One row per driver per main qualifying session.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -140,7 +167,7 @@ One row per driver per race qualifying session.
 ---
 
 ### `race_results`
-One row per driver per race.
+One row per driver per grand prix.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -158,7 +185,7 @@ One row per driver per race.
 ---
 
 ### `lap_times`
-One row per lap per driver — 2018+ only (no data from Ergast).
+One row per lap per driver — 2018+ only.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -179,24 +206,76 @@ One row per lap per driver — 2018+ only (no data from Ergast).
 
 ---
 
+### `sprint_results`
+One row per driver per sprint race. Also stores sprint qualifying (SQ) session times.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | |
+| `finish_position` | integer | Null = DNF/DSQ |
+| `grid_position` | integer | Set from SQ result |
+| `points` | numeric(4,1) | Sprint points scored |
+| `status` | varchar(30) | e.g. `Finished`, `+1 Lap` |
+| `total_sprint_time_ms` | bigint | For sprint winner only |
+| `fastest_lap` | boolean | |
+| `sq1_time_ms` | integer | SQ1 lap time — null if eliminated in SQ1 |
+| `sq2_time_ms` | integer | SQ2 lap time — null if not in SQ2 |
+| `sq3_time_ms` | integer | SQ3 lap time — null if not in SQ3 |
+| `sq_sector1_ms` | integer | Best S1 from SQ session |
+| `sq_sector2_ms` | integer | Best S2 from SQ session |
+| `sq_sector3_ms` | integer | Best S3 from SQ session |
+| `sq_speed_st` | numeric(5,1) | Max speed trap from SQ session |
+| UNIQUE | `(race_id, driver_id)` | |
+
+---
+
+### `sprint_lap_times`
+Per-lap data for sprint races — mirrors `lap_times` structure. 2018+ only.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigserial PK | |
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | |
+| `lap_number` | integer | |
+| `lap_time_ms` | integer | |
+| `sector1_ms` | integer | |
+| `sector2_ms` | integer | |
+| `sector3_ms` | integer | |
+| `speed_st` | numeric(5,1) | |
+| `compound` | varchar(20) | |
+| `tyre_life` | integer | |
+| `fresh_tyre` | boolean | |
+| `is_pit_lap` | boolean | |
+| UNIQUE | `(race_id, driver_id, lap_number)` | |
+
+---
+
 ### `driver_season_stats`
-Aggregated after each race via `compute_season_stats`. Used as inputs to `compute_features`.
+Aggregated after each race via `compute_season_stats`. Includes sprint-specific aggregates.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `season_id` | FK → seasons | |
 | `driver_id` | FK → drivers | |
-| `races_entered` | integer | |
-| `wins` | integer | |
+| `races_entered` | integer | Grand prix count |
+| `wins` | integer | Grand prix wins |
 | `podiums` | integer | |
 | `poles` | integer | Grid position = 1 |
-| `total_points` | numeric | |
+| `total_points` | numeric | Grand prix points |
 | `championship_position` | integer | Ranked by total_points |
 | `win_rate` | numeric(5,4) | Bayesian smoothed |
 | `avg_position_gain` | numeric(4,2) | grid_position − finish_position avg |
 | `dnf_rate` | numeric(4,3) | dnf_count / races_entered |
 | `avg_sector1/2/3_ms` | integer | Median — 2018+ only |
 | `teammate_quali_delta` | numeric(6,4) | Mean delta vs teammate across season |
+| `sprint_races_entered` | integer | Sprint race count |
+| `sprint_wins` | integer | |
+| `sprint_podiums` | integer | |
+| `sprint_total_points` | numeric | Sprint points |
+| `sprint_win_rate` | numeric(5,4) | Bayesian smoothed sprint win rate |
 | UNIQUE | `(season_id, driver_id)` | |
 
 ---
@@ -216,7 +295,7 @@ Aggregated after each race. Drives `car_performance_score` in predictions.
 ---
 
 ### `driver_prediction_features`
-One row per driver per race. Written by `compute_features`, updated by `compute_predictions`.
+One row per driver per grand prix race. Written by `compute_features`, updated by `compute_predictions`.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -242,7 +321,7 @@ One row per driver per race. Written by `compute_features`, updated by `compute_
 ---
 
 ### `race_predictions`
-One row per race — the single predicted winner.
+One row per grand prix — the single predicted winner.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -250,3 +329,37 @@ One row per race — the single predicted winner.
 | `predicted_winner_id` | FK → drivers | |
 | `computed_at` | timestamptz | |
 | `model_version` | varchar(20) | `weighted-v2` |
+
+---
+
+### `driver_sprint_features`
+One row per driver per sprint weekend. Written by `compute_sprint_features`, updated by `compute_sprint_predictions`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | |
+| `car_performance_score` | numeric(6,5) | 0–1 |
+| `starting_position_score` | numeric(6,5) | Based on SQ grid position |
+| `driver_rating_score` | numeric(6,5) | Sprint-specific when ≥3 sprint races recorded |
+| `track_overtake_score` | numeric(6,5) | |
+| `short_run_pace_score` | numeric(6,5) | Best SQ lap time, falls back to main qualifying |
+| `weather_impact_score` | numeric(6,5) | Based on sprint_weather field |
+| `win_rate_score` | numeric(6,5) | Sprint-specific when ≥3 sprint races recorded |
+| `luck_factor_score` | numeric(6,5) | Rolling 5-race delta vs expectation |
+| `raw_weighted_score` | numeric(8,6) | |
+| `win_probability` | numeric(6,5) | After softmax |
+| `predicted_position` | integer | |
+| UNIQUE | `(race_id, driver_id)` | |
+
+---
+
+### `sprint_predictions`
+One row per sprint weekend — the single predicted sprint winner.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `race_id` | FK → races UNIQUE | |
+| `predicted_winner_id` | FK → drivers | |
+| `computed_at` | timestamptz | |
+| `model_version` | varchar(20) | `sprint-v1` |

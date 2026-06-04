@@ -75,6 +75,20 @@ LOCATION_TO_CIRCUIT_KEY: dict[str, str] = {
 }
 
 
+SPRINT_FORMATS = {"sprint", "sprint_qualifying", "sprint_shootout"}
+
+
+def _to_utc_iso(ts) -> str | None:
+    """Convert a FastF1 session timestamp to an ISO-8601 UTC string, or None."""
+    import pandas as pd
+    if ts is None or (hasattr(pd, "isna") and pd.isna(ts)):
+        return None
+    try:
+        return ts.isoformat()
+    except Exception:
+        return None
+
+
 def run(year: int) -> None:
     print(f"[sync_schedule] year={year}")
 
@@ -110,18 +124,39 @@ def run(year: int) -> None:
             event_date = event["EventDate"]
             race_date = event_date.date().isoformat() if hasattr(event_date, "date") else str(event_date)[:10]
 
+            event_format = str(event.get("EventFormat", "conventional")).lower()
+            is_sprint = event_format in SPRINT_FORMATS
+
+            # Session4 = main Qualifying for both conventional and sprint_qualifying formats
+            # Session5 = Race for both formats
+            # Session2 = Sprint Qualifying, Session3 = Sprint Race (sprint formats only)
+            qualifying_date = _to_utc_iso(event.get("Session4DateUtc"))
+            sprint_date = _to_utc_iso(event.get("Session3DateUtc")) if is_sprint else None
+            sprint_qualifying_date = _to_utc_iso(event.get("Session2DateUtc")) if is_sprint else None
+
+            print(
+                f"  Round {int(event['RoundNumber'])}: {event['EventName']} | "
+                f"format={event_format} | quali={qualifying_date} | sprint={sprint_date}"
+            )
+
             rows_to_upsert.append({
                 "season_id": season_id,
                 "circuit_id": circuit_id,
                 "round_number": int(event["RoundNumber"]),
                 "name": str(event["EventName"]),
                 "race_date": race_date,
+                "event_format": event_format,
+                "qualifying_date": qualifying_date,
+                "sprint_date": sprint_date,
+                "sprint_qualifying_date": sprint_qualifying_date,
                 "status": "scheduled",
             })
 
         if rows_to_upsert:
-            upsert(conn, "races", rows_to_upsert, ["season_id", "round_number"])
-            print(f"  Synced {len(rows_to_upsert)} races for {year}")
+            # Exclude 'status' from UPDATE so re-running never resets completed races back to scheduled
+            upsert(conn, "races", rows_to_upsert, ["season_id", "round_number"], exclude_update=["status"])
+            sprint_count = sum(1 for r in rows_to_upsert if r["sprint_date"])
+            print(f"  Synced {len(rows_to_upsert)} races ({sprint_count} sprint weekends) for {year}")
         else:
             print("  No races synced — check LOCATION_TO_CIRCUIT_KEY mapping")
 
