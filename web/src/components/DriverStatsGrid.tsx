@@ -1,9 +1,5 @@
 import type { DriverSeasonStats } from '@/types';
 
-function msToSector(ms: number | null): string {
-  if (!ms) return '—';
-  return (ms / 1000).toFixed(3);
-}
 
 interface Props {
   stats: DriverSeasonStats;

@@ -14,8 +14,8 @@ const FEATURE_LABELS: Record<string, string> = {
   positionGain:      'Position Gain Rate (5%)',
 };
 
-function FeatureBar({ score }: { score: string }) {
-  const pct = (Number(score) * 100).toFixed(0);
+function FeatureBar({ score }: { score: string | null }) {
+  const pct = (Number(score ?? 0) * 100).toFixed(0);
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">

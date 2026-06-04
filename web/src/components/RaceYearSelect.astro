@@ -40,7 +40,7 @@ const colorAlpha = variant === 'orange' ? 'rgba(249,115,22' : 'rgba(168,85,247';
   </div>
 </div>
 
-<script define:vars={{ uid }}>
+<script is:inline define:vars={{ uid }}>
   const btn   = document.getElementById(`${uid}-btn`);
   const panel = document.getElementById(`${uid}-panel`);
   const arrow = document.getElementById(`${uid}-arrow`);

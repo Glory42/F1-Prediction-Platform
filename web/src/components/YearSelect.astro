@@ -42,7 +42,7 @@ const uid = `ys-${Math.random().toString(36).slice(2, 7)}`;
   </div>
 </div>
 
-<script define:vars={{ uid }}>
+<script is:inline define:vars={{ uid }}>
   const btn   = document.getElementById(`${uid}-btn`);
   const panel = document.getElementById(`${uid}-panel`);
   const arrow = document.getElementById(`${uid}-arrow`);

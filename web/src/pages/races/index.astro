@@ -153,11 +153,11 @@ const sortHref = sort === 'asc'
                           </span>
                         )}
                       </div>
-                      <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground mt-0.5 truncate hidden sm:flex">
+                      <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground mt-0.5 truncate sm:flex">
                         <MapPin size={9} />{race.circuit.city}, {race.circuit.country}
                       </div>
                     </div>
-                    <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground hidden md:flex shrink-0">
+                    <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground md:flex shrink-0">
                       <CalendarDays size={10} />{formatDate(date)}
                     </span>
                     {!isSprint && race.weather && (

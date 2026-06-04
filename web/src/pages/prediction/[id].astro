@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionResponse, RaceDetailResponse } from '@/types';
-import { Users, GitCompare, Sliders, Cpu } from 'lucide-react';
+import { Users, GitCompare, Sliders } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
 
 const { id } = Astro.params;
@@ -258,7 +258,7 @@ const WEIGHTS: Record<string, number> = {
   </div>
 </BaseLayout>
 
-<script define:vars={{ driversJson: prediction?.drivers ?? [] }}>
+<script is:inline define:vars={{ driversJson: prediction?.drivers ?? [] }}>
   const drivers = driversJson;
   const barsEl = document.getElementById('compare-bars');
 
@@ -281,7 +281,7 @@ const WEIGHTS: Record<string, number> = {
   let idxA = 0;
   let idxB = 1;
 
-  function makeDropdown(btnId, panelId, labelId, initialIdx, onSelect) {
+  function makeDropdown(btnId, panelId, labelId, _initialIdx, onSelect) {
     const btn = document.getElementById(btnId);
     const panel = document.getElementById(panelId);
     const label = document.getElementById(labelId);

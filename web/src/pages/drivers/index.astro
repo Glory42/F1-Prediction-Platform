@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import type { DriverStanding, SeasonSummary } from '@/types';
 import YearSelect from '@/components/YearSelect.astro';
-import { Trophy, Medal, Users } from 'lucide-react';
+import { Trophy, Users } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());

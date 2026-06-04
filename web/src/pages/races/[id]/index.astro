@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionResponse, CircuitHistoryItem } from '@/types';
 import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import RaceYearSelect from '@/components/RaceYearSelect.astro';
 import { formatMs } from '@/lib/utils';
 
@@ -38,7 +39,6 @@ const isCompleted     = race?.status === 'completed';
 const isQualiDone     = race?.status === 'qualifying_done';
 const isSprintDone    = race?.status === 'sprint_done';
 const isSprintQualiDone = race?.status === 'sprint_qualifying_done';
-const isUpcoming      = race?.status === 'scheduled';
 
 const hasResults   = (raceData?.results?.length ?? 0) > 0;
 const hasQualifying = (raceData?.qualifying?.length ?? 0) > 0;
@@ -73,6 +73,13 @@ const flLapStr = flLapMs ? formatMs(flLapMs) : null;
 const predCorrect  = prediction && actualWinner
   ? prediction.predictedWinner.id === actualWinner.driver.id
   : null;
+
+const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
+  { Icon: RotateCcw, label: 'Laps',         val: race.circuit.lapCount },
+  { Icon: Gauge,     label: 'Length',        val: `${race.circuit.trackLengthKm} km` },
+  { Icon: MapPin,    label: 'Country',       val: race.circuit.country },
+  { Icon: Zap,       label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
+] : [];
 ---
 
 <BaseLayout title={race?.name ?? 'Race'}>
@@ -253,7 +260,7 @@ const predCorrect  = prediction && actualWinner
                 </>
               ) : (
                 <div class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
-                  <Zap size={18} class="text-muted-foreground opacity-30" />
+                  <Zap size={18} className="text-muted-foreground opacity-30" />
                   <p class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">
                     {isCompleted ? 'No prediction data' : 'Available after qualifying'}
                   </p>
@@ -317,19 +324,14 @@ const predCorrect  = prediction && actualWinner
             {!isCompleted && (
               <div id="panel-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06]">
-                  {([
-                    [RotateCcw, 'Laps',         race.circuit.lapCount],
-                    [Gauge,     'Length',        `${race.circuit.trackLengthKm} km`],
-                    [MapPin,    'Country',       race.circuit.country],
-                    [Zap,       'Overtake Rate', race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate)*100)}%` : '—'],
-                  ].map(([Icon, label, val]) => (
+                  {circuitStats.map(({ Icon, label, val }) => (
                     <div class="bg-black p-5">
                       <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
                         <Icon size={10} />{label}
                       </div>
                       <div class="font-bold text-xl">{val}</div>
                     </div>
-                  )))}
+                  ))}
                 </div>
               </div>
             )}
