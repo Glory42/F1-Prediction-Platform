@@ -238,17 +238,42 @@ bun run drizzle-kit migrate    # apply via migration files (prod)
 
 ## Prediction Model
 
-### Weights
-| Feature | Weight | Source |
+Two models: **GP model** (`weighted-v3`, 12 features) and **Sprint model** (`sprint-v2`, 8 features).
+Full detail in `docs/prediction-model.md`.
+
+### GP Weights (weighted-v3)
+| Feature | Weight | Origin |
 |---------|--------|--------|
-| Car Performance | 30% | `team_season_stats.car_performance_score` |
-| Driver Rating | 15% | `driver_season_stats.total_points / races` |
-| Starting Position | 15% | `qualifying_results.grid_position` |
-| Win Rate | 15% | `driver_season_stats.win_rate` (Bayesian smoothed) |
-| Luck Factor | 10% | Rolling 5-race position delta vs expectation |
-| Weather Impact | 5% | Historical wet-race performance (neutral if dry) |
-| Track Overtake Rate | 5% | `circuits.overtake_rate` (static) |
-| Position Gain Rate | 5% | `driver_season_stats.avg_position_gain` |
+| Car Performance | 20% | FastF1 race results → `team_season_stats.car_performance_score` |
+| Long Run Pace | 15% | FastF1 FP2 (`fp2_long_run_times`) → fallback: `lap_times` |
+| Tyre Degradation | 8% | FastF1 `lap_times.tyre_life` — regression slope at circuit |
+| Reliability | 8% | FastF1 status → `team_season_stats.reliability_score` + driver DNF rate |
+| Qualifying Delta | 8% | FastF1 Q1/Q2/Q3 times → weighted teammate gap, last 5 races |
+| Driver Rating | 8% | FastF1 race points → `driver_season_stats.total_points / races / 25` |
+| Win Rate | 8% | FastF1 race results → Bayesian: `(wins + 0.5) / (races + 2)` |
+| Luck Factor | 7% | FastF1 finish position vs expected (car rank + grid), last 5 races |
+| Circuit-Adj. Starting Position | 7% | FastF1 grid position × static circuit overtake rate + SC probability |
+| Sector Strength | 6% | FastF1 qualifying sector times (S1/S2/S3 best vs field) |
+| Circuit-Adj. Position Gain | 3% | FastF1 avg position gain × static circuit overtake rate |
+| Weather Impact | 2% | FastF1 weather flag → historical wet-race finish avg; neutral if dry |
+
+### Sprint Weights (sprint-v2)
+| Feature | Weight | Origin |
+|---------|--------|--------|
+| Car Performance | 25% | FastF1 race results → `team_season_stats.car_performance_score` |
+| Circuit-Adj. Starting Position | 25% | FastF1 SQ grid × static circuit overtake rate |
+| Short Run Pace | 10% | FastF1 SQ1/SQ2/SQ3 times → fallback: main qualifying |
+| Driver Rating | 10% | FastF1 sprint points / sprint races; fallback: main race rating |
+| Weather Impact | 8% | FastF1 sprint weather → historical wet-race finish avg |
+| Win Rate | 8% | FastF1 sprint wins; fallback: main race win rate |
+| Luck Factor | 8% | FastF1 GP finish position vs expected, last 5 races |
+| SQ vs Teammate | 6% | FastF1 SQ times → weighted teammate gap, last 5 sprint weekends |
+
+### Static / Hardcoded inputs
+- `circuits.overtake_rate` — seeded once per circuit, never changes
+- `circuits.sc_probability` — seeded once per circuit, never changes
+- Softmax temperature T=0.3 — hardcoded in `compute_predictions.py` / `compute_sprint_predictions.py`
+- Model weights — hardcoded in `compute_features.py` / `compute_sprint_features.py`
 
 ### Softmax
 Temperature T=0.3. Lower = more decisive. Do not increase T.

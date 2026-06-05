@@ -6,6 +6,79 @@ Two separate models run per race weekend: one for the grand prix, one for the sp
 
 ---
 
+## Where the data comes from
+
+Every feature score ultimately originates from one of three places:
+
+### 1. FastF1 (live F1 session data, Python library)
+FastF1 is the sole external data source. It provides telemetry and session data from the official F1 timing feed. The Python ingest jobs pull this data after each session and store it in raw tables.
+
+| FastF1 session | Ingest job | Populates table(s) |
+|---------------|-----------|-------------------|
+| Race (`'R'`) | `ingest_race` | `race_results` — finish pos, grid pos, status, points |
+| Qualifying (`'Q'`) | `ingest_qualifying` | `qualifying_results` — Q1/Q2/Q3 lap times, grid pos, sector times |
+| FP2 (`'FP2'`) | `ingest_fp2` | `fp2_long_run_times` — stint median lap times on each compound |
+| Race lap data | `ingest_race` | `lap_times` — per-lap time, sector times, tyre compound, tyre life, speed |
+| Sprint (`'S'`) | `ingest_sprint` | `sprint_results` — sprint finish pos, points |
+| Sprint Qualifying (`'SQ'`) | `ingest_sprint_qualifying` | `sprint_results.sq1/sq2/sq3_time_ms` |
+| Sprint lap data | `ingest_sprint` | `sprint_lap_times` — per-lap sprint data |
+| Weather | every ingest | `races.weather`, `races.sprint_weather` — `Rainfall` flag from session telemetry |
+
+FastF1 `HeadshotUrl` is used for driver photos (available 2019+, not available earlier).
+FastF1 does **not** provide team logos — those are stored as static files in `web/public/teams/`.
+
+### 2. Computed aggregates (run after each race)
+`compute_season_stats` reads from the raw tables above and computes season-wide summaries.
+These are the inputs for most driver/team-level features.
+
+| Aggregate table | Computed from | Key columns used by features |
+|----------------|--------------|------------------------------|
+| `driver_season_stats` | `race_results`, `qualifying_results` | `total_points`, `wins`, `races_entered`, `dnf_rate`, `avg_position_gain`, `teammate_quali_delta` |
+| `team_season_stats` | `race_results` | `car_performance_score` (normalized avg finish), `reliability_score` (1 − DNF rate) |
+
+### 3. Static / hardcoded
+Some inputs never change and are seeded once into the database or hardcoded in Python.
+
+| Value | Where stored | Changes? |
+|-------|-------------|---------|
+| Circuit overtake rate | `circuits.overtake_rate` | Never — seeded once per track |
+| Circuit SC probability | `circuits.sc_probability` | Never — seeded once per track |
+| Model weights | `compute_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
+| Sprint model weights | `compute_sprint_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
+| Softmax temperature T=0.3 | `compute_predictions.py`, `compute_sprint_predictions.py` | Only when model is intentionally updated |
+
+---
+
+## Data pipeline — end-to-end flow
+
+```
+FastF1 session
+    │
+    ▼  (ingest jobs)
+raw tables: race_results, qualifying_results, lap_times,
+            sprint_results, sprint_lap_times, fp2_long_run_times
+    │
+    ▼  (compute_season_stats — after each race)
+driver_season_stats, team_season_stats
+    │
+    ├── + qualifying_results (sector times, grid position)
+    ├── + lap_times (tyre degradation, long run pace)
+    ├── + fp2_long_run_times (FP2 stint data)
+    ├── + circuits.overtake_rate  ← static
+    └── + circuits.sc_probability ← static
+         │
+         ▼  (compute_features / compute_sprint_features)
+    driver_prediction_features / driver_sprint_features
+         │
+         ▼  (compute_predictions / compute_sprint_predictions — softmax)
+    race_predictions / sprint_predictions
+         │
+         ▼  (Hono API reads)
+    /prediction page — displays win probabilities + feature breakdown
+```
+
+---
+
 ## Race Status Flow
 
 ```
