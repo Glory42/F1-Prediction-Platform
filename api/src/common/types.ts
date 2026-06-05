@@ -155,6 +155,9 @@ export type FeatureScores = {
   reliability: string | null;
   qualifyingDelta: string | null;
   sectorStrength: string | null;
+  tyreDeg: string | null;
+  circuitAdjStartPos: string | null;
+  circuitAdjPositionGain: string | null;
 };
 
 export type DriverPrediction = {
@@ -279,6 +282,8 @@ export type SprintFeatureScores = {
   weatherImpact: string;
   winRate: string;
   luckFactor: string;
+  circuitAdjStartPos: string | null;
+  sqQualifyingDelta: string | null;
 };
 
 export type DriverSprintPrediction = {

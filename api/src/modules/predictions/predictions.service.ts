@@ -25,6 +25,9 @@ function toFeatures(f: typeof driverPredictionFeatures.$inferSelect) {
     reliability: f.reliabilityScore ?? null,
     qualifyingDelta: f.qualifyingDeltaScore ?? null,
     sectorStrength: f.sectorStrengthScore ?? null,
+    tyreDeg: f.tyreDegScore ?? null,
+    circuitAdjStartPos: f.circuitAdjStartPosScore ?? null,
+    circuitAdjPositionGain: f.circuitAdjPositionGainScore ?? null,
   };
 }
 
@@ -191,6 +194,7 @@ export class PredictionsService {
       trackOvertake: number[]; positionGain: number[];
       longRunPace: number[]; reliability: number[];
       qualifyingDelta: number[]; sectorStrength: number[];
+      tyreDeg: number[]; circuitAdjStartPos: number[]; circuitAdjPositionGain: number[];
       winProb: number[];
     };
 
@@ -205,7 +209,9 @@ export class PredictionsService {
           raw: [], carPerf: [], driverRating: [], startingPos: [],
           winRate: [], luckFactor: [], weatherImpact: [], trackOvertake: [],
           positionGain: [], longRunPace: [], reliability: [],
-          qualifyingDelta: [], sectorStrength: [], winProb: [],
+          qualifyingDelta: [], sectorStrength: [],
+          tyreDeg: [], circuitAdjStartPos: [], circuitAdjPositionGain: [],
+          winProb: [],
         });
       }
       const agg = byCode.get(code)!;
@@ -217,12 +223,15 @@ export class PredictionsService {
       agg.winRate.push(Number(f.winRateScore));
       agg.luckFactor.push(Number(f.luckFactorScore));
       agg.weatherImpact.push(Number(f.weatherImpactScore));
-      agg.trackOvertake.push(Number(f.trackOvertakeScore));
+      if (f.trackOvertakeScore != null) agg.trackOvertake.push(Number(f.trackOvertakeScore));
       agg.positionGain.push(Number(f.positionGainScore));
       if (f.longRunPaceScore != null) agg.longRunPace.push(Number(f.longRunPaceScore));
       if (f.reliabilityScore != null) agg.reliability.push(Number(f.reliabilityScore));
       if (f.qualifyingDeltaScore != null) agg.qualifyingDelta.push(Number(f.qualifyingDeltaScore));
       if (f.sectorStrengthScore != null) agg.sectorStrength.push(Number(f.sectorStrengthScore));
+      if (f.tyreDegScore != null) agg.tyreDeg.push(Number(f.tyreDegScore));
+      if (f.circuitAdjStartPosScore != null) agg.circuitAdjStartPos.push(Number(f.circuitAdjStartPosScore));
+      if (f.circuitAdjPositionGainScore != null) agg.circuitAdjPositionGain.push(Number(f.circuitAdjPositionGainScore));
       agg.winProb.push(Number(f.winProbability));
     }
 
@@ -242,12 +251,15 @@ export class PredictionsService {
           winRate: avgStr(agg.winRate),
           luckFactor: avgStr(agg.luckFactor),
           weatherImpact: avgStr(agg.weatherImpact),
-          trackOvertake: avgStr(agg.trackOvertake),
+          trackOvertake: avgNullable(agg.trackOvertake),
           positionGain: avgStr(agg.positionGain),
           longRunPace: avgNullable(agg.longRunPace),
           reliability: avgNullable(agg.reliability),
           qualifyingDelta: avgNullable(agg.qualifyingDelta),
           sectorStrength: avgNullable(agg.sectorStrength),
+          tyreDeg: avgNullable(agg.tyreDeg),
+          circuitAdjStartPos: avgNullable(agg.circuitAdjStartPos),
+          circuitAdjPositionGain: avgNullable(agg.circuitAdjPositionGain),
         },
         rawWeightedScore: String(avgRaw),
         winProbability: String(avg(agg.winProb)),

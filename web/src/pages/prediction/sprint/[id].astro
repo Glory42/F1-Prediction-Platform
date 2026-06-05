@@ -31,18 +31,19 @@ const correct = prediction && sprintWinner
   : null;
 
 const SPRINT_WEIGHTS: Record<string, number> = {
-  carPerformance: 25, startingPosition: 22, trackOvertake: 12,
-  shortRunPace: 10, driverRating: 10, weatherImpact: 8, winRate: 8, luckFactor: 5,
+  carPerformance: 25, circuitAdjStartPos: 25,
+  shortRunPace: 10, driverRating: 10,
+  weatherImpact: 8, winRate: 8, luckFactor: 8, sqQualifyingDelta: 6,
 };
 const FEATURE_LABELS: [string, string][] = [
-  ['Car Performance',  'carPerformance'],
-  ['Starting Position','startingPosition'],
-  ['Track Overtake',   'trackOvertake'],
-  ['Short Run Pace',   'shortRunPace'],
-  ['Driver Rating',    'driverRating'],
-  ['Weather Impact',   'weatherImpact'],
-  ['Win Rate',         'winRate'],
-  ['Luck Factor',      'luckFactor'],
+  ['Car Performance',    'carPerformance'],
+  ['Adj. Grid Position', 'circuitAdjStartPos'],
+  ['Short Run Pace',     'shortRunPace'],
+  ['Driver Rating',      'driverRating'],
+  ['Weather Impact',     'weatherImpact'],
+  ['Win Rate',           'winRate'],
+  ['Luck Factor',        'luckFactor'],
+  ['SQ vs Teammate',     'sqQualifyingDelta'],
 ];
 ---
 
@@ -262,13 +263,13 @@ const FEATURE_LABELS: [string, string][] = [
 
   const FEATURES = [
     ['Car Performance',   'carPerformance'],
-    ['Starting Pos',      'startingPosition'],
-    ['Track Overtake',    'trackOvertake'],
+    ['Adj. Grid Pos',     'circuitAdjStartPos'],
     ['Short Run Pace',    'shortRunPace'],
     ['Driver Rating',     'driverRating'],
     ['Weather',           'weatherImpact'],
     ['Win Rate',          'winRate'],
     ['Luck Factor',       'luckFactor'],
+    ['SQ vs Teammate',    'sqQualifyingDelta'],
   ];
 
   let idxA = 0;

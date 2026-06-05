@@ -21,6 +21,8 @@ function toSprintFeatures(f: typeof driverSprintFeatures.$inferSelect): SprintFe
     weatherImpact: f.weatherImpactScore,
     winRate: f.winRateScore,
     luckFactor: f.luckFactorScore,
+    circuitAdjStartPos: f.circuitAdjStartPosScore ?? null,
+    sqQualifyingDelta: f.sqQualifyingDeltaScore ?? null,
   };
 }
 

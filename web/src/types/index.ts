@@ -57,9 +57,10 @@ export type TeamSeasonStats = {
 };
 export type FeatureScores = {
   carPerformance: string; driverRating: string; startingPosition: string; winRate: string;
-  luckFactor: string; weatherImpact: string; trackOvertake: string; positionGain: string;
+  luckFactor: string; weatherImpact: string; trackOvertake: string | null; positionGain: string;
   longRunPace: string | null; reliability: string | null;
   qualifyingDelta: string | null; sectorStrength: string | null;
+  tyreDeg: string | null; circuitAdjStartPos: string | null; circuitAdjPositionGain: string | null;
 };
 export type DriverPrediction = {
   driver: Driver; winProbability: string; predictedPosition: number | null; features: FeatureScores;
@@ -109,8 +110,9 @@ export type SprintResult = {
 };
 export type SprintFeatureScores = {
   carPerformance: string; startingPosition: string; driverRating: string;
-  trackOvertake: string; shortRunPace: string; weatherImpact: string;
+  trackOvertake: string | null; shortRunPace: string; weatherImpact: string;
   winRate: string; luckFactor: string;
+  circuitAdjStartPos: string | null; sqQualifyingDelta: string | null;
 };
 export type DriverSprintPrediction = {
   driver: Driver; winProbability: string; predictedPosition: number | null;

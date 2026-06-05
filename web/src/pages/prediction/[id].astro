@@ -29,26 +29,26 @@ const correct = prediction && actualWinner
   ? prediction.predictedWinner.id === actualWinner.driver.id
   : null;
 
-type FeatureKey = 'carPerformance' | 'driverRating' | 'startingPosition' | 'winRate' | 'luckFactor' | 'weatherImpact' | 'trackOvertake' | 'positionGain' | 'longRunPace' | 'reliability' | 'qualifyingDelta' | 'sectorStrength';
+type FeatureKey = 'carPerformance' | 'driverRating' | 'startingPosition' | 'winRate' | 'luckFactor' | 'weatherImpact' | 'positionGain' | 'longRunPace' | 'reliability' | 'qualifyingDelta' | 'sectorStrength' | 'tyreDeg' | 'circuitAdjStartPos' | 'circuitAdjPositionGain';
 const FEATURE_LABELS: [string, FeatureKey][] = [
-  ['Car Performance', 'carPerformance'],
-  ['Long Run Pace', 'longRunPace'],
-  ['Starting Position', 'startingPosition'],
-  ['Driver Rating', 'driverRating'],
-  ['Win Rate', 'winRate'],
-  ['Reliability', 'reliability'],
-  ['Luck Factor', 'luckFactor'],
-  ['Sector Strength', 'sectorStrength'],
-  ['Quali vs Teammate', 'qualifyingDelta'],
-  ['Weather Impact', 'weatherImpact'],
-  ['Track Overtake', 'trackOvertake'],
-  ['Position Gain', 'positionGain'],
+  ['Car Performance',      'carPerformance'],
+  ['Long Run Pace',        'longRunPace'],
+  ['Tyre Degradation',     'tyreDeg'],
+  ['Reliability',          'reliability'],
+  ['Quali vs Teammate',    'qualifyingDelta'],
+  ['Driver Rating',        'driverRating'],
+  ['Win Rate',             'winRate'],
+  ['Luck Factor',          'luckFactor'],
+  ['Sector Strength',      'sectorStrength'],
+  ['Adj. Grid Position',   'circuitAdjStartPos'],
+  ['Adj. Position Gain',   'circuitAdjPositionGain'],
+  ['Weather Impact',       'weatherImpact'],
 ];
 
 const WEIGHTS: Record<string, number> = {
-  carPerformance: 22, driverRating: 10, startingPosition: 12, winRate: 10,
-  longRunPace: 12, reliability: 8, luckFactor: 8, sectorStrength: 6,
-  qualifyingDelta: 5, weatherImpact: 3, trackOvertake: 2, positionGain: 2,
+  carPerformance: 20, longRunPace: 15, tyreDeg: 8, reliability: 8,
+  qualifyingDelta: 8, driverRating: 8, winRate: 8, luckFactor: 7,
+  sectorStrength: 6, circuitAdjStartPos: 7, circuitAdjPositionGain: 3, weatherImpact: 2,
 };
 ---
 
@@ -263,18 +263,18 @@ const WEIGHTS: Record<string, number> = {
   const barsEl = document.getElementById('compare-bars');
 
   const FEATURES = [
-    ['Car Performance', 'carPerformance'],
-    ['Long Run Pace', 'longRunPace'],
-    ['Starting Pos', 'startingPosition'],
-    ['Driver Rating', 'driverRating'],
-    ['Win Rate', 'winRate'],
-    ['Reliability', 'reliability'],
-    ['Luck Factor', 'luckFactor'],
-    ['Sector Strength', 'sectorStrength'],
-    ['Quali Delta', 'qualifyingDelta'],
-    ['Weather', 'weatherImpact'],
-    ['Track Overtake', 'trackOvertake'],
-    ['Position Gain', 'positionGain'],
+    ['Car Performance',    'carPerformance'],
+    ['Long Run Pace',      'longRunPace'],
+    ['Tyre Degradation',   'tyreDeg'],
+    ['Reliability',        'reliability'],
+    ['Quali Delta',        'qualifyingDelta'],
+    ['Driver Rating',      'driverRating'],
+    ['Win Rate',           'winRate'],
+    ['Luck Factor',        'luckFactor'],
+    ['Sector Strength',    'sectorStrength'],
+    ['Adj. Grid Pos',      'circuitAdjStartPos'],
+    ['Adj. Pos Gain',      'circuitAdjPositionGain'],
+    ['Weather',            'weatherImpact'],
   ];
 
   // Custom dropdown state
