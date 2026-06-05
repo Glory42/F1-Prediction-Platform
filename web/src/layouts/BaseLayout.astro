@@ -1,5 +1,6 @@
 ---
 import Navbar from '@/components/Navbar.astro';
+import Footer from '@/components/Footer.astro';
 import { ClientRouter } from 'astro:transitions';
 
 interface Props {
@@ -31,9 +32,7 @@ const { title, description = 'F1 race prediction and analytics platform' } = Ast
       <slot />
     </main>
 
-    <footer class="border-t border-white/[0.05] py-5 text-center font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
-      ./f1-intelligence &mdash; powered by fastf1
-    </footer>
+    <Footer />
 
   </body>
 </html>

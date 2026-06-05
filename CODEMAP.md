@@ -164,6 +164,7 @@ web/
 │   │   └── LandingLayout.astro    # Landing-specific layout (no navbar chrome)
 │   ├── components/
 │   │   ├── Navbar.astro           # Top navigation bar
+│   │   ├── Footer.astro           # Shared footer; variant="minimal" (default) | "full" (landing)
 │   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
 │   │   ├── YearSelectLinks.astro  # Year selector using anchor links
 │   │   ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop

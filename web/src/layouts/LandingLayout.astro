@@ -1,5 +1,6 @@
 ---
 import Navbar from '@/components/Navbar.astro';
+import Footer from '@/components/Footer.astro';
 
 interface Props {
   title?: string;
@@ -26,41 +27,7 @@ const { title = 'F1 Prediction — Race Prediction Platform' } = Astro.props;
       <slot />
     </main>
 
-    <!-- Footer -->
-    <footer class="py-12 px-6 lg:px-12 bg-background border-t border-white/5">
-      <div class="container mx-auto max-w-[1200px]">
-        <div class="h-px w-full bg-gradient-to-r from-transparent via-accent-primary to-transparent opacity-30 mb-16"/>
-        <div class="flex flex-col md:flex-row justify-between items-start gap-12">
-          <div class="space-y-6">
-            <div class="flex items-center gap-2">
-              <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
-                <path d="M2 4H20M4 8H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="text-accent-bright"/>
-              </svg>
-              <span class="font-heading font-bold text-lg tracking-tight uppercase">F1 Prediction</span>
-            </div>
-            <p class="text-text-secondary text-sm max-w-xs">Race intelligence. Data driven. The next generation of Formula 1 analytics.</p>
-          </div>
-          <div class="space-y-4">
-            <div class="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em]">Tech Stack</div>
-            <div class="flex flex-wrap gap-4 text-xs font-medium text-text-secondary">
-              {['FastF1', 'Hono', 'Astro', 'Neon', 'PostgreSQL', 'Cloudflare'].map((t, i, arr) => (
-                <>
-                  <span>{t}</span>
-                  {i < arr.length - 1 && <span class="w-1 h-1 rounded-full bg-white/20 my-auto"/>}
-                </>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div class="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em]">
-          <div>© 2025 F1 Prediction. Not affiliated with Formula 1 or FIA.</div>
-          <div class="flex gap-6">
-            <a href="/races" class="hover:text-accent-bright transition-colors">Races</a>
-            <a href="/prediction" class="hover:text-accent-bright transition-colors">Predictions</a>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <Footer variant="full" />
 
   </body>
 </html>
