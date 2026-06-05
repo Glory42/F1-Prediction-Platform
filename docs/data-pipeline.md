@@ -1,3 +1,9 @@
+---
+title: "Data Pipeline"
+description: "ETL jobs, FastF1 ingestion, cron schedule, and race status flow"
+order: 2
+---
+
 # Data Pipeline
 
 ## Jobs

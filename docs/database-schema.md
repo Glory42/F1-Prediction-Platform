@@ -1,3 +1,9 @@
+---
+title: "Database Schema"
+description: "All tables, column types, constraints, foreign keys, and conventions"
+order: 3
+---
+
 # Database Schema
 
 **Provider:** Neon PostgreSQL  

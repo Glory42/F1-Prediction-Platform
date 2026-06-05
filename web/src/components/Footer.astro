@@ -47,6 +47,7 @@ const { variant = 'minimal' } = Astro.props;
         <div class="flex gap-6">
           <a href="/races" class="hover:text-accent-bright transition-colors">Races</a>
           <a href="/prediction" class="hover:text-accent-bright transition-colors">Predictions</a>
+          <a href="/docs" class="hover:text-accent-bright transition-colors">Docs</a>
         </div>
       </div>
     </div>
@@ -63,7 +64,8 @@ const { variant = 'minimal' } = Astro.props;
         <span class="w-1 h-1 rounded-full bg-emerald-500 shrink-0"></span>
         <span>This visit generated 0.024g of CO₂</span>
       </a>
-      <div>./f1-intelligence &mdash; powered by fastf1</div>
+      <div>./f1-intelligence &mdash; powered by <a href="https://docs.fastf1.dev/" target="_blank" rel="noopener noreferrer" class="hover:text-foreground transition-colors">fastf1</a></div>
+      <a href="/docs" class="absolute right-0 hover:text-foreground transition-colors">docs</a>
     </div>
   </footer>
 )}

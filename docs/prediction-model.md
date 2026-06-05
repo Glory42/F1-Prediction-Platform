@@ -1,3 +1,9 @@
+---
+title: "Prediction Model"
+description: "Feature weights, data origins, FastF1 vs static vs computed, softmax"
+order: 4
+---
+
 # Prediction Model
 
 ## Overview

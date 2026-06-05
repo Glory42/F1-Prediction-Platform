@@ -1,0 +1,164 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { BookOpen } from 'lucide-react';
+
+const docs = (await getCollection('docs')).sort(
+  (a, b) => (a.data.order ?? 99) - (b.data.order ?? 99)
+);
+
+const icons: Record<string, string> = {
+  'architecture':     '⬡',
+  'data-pipeline':    '⤷',
+  'database-schema':  '⊞',
+  'prediction-model': '◈',
+  'api-reference':    '⌁',
+  'deployment':       '⬆',
+};
+
+const pipeline = [
+  { label: 'FastF1', sub: 'live F1 session data', color: '#a855f7' },
+  { label: 'ETL Jobs', sub: 'Python / Render', color: '#7c3aed' },
+  { label: 'Neon DB', sub: 'PostgreSQL', color: '#6d28d9' },
+  { label: 'Hono API', sub: 'Cloudflare Workers', color: '#5b21b6' },
+  { label: 'Astro UI', sub: 'Cloudflare Pages', color: '#4c1d95' },
+];
+---
+
+<BaseLayout title="Documentation">
+  <div class="mt-7 space-y-14">
+
+    <!-- header -->
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">
+          <BookOpen size={11} />./docs
+        </span>
+        <div class="h-px w-16 bg-white/[0.05]" />
+      </div>
+      <h1 class="text-2xl font-bold">Documentation</h1>
+      <p class="mt-1 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
+        Technical reference for the F1 prediction platform
+      </p>
+    </div>
+
+    <!-- what is this -->
+    <div class="space-y-6">
+      <div class="flex items-center gap-3">
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.7)">01 / overview</span>
+        <div class="h-px flex-1 bg-white/[0.04]" />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <h2 class="text-sm font-semibold">What is this?</h2>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            F1 Intelligence is a Formula 1 race winner prediction platform. It ingests real session
+            data from every grand prix weekend using the FastF1 library, computes a 12-feature weighted
+            score for each driver, and applies a softmax function to produce win probabilities.
+          </p>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            Sprint weekends run a separate 8-feature model tuned for the shorter format — heavier
+            weight on grid position and car pace, no tyre degradation or long-run pace signals since
+            there are no pit stops in a sprint.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <h2 class="text-sm font-semibold">What data is used?</h2>
+          <div class="space-y-2.5">
+            {[
+              ['FastF1', 'Lap times, sector splits, tyre data, qualifying times, race results, weather — all from the official F1 timing feed'],
+              ['Historical data', '2018–present with full lap telemetry; 2000–2017 with race/qualifying results only'],
+              ['Static circuit data', 'Overtake rate and safety car probability seeded once per track — never changes at runtime'],
+              ['No external APIs', 'FastF1 is the sole data source. Everything else is computed or static'],
+            ].map(([label, desc]) => (
+              <div class="flex gap-3">
+                <span class="font-mono text-[9px] text-[#a855f7]/60 mt-0.5 shrink-0">▸</span>
+                <div>
+                  <span class="font-mono text-[10px] text-foreground/80">{label}</span>
+                  <span class="font-mono text-[10px] text-muted-foreground"> — {desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- how it works pipeline -->
+    <div class="space-y-6">
+      <div class="flex items-center gap-3">
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.7)">02 / how it works</span>
+        <div class="h-px flex-1 bg-white/[0.04]" />
+      </div>
+
+      <!-- pipeline steps -->
+      <div class="flex flex-col sm:flex-row gap-0 border border-white/[0.06] overflow-hidden">
+        {pipeline.map((step, i) => (
+          <div class="flex-1 relative p-4 border-b sm:border-b-0 sm:border-r border-white/[0.06] last:border-0 group transition-colors duration-200 hover:bg-white/[0.03]">
+            <div class="absolute top-0 left-0 right-0 h-px transition-opacity duration-200 opacity-40 group-hover:opacity-100" style={`background: linear-gradient(90deg, ${step.color}, transparent)`} />
+            <div class="font-mono text-[8px] text-muted-foreground/40 mb-1.5 transition-colors duration-200 group-hover:text-muted-foreground/70">{String(i + 1).padStart(2, '0')}</div>
+            <div class="font-semibold text-sm mb-0.5 transition-colors duration-200 group-hover:text-white">{step.label}</div>
+            <div class="font-mono text-[9px] text-muted-foreground transition-colors duration-200 group-hover:text-muted-foreground/80">{step.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- step explanations -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[
+          ['After qualifying', 'FastF1 pulls Q1/Q2/Q3 lap times, sector splits, and grid positions. FP2 long-run stint data is also ingested for race pace estimation.'],
+          ['Feature computation', 'compute_features scores each driver across 12 dimensions: car pace, tyre deg, reliability, qualifying delta vs teammate, win rate, luck factor, sector strength, and more.'],
+          ['Prediction', 'Scores are passed through softmax at temperature T=0.3. Lower temperature = more decisive — small score gaps produce clear probability differences.'],
+          ['After the race', 'compute_season_stats re-aggregates driver and team season totals. DNF counts, win rates, and car performance scores update for the next prediction.'],
+          ['Sprint weekends', 'Run an extra ingest + prediction cycle on Friday for the sprint session. The sprint model uses SQ qualifying times and grid position as the dominant signals.'],
+          ['Historical accuracy', 'Past predictions are stored alongside actual race results so you can see how the model performed over the season.'],
+        ].map(([title, desc]) => (
+          <div class="relative p-4 border border-white/[0.06] bg-white/[0.01] space-y-2 overflow-hidden group transition-colors duration-200 hover:bg-white/[0.035] hover:border-white/[0.1]">
+            <div class="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#f97316]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div class="font-mono text-[10px] text-[#a855f7]/70 group-hover:text-[#f97316]/80 transition-colors duration-200">{title}</div>
+            <div class="font-mono text-[10px] text-muted-foreground leading-relaxed">{desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- reference docs -->
+    <div class="space-y-6">
+      <div class="flex items-center gap-3">
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(34,211,238,0.7)">03 / reference</span>
+        <div class="h-px flex-1 bg-white/[0.04]" />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/[0.06] border border-white/[0.06]">
+        {docs.map(doc => (
+          <a
+            href={`/docs/${doc.id}`}
+            class="bg-background p-6 hover:bg-white/[0.025] transition-colors group flex flex-col gap-3"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-lg text-muted-foreground/40 group-hover:text-[#a855f7]/50 transition-colors select-none">
+                {icons[doc.id] ?? '◇'}
+              </span>
+              <span class="font-mono text-[8px] text-muted-foreground/40 tracking-[0.3em] uppercase">
+                {doc.id}.md
+              </span>
+            </div>
+            <div>
+              <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors mb-1.5">
+                {doc.data.title}
+              </div>
+              <div class="font-mono text-[10px] text-muted-foreground leading-relaxed">
+                {doc.data.description}
+              </div>
+            </div>
+            <div class="mt-auto pt-2 font-mono text-[9px] text-[#a855f7]/40 group-hover:text-[#a855f7] transition-colors">
+              → read
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+
+  </div>
+</BaseLayout>

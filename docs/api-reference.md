@@ -1,3 +1,9 @@
+---
+title: "API Reference"
+description: "All REST endpoints, request parameters, and response shapes"
+order: 5
+---
+
 # API Reference
 
 **Base URL:** `https://f1-intelligence-api.gorkemkaryol.workers.dev`  

@@ -141,10 +141,15 @@ Astro SSR with Cloudflare adapter. All data fetching is server-side in Astro fro
 ```
 web/
 ├── src/
+│   ├── content/
+│   │   └── config.ts              # Astro Content Layer — docs collection via glob('../docs')
 │   ├── pages/                     # File-based routes
 │   │   ├── index.astro            # Landing page (static)
 │   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged)
 │   │   ├── prediction/[id].astro  # Historical GP prediction by race
+│   │   ├── docs/
+│   │   │   ├── index.astro        # Docs index — card grid of all docs
+│   │   │   └── [slug].astro       # Individual doc page with sidebar nav
 │   │   ├── races/
 │   │   │   ├── index.astro        # Race calendar — sprint-aware cards
 │   │   │   └── [id]/
@@ -213,6 +218,8 @@ web/
 
 | Route | Data source | Notes |
 |-------|-------------|-------|
+| `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
+| `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav |
 | `/` | Static | Landing — no API call |
 | `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` | GP + sprint upcoming; history merged |
 | `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction |

@@ -11,6 +11,12 @@ export default defineConfig({
   adapter: cloudflare(),
   integrations: [react()],
   vite: {
+    server: {
+      fs: {
+        // Allow loading files from the monorepo root (e.g. docs/ for content collections)
+        allow: ['..'],
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

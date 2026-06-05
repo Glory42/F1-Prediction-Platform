@@ -1,3 +1,9 @@
+---
+title: "Architecture"
+description: "Monorepo layout, four-layer service topology, and how the pieces connect"
+order: 1
+---
+
 # Architecture
 
 ## Monorepo Layout

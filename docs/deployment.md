@@ -1,3 +1,9 @@
+---
+title: "Deployment"
+description: "Cloudflare Pages, Workers, Render cron jobs, and environment variables"
+order: 6
+---
+
 # Deployment
 
 ## Overview

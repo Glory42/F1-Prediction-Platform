@@ -1,0 +1,86 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { BookOpen } from 'lucide-react';
+
+const { slug } = Astro.params;
+
+const allDocs = (await getCollection('docs')).sort(
+  (a, b) => (a.data.order ?? 99) - (b.data.order ?? 99)
+);
+const entry = allDocs.find(d => d.id === slug);
+
+if (!entry) return Astro.redirect('/docs');
+
+const { Content } = await render(entry);
+---
+
+<BaseLayout title={`${entry.data.title} — Docs`}>
+  <div class="mt-7">
+
+    <!-- breadcrumb -->
+    <div class="flex items-center gap-2 mb-8">
+      <a
+        href="/docs"
+        class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase transition-colors hover:text-[#a855f7]"
+        style="color: rgba(168,85,247,0.55)"
+      >
+        <BookOpen size={11} />./docs
+      </a>
+      <span class="font-mono text-[9px] text-muted-foreground/40">/</span>
+      <span class="font-mono text-[9px] text-muted-foreground tracking-[0.2em] uppercase">{slug}</span>
+    </div>
+
+    <div class="lg:grid lg:grid-cols-[200px_1fr] lg:gap-12 lg:items-start">
+
+      <!-- sidebar nav (lg+) -->
+      <nav class="hidden lg:flex flex-col gap-0.5 sticky top-8">
+        <div class="font-mono text-[8px] text-muted-foreground/40 tracking-[0.3em] uppercase mb-3 px-2">
+          All docs
+        </div>
+        {allDocs.map(doc => (
+          <a
+            href={`/docs/${doc.id}`}
+            class={`px-2 py-1.5 font-mono text-[10px] transition-colors rounded-none ${
+              doc.id === slug
+                ? 'text-[#a855f7] border-l border-[#a855f7]'
+                : 'text-muted-foreground hover:text-foreground border-l border-transparent hover:border-white/20'
+            }`}
+          >
+            {doc.data.title}
+          </a>
+        ))}
+      </nav>
+
+      <!-- main content -->
+      <article class="doc-prose min-w-0">
+        <Content />
+      </article>
+
+    </div>
+
+    <!-- mobile: prev/next nav -->
+    <div class="mt-12 pt-6 border-t border-white/[0.05] flex justify-between gap-4 lg:hidden">
+      {(() => {
+        const idx = allDocs.findIndex(d => d.id === slug);
+        const prev = allDocs[idx - 1];
+        const next = allDocs[idx + 1];
+        return (
+          <>
+            {prev ? (
+              <a href={`/docs/${prev.id}`} class="font-mono text-[9px] text-muted-foreground hover:text-foreground transition-colors">
+                ← {prev.data.title}
+              </a>
+            ) : <span />}
+            {next ? (
+              <a href={`/docs/${next.id}`} class="font-mono text-[9px] text-muted-foreground hover:text-foreground transition-colors">
+                {next.data.title} →
+              </a>
+            ) : <span />}
+          </>
+        );
+      })()}
+    </div>
+
+  </div>
+</BaseLayout>
