@@ -5,6 +5,7 @@ import type { TeamStanding, SeasonSummary } from '@/types';
 import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Building2 } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
+import { getTeamLogo } from '@/lib/teamLogos';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -67,7 +68,11 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
               <div class={`font-mono text-sm font-bold ${isTopPos(s.stats.championshipPosition, i) ? 'text-[#a855f7]' : 'text-muted-foreground'}`}>
                 {champPos(s.stats.championshipPosition, i) === 1 ? <Trophy size={14} /> : String(champPos(s.stats.championshipPosition, i)).padStart(2, '0')}
               </div>
-              <div class="min-w-0">
+              <div class="flex items-center gap-3 min-w-0">
+                {(() => { const logo = getTeamLogo(s.team.teamKey); return logo ? (
+                  <img src={logo} alt={s.team.name} class="h-7 w-14 object-contain shrink-0" loading="lazy" />
+                ) : null; })()}
+                <div class="min-w-0">
                 <div class="font-semibold text-sm group-hover:text-[#a855f7] transition-colors duration-150 truncate">{s.team.name}</div>
                 {s.team.nationality && (
                   <div class="font-mono text-[8px] text-muted-foreground tracking-wider mt-0.5">{s.team.nationality}</div>
@@ -84,6 +89,7 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
                       <span>Car {Math.round(Number(s.stats.carPerformanceScore) * 100)}</span>
                     </>
                   )}
+                </div>
                 </div>
               </div>
               <div class="font-bold text-sm text-right">{Math.round(Number(s.stats.totalPoints))}</div>

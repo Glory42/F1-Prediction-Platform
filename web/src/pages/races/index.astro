@@ -160,14 +160,14 @@ const sortHref = sort === 'asc'
                     <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground md:flex shrink-0">
                       <CalendarDays size={10} />{formatDate(date)}
                     </span>
-                    {!isSprint && race.weather && (
+                    {race.weather && (
                       <span class="font-mono text-[9px] text-muted-foreground capitalize hidden lg:inline shrink-0">{race.weather}</span>
                     )}
                     <a
                       href={href}
                       class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase shrink-0 transition-colors duration-150 ${isSprint ? 'text-orange-400/60 hover:text-orange-400' : 'text-muted-foreground hover:text-[#a855f7]'}`}
                     >
-                      {isSprint ? 'sprint' : 'results'} <ChevronRight size={10} />
+                      results <ChevronRight size={10} />
                     </a>
                   </div>
                 );

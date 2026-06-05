@@ -184,6 +184,7 @@ web/
 │   ├── lib/
 │   │   ├── api.ts                 # Typed API client — all fetch calls, uses PUBLIC_API_URL
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
+│   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,
@@ -199,7 +200,8 @@ web/
 │   │   └── globals.css            # Tailwind base + CSS custom properties
 │   └── env.d.ts                   # Astro env type declarations
 ├── public/
-│   └── favicon.svg
+│   ├── favicon.svg
+│   └── teams/                     # Static team logo files (PNG/SVG/JPG) served at /teams/<teamKey>.*
 ├── wrangler.toml                  # CF Pages config — keep_vars = true, PUBLIC_API_URL
 ├── astro.config.mjs               # output: 'server', Cloudflare adapter
 ├── tailwind.config.mjs
@@ -228,6 +230,7 @@ web/
 |------|---------|
 | `lib/api.ts` | Single typed API client. All pages call functions from here — never raw `fetch`. |
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
+| `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
 
 ---

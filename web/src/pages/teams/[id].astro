@@ -5,6 +5,7 @@ import type { TeamYearStats } from '@/types';
 import { Building2, BarChart2, Users, History, Info } from 'lucide-react';
 import YearSelectLinks from '@/components/YearSelectLinks.astro';
 import { getTeamColor } from '@/lib/teamColors';
+import { getTeamLogo } from '@/lib/teamLogos';
 
 const { id } = Astro.params;
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
@@ -51,13 +52,18 @@ const careerWithStats = career.filter((y) => y.stats !== null);
 
         <!-- Header -->
         <div>
-          <div class="flex items-center gap-3 mb-2">
-            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Building2 size={11} />./constructor</span>
-            <div class="h-px w-12 bg-white/[0.05]" />
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-1 h-8 rounded-sm shrink-0" style={`background: ${getTeamColor(team.teamKey)};`} />
-            <h1 class="text-2xl font-bold">{team.name}</h1>
+          <div class="w-fit">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Building2 size={11} />./constructor</span>
+              <div class="h-px flex-1 bg-white/[0.05]" />
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-1 h-8 rounded-sm shrink-0" style={`background: ${getTeamColor(team.teamKey)};`} />
+              <h1 class="text-2xl font-bold">{team.name}</h1>
+              {(() => { const logo = getTeamLogo(team.teamKey); return logo ? (
+                <img src={logo} alt={team.name} class="h-10 w-20 object-contain ml-2" loading="lazy" />
+              ) : null; })()}
+            </div>
           </div>
           <p class="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mt-1">
             {team.nationality && `${team.nationality} · `}{year} season
