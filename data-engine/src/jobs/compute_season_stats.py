@@ -33,7 +33,7 @@ def _compute_driver_stats(conn, season_id: int) -> None:
                 COUNT(rr.id) FILTER (WHERE rr.finish_position IS NOT NULL) AS races_finished,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position = 1) AS wins,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position <= 3) AS podiums,
-                COUNT(rr.id) FILTER (WHERE rr.finish_position IS NULL) AS dnf_count,
+                COUNT(rr.id) FILTER (WHERE rr.status NOT IN ('Finished') AND rr.status NOT LIKE '+%%') AS dnf_count,
                 COALESCE(SUM(rr.points::numeric), 0) AS total_points,
                 AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_finish,
                 AVG(rr.grid_position - rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_gain
@@ -235,7 +235,7 @@ def _compute_team_stats(conn, season_id: int) -> None:
                 COUNT(DISTINCT r.id) AS races_completed,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position = 1) AS wins,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position <= 3) AS podiums,
-                COUNT(rr.id) FILTER (WHERE rr.finish_position IS NULL) AS dnf_count,
+                COUNT(rr.id) FILTER (WHERE rr.status NOT IN ('Finished') AND rr.status NOT LIKE '+%%') AS dnf_count,
                 COUNT(rr.id) AS total_entries,
                 COALESCE(SUM(rr.points::numeric), 0) AS total_points,
                 AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_finish
