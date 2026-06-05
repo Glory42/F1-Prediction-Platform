@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
-import type { TeamYearStats } from '@/types';
+import type { TeamYearStats, DriverStanding } from '@/types';
 import { Building2, BarChart2, Users, History, Info } from 'lucide-react';
 import YearSelectLinks from '@/components/YearSelectLinks.astro';
 import { getTeamColor } from '@/lib/teamColors';
@@ -12,12 +12,14 @@ const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear
 
 let data = null;
 let career: TeamYearStats[] = [];
+let driverStandings: DriverStanding[] = [];
 let error = null;
 
 try {
-  [data, career] = await Promise.all([
+  [data, career, driverStandings] = await Promise.all([
     api.getTeamById(Number(id), year),
     api.getTeamCareer(Number(id)),
+    api.getDriverStandings(year),
   ]);
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load team';
@@ -25,6 +27,21 @@ try {
 
 const team = data?.team;
 const careerWithStats = career.filter((y) => y.stats !== null);
+
+const driverIds = new Set(data?.drivers.map((d) => d.id) ?? []);
+const teamStandings = driverStandings.filter((s) => driverIds.has(s.driver.id));
+const [d1, d2] = teamStandings;
+
+type CompareRow = { label: string; v1: number; v2: number; lowerBetter?: boolean; fmt?: (v: number) => string };
+const compareRows: CompareRow[] = d1 && d2 ? [
+  { label: 'Points',      v1: Number(d1.stats.totalPoints),           v2: Number(d2.stats.totalPoints) },
+  { label: 'Wins',        v1: d1.stats.wins,                          v2: d2.stats.wins },
+  { label: 'Podiums',     v1: d1.stats.podiums,                       v2: d2.stats.podiums },
+  { label: 'Poles',       v1: d1.stats.poles,                         v2: d2.stats.poles },
+  { label: 'Avg Finish',  v1: Number(d1.stats.avgFinishPosition ?? 20), v2: Number(d2.stats.avgFinishPosition ?? 20), lowerBetter: true, fmt: (v) => `P${Math.round(v)}` },
+  { label: 'DNFs',        v1: d1.stats.dnfCount,                      v2: d2.stats.dnfCount, lowerBetter: true },
+  { label: 'Races',       v1: d1.stats.racesEntered,                  v2: d2.stats.racesEntered },
+] : [];
 ---
 
 <BaseLayout title={team?.name ?? 'Team'}>
@@ -117,32 +134,95 @@ const careerWithStats = career.filter((y) => y.stats !== null);
               <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Users size={11} />./drivers · {year}</span>
               <div class="h-px flex-1 bg-white/[0.05]" />
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
-              {data.drivers.map((d) => (
-                <a href={`/drivers/${d.id}?year=${year}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group flex items-center gap-4" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
-                  {d.headshotUrl ? (
-                    <img
-                      src={d.headshotUrl}
-                      alt={d.fullName}
-                      class="w-16 h-16 object-cover object-top border border-white/[0.08] shrink-0 bg-white/[0.02]"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div class="w-16 h-16 border border-white/[0.08] flex items-center justify-center shrink-0">
-                      <span class="font-mono text-lg font-bold text-[#a855f7]">{d.driverNumber}</span>
+
+            {d1 && d2 && compareRows.length > 0 ? (
+              <!-- Comparison layout (2 drivers with stats) -->
+              <div class="border border-white/[0.06]">
+                <!-- Driver headers -->
+                <div class="grid grid-cols-[1fr_90px_1fr] border-b border-white/[0.06]">
+                  <a href={`/drivers/${d1.driver.id}?year=${year}`} class="flex items-center gap-3 p-4 hover:bg-white/[0.02] transition-colors group" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
+                    {d1.driver.headshotUrl ? (
+                      <img src={d1.driver.headshotUrl} alt={d1.driver.fullName} class="w-12 h-12 object-cover object-top border border-white/[0.08] shrink-0" loading="lazy" />
+                    ) : (
+                      <div class="w-12 h-12 border border-white/[0.08] flex items-center justify-center shrink-0">
+                        <span class="font-mono text-sm font-bold text-[#a855f7]">{d1.driver.driverNumber}</span>
+                      </div>
+                    )}
+                    <div>
+                      <div class="font-mono text-[8px] text-muted-foreground tracking-wider">{d1.driver.code} #{d1.driver.driverNumber}</div>
+                      <div class="font-semibold group-hover:text-[#a855f7] transition-colors">{d1.driver.fullName}</div>
+                      {d1.driver.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d1.driver.nationality}</div>}
                     </div>
-                  )}
-                  <div>
-                    <div class="flex items-center gap-1.5 mb-1">
-                      <div class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5">{d.code}</div>
-                      <div class="font-mono text-[8px] text-muted-foreground/60">#{d.driverNumber}</div>
+                  </a>
+                  <div class="flex items-center justify-center font-mono text-[8px] text-muted-foreground tracking-widest uppercase border-x border-white/[0.06]">vs</div>
+                  <a href={`/drivers/${d2.driver.id}?year=${year}`} class="flex items-center justify-end gap-3 p-4 hover:bg-white/[0.02] transition-colors group" style={`border-right: 2px solid ${getTeamColor(team.teamKey)};`}>
+                    <div class="text-right">
+                      <div class="font-mono text-[8px] text-muted-foreground tracking-wider">{d2.driver.code} #{d2.driver.driverNumber}</div>
+                      <div class="font-semibold group-hover:text-[#a855f7] transition-colors">{d2.driver.fullName}</div>
+                      {d2.driver.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d2.driver.nationality}</div>}
                     </div>
-                    <div class="font-semibold group-hover:text-[#a855f7] transition-colors duration-150">{d.fullName}</div>
-                    {d.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d.nationality}</div>}
-                  </div>
-                </a>
-              ))}
-            </div>
+                    {d2.driver.headshotUrl ? (
+                      <img src={d2.driver.headshotUrl} alt={d2.driver.fullName} class="w-12 h-12 object-cover object-top border border-white/[0.08] shrink-0" loading="lazy" />
+                    ) : (
+                      <div class="w-12 h-12 border border-white/[0.08] flex items-center justify-center shrink-0">
+                        <span class="font-mono text-sm font-bold text-[#a855f7]">{d2.driver.driverNumber}</span>
+                      </div>
+                    )}
+                  </a>
+                </div>
+                <!-- Stat rows -->
+                {compareRows.map((row, i) => {
+                  const total = row.v1 + row.v2;
+                  const pct1 = total === 0 ? 50 : Math.round((row.v1 / total) * 100);
+                  const pct2 = 100 - pct1;
+                  const d1Wins = row.lowerBetter ? row.v1 < row.v2 : row.v1 > row.v2;
+                  const d2Wins = row.lowerBetter ? row.v2 < row.v1 : row.v2 > row.v1;
+                  const color = getTeamColor(team.teamKey);
+                  const display1 = row.fmt ? row.fmt(row.v1) : row.v1;
+                  const display2 = row.fmt ? row.fmt(row.v2) : row.v2;
+                  return (
+                    <div class={`grid grid-cols-[1fr_90px_1fr] ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+                      <div class="flex items-center gap-3 px-4 py-3">
+                        <span class={`font-mono text-sm font-bold w-10 shrink-0 ${d1Wins ? 'text-white' : 'text-muted-foreground'}`}>{display1}</span>
+                        <div class="flex-1 h-1.5 bg-white/[0.06] flex justify-end overflow-hidden">
+                          <div class="h-full" style={`width:${pct1}%; background:${d1Wins ? color : 'rgba(255,255,255,0.12)'}`} />
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-center font-mono text-[8px] text-muted-foreground tracking-widest uppercase border-x border-white/[0.06]">{row.label}</div>
+                      <div class="flex items-center gap-3 px-4 py-3">
+                        <div class="flex-1 h-1.5 bg-white/[0.06] overflow-hidden">
+                          <div class="h-full" style={`width:${pct2}%; background:${d2Wins ? color : 'rgba(255,255,255,0.12)'}`} />
+                        </div>
+                        <span class={`font-mono text-sm font-bold w-10 shrink-0 text-right ${d2Wins ? 'text-white' : 'text-muted-foreground'}`}>{display2}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <!-- Fallback: plain driver cards (1 driver or no standings data) -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
+                {data.drivers.map((d) => (
+                  <a href={`/drivers/${d.id}?year=${year}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group flex items-center gap-4" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
+                    {d.headshotUrl ? (
+                      <img src={d.headshotUrl} alt={d.fullName} class="w-16 h-16 object-cover object-top border border-white/[0.08] shrink-0 bg-white/[0.02]" loading="lazy" />
+                    ) : (
+                      <div class="w-16 h-16 border border-white/[0.08] flex items-center justify-center shrink-0">
+                        <span class="font-mono text-lg font-bold text-[#a855f7]">{d.driverNumber}</span>
+                      </div>
+                    )}
+                    <div>
+                      <div class="flex items-center gap-1.5 mb-1">
+                        <div class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5">{d.code}</div>
+                        <div class="font-mono text-[8px] text-muted-foreground/60">#{d.driverNumber}</div>
+                      </div>
+                      <div class="font-semibold group-hover:text-[#a855f7] transition-colors duration-150">{d.fullName}</div>
+                      {d.nationality && <div class="font-mono text-[9px] text-muted-foreground">{d.nationality}</div>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
