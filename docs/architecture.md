@@ -108,6 +108,18 @@ Sunday
 
 ---
 
+## Screenshots
+
+**Races calendar**
+
+![Races page](../preview/Preview-racesPage.png)
+
+**Race detail**
+
+![Race detail page](../preview/Preview-races[id]Page.png)
+
+---
+
 ## Deployment
 
 | Layer | Host | Trigger |

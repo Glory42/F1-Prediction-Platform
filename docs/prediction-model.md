@@ -10,6 +10,14 @@ order: 4
 
 Two separate models run per race weekend: one for the grand prix, one for the sprint (sprint weekends only). Both use weighted feature scoring + softmax. The features and weights differ because sprint races are a fundamentally different format (~17 laps, no pit stops, track position dominates).
 
+**Prediction standings**
+
+![Prediction page](../preview/Preview-predictionPage.png)
+
+**Race prediction detail**
+
+![Prediction detail page](../preview/Preview-prediction[id]Page.png)
+
 ---
 
 ## Where the data comes from
