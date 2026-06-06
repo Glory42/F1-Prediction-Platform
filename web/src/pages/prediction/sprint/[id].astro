@@ -258,9 +258,6 @@ const FEATURE_LABELS: [string, string][] = [
 </BaseLayout>
 
 <script is:inline define:vars={{ driversJson: prediction?.drivers ?? [] }}>
-  const drivers = driversJson;
-  const barsEl = document.getElementById('sp-compare-bars');
-
   const FEATURES = [
     ['Car Performance',   'carPerformance'],
     ['Adj. Grid Pos',     'circuitAdjStartPos'],
@@ -272,84 +269,91 @@ const FEATURE_LABELS: [string, string][] = [
     ['SQ vs Teammate',    'sqQualifyingDelta'],
   ];
 
-  let idxA = 0;
-  let idxB = 1;
-
-  function makeDropdown(btnId, panelId, labelId, onSelect) {
-    const btn   = document.getElementById(btnId);
-    const panel = document.getElementById(panelId);
-    const label = document.getElementById(labelId);
-    btn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const otherId = panelId === 'sp-panel-a' ? 'sp-panel-b' : 'sp-panel-a';
-      document.getElementById(otherId)?.classList.add('hidden');
-      panel?.classList.toggle('hidden');
-    });
-    panel?.querySelectorAll('.sp-dd-opt').forEach((opt) => {
-      opt.addEventListener('click', () => {
-        const idx = Number(opt.dataset.idx);
-        if (label) label.textContent = opt.textContent?.trim() ?? '';
-        panel.querySelectorAll('.sp-dd-opt').forEach((o) => { o.style.background = ''; o.style.color = ''; });
-        opt.style.background = 'rgba(249,115,22,0.08)';
-        opt.style.color = '#fb923c';
-        panel.classList.add('hidden');
-        onSelect(idx);
-      });
-    });
-  }
-
-  document.addEventListener('click', () => {
-    document.getElementById('sp-panel-a')?.classList.add('hidden');
-    document.getElementById('sp-panel-b')?.classList.add('hidden');
-  });
-
-  makeDropdown('sp-btn-a', 'sp-panel-a', 'sp-label-a', (idx) => { idxA = idx; render(); });
-  makeDropdown('sp-btn-b', 'sp-panel-b', 'sp-label-b', (idx) => { idxB = idx; render(); });
-
-  function render() {
+  function initCompare() {
+    const drivers = driversJson;
+    const barsEl = document.getElementById('sp-compare-bars');
     if (!barsEl) return;
-    const dA = drivers[idxA];
-    const dB = drivers[idxB];
-    if (!dA || !dB) return;
 
-    barsEl.innerHTML = FEATURES.map(([label, key]) => {
-      const rawA = dA.features[key];
-      const rawB = dB.features[key];
-      if (rawA == null && rawB == null) return '';
-      const a = Math.round(Number(rawA ?? 0) * 100);
-      const b = Math.round(Number(rawB ?? 0) * 100);
-      return `
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-            <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em">${label}</span>
-            <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5)">${a} / ${b}</span>
+    let idxA = 0;
+    let idxB = 1;
+
+    function render() {
+      const dA = drivers[idxA];
+      const dB = drivers[idxB];
+      if (!dA || !dB) return;
+
+      barsEl.innerHTML = FEATURES.map(([label, key]) => {
+        const rawA = dA.features[key];
+        const rawB = dB.features[key];
+        if (rawA == null && rawB == null) return '';
+        const a = Math.round(Number(rawA ?? 0) * 100);
+        const b = Math.round(Number(rawB ?? 0) * 100);
+        return `
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em">${label}</span>
+              <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5)">${a} / ${b}</span>
+            </div>
+            <div style="position:relative;height:4px;background:rgba(255,255,255,0.05)">
+              <div style="position:absolute;left:0;top:0;height:100%;background:#fb923c;opacity:0.8;width:${a}%"></div>
+            </div>
+            <div style="position:relative;height:4px;background:rgba(255,255,255,0.05);margin-top:2px">
+              <div style="position:absolute;left:0;top:0;height:100%;background:#60a5fa;opacity:0.8;width:${b}%"></div>
+            </div>
           </div>
-          <div style="position:relative;height:4px;background:rgba(255,255,255,0.05)">
-            <div style="position:absolute;left:0;top:0;height:100%;background:#fb923c;opacity:0.8;width:${a}%"></div>
+        `;
+      }).join('');
+
+      const pA = Math.round(Number(dA.winProbability) * 100);
+      const pB = Math.round(Number(dB.winProbability) * 100);
+      barsEl.innerHTML += `
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
+          <div style="text-align:center">
+            <div style="font-family:monospace;font-size:8px;color:rgba(249,115,22,0.6);text-transform:uppercase;letter-spacing:0.15em">${dA.driver.code}</div>
+            <div style="font-size:24px;font-weight:bold;color:#fb923c">${pA}%</div>
           </div>
-          <div style="position:relative;height:4px;background:rgba(255,255,255,0.05);margin-top:2px">
-            <div style="position:absolute;left:0;top:0;height:100%;background:#60a5fa;opacity:0.8;width:${b}%"></div>
+          <div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3)">win prob</div>
+          <div style="text-align:center">
+            <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${dB.driver.code}</div>
+            <div style="font-size:24px;font-weight:bold;color:#60a5fa">${pB}%</div>
           </div>
         </div>
       `;
-    }).join('');
+    }
 
-    const pA = Math.round(Number(dA.winProbability) * 100);
-    const pB = Math.round(Number(dB.winProbability) * 100);
-    barsEl.innerHTML += `
-      <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
-        <div style="text-align:center">
-          <div style="font-family:monospace;font-size:8px;color:rgba(249,115,22,0.6);text-transform:uppercase;letter-spacing:0.15em">${dA.driver.code}</div>
-          <div style="font-size:24px;font-weight:bold;color:#fb923c">${pA}%</div>
-        </div>
-        <div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3)">win prob</div>
-        <div style="text-align:center">
-          <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${dB.driver.code}</div>
-          <div style="font-size:24px;font-weight:bold;color:#60a5fa">${pB}%</div>
-        </div>
-      </div>
-    `;
+    function makeDropdown(btnId, panelId, labelId, onSelect) {
+      const btn   = document.getElementById(btnId);
+      const panel = document.getElementById(panelId);
+      const label = document.getElementById(labelId);
+      btn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const otherId = panelId === 'sp-panel-a' ? 'sp-panel-b' : 'sp-panel-a';
+        document.getElementById(otherId)?.classList.add('hidden');
+        panel?.classList.toggle('hidden');
+      });
+      panel?.querySelectorAll('.sp-dd-opt').forEach((opt) => {
+        opt.addEventListener('click', () => {
+          const idx = Number(opt.dataset.idx);
+          if (label) label.textContent = opt.textContent?.trim() ?? '';
+          panel.querySelectorAll('.sp-dd-opt').forEach((o) => { o.style.background = ''; o.style.color = ''; });
+          opt.style.background = 'rgba(249,115,22,0.08)';
+          opt.style.color = '#fb923c';
+          panel.classList.add('hidden');
+          onSelect(idx);
+        });
+      });
+    }
+
+    document.addEventListener('click', () => {
+      document.getElementById('sp-panel-a')?.classList.add('hidden');
+      document.getElementById('sp-panel-b')?.classList.add('hidden');
+    });
+
+    makeDropdown('sp-btn-a', 'sp-panel-a', 'sp-label-a', (idx) => { idxA = idx; render(); });
+    makeDropdown('sp-btn-b', 'sp-panel-b', 'sp-label-b', (idx) => { idxB = idx; render(); });
+
+    render();
   }
 
-  render();
+  document.addEventListener('astro:page-load', initCompare);
 </script>
