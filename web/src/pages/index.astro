@@ -251,13 +251,13 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
 
       <div class="border border-white/[0.06]">
         {archiveEntries.map(({ race, isSprint, date, href }, i) => (
-          <div class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isSprint ? 'bg-[rgba(249,115,22,0.02)]' : ''}`}>
+          <a href={href} class={`flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isSprint ? 'bg-[rgba(249,115,22,0.02)]' : ''}`}>
             <span class="font-mono text-[10px] text-muted-foreground w-7 shrink-0">
               {race.roundNumber.toString().padStart(2, '0')}
             </span>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <div class="font-medium text-sm truncate">{race.name}</div>
+                <div class={`font-medium text-sm truncate transition-colors duration-150 ${isSprint ? 'group-hover:text-orange-400' : 'group-hover:text-[#a855f7]'}`}>{race.name}</div>
                 {isSprint && (
                   <span class="shrink-0 font-mono text-[7px] tracking-[0.15em] uppercase px-1.5 py-0.5 border border-orange-500/35 text-orange-400/75 hidden sm:inline">sprint</span>
                 )}
@@ -267,13 +267,10 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
               </div>
             </div>
             <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground sm:flex shrink-0"><CalendarDays size={10} />{formatDate(date)}</span>
-            <a
-              href={href}
-              class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase transition-colors duration-150 shrink-0 ${isSprint ? 'text-orange-400/60 hover:text-orange-400' : 'text-muted-foreground hover:text-[#a855f7]'}`}
-            >
+            <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase shrink-0 transition-colors duration-150 ${isSprint ? 'text-orange-400/60 group-hover:text-orange-400' : 'text-muted-foreground group-hover:text-[#a855f7]'}`}>
               results <ChevronRight size={10} />
-            </a>
-          </div>
+            </span>
+          </a>
         ))}
       </div>
     </section>
