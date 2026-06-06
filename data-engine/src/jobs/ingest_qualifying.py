@@ -45,7 +45,7 @@ def run(year: int, round_num: int) -> None:
             cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
             driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
 
-        session = get_session(year, round_num, "Q")
+        session = get_session(year, round_num, "Q", messages=True)
         quali_rows = session_to_quali_results(session)
 
         rows_to_upsert = []
