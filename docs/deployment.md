@@ -100,8 +100,10 @@ python src/main.py --job sync_season   --year 2025 --round 1
 1. Create a new Render service from the `data-engine/` directory.
 2. Add `DATABASE_URL` as an environment variable.
 3. Configure cron jobs:
-   - `python src/main.py --job ingest_qualifying && python src/main.py --job compute_features && python src/main.py --job compute_predictions` — Saturday 22:00 UTC
-   - `python src/main.py --job ingest_race && python src/main.py --job compute_season_stats` — Sunday 18:00 UTC
+   - Conventional/Sprint: `python src/main.py --job ingest_qualifying && python src/main.py --job ingest_fp2 && python src/main.py --job compute_features && python src/main.py --job compute_predictions` — Saturday 22:00 UTC
+   - Conventional/Sprint: `python src/main.py --job ingest_race && python src/main.py --job compute_season_stats` — Sunday 18:00 UTC
+   - Sprint Weekend only: `python src/main.py --job ingest_sprint_qualifying && python src/main.py --job compute_sprint_features && python src/main.py --job compute_sprint_predictions` — Friday 22:00 UTC
+   - Sprint Weekend only: `python src/main.py --job ingest_sprint && python src/main.py --job compute_season_stats` — Saturday 16:00 UTC
 
 ---
 

@@ -46,7 +46,7 @@ A `teams` row and a `drivers` row exist per year, not globally. Teams rename (To
 
 ## `race.status` as ETL control valve
 
-The `status` enum (`scheduled → qualifying_done → completed`) is what the pipeline uses to decide what to run next. `compute_features` only runs when `qualifying_done` — it raises if qualifying data is missing rather than producing zeroed-out predictions. Status is updated at the **end** of each job (not the start) to avoid race conditions where a partial job marks a race as ready.
+The `status` enum (`scheduled → sprint_qualifying_done → sprint_done → qualifying_done → completed`) is what the pipeline uses to decide what to run next. `compute_features` only runs when `qualifying_done` — it raises if qualifying data is missing rather than producing zeroed-out predictions. Status is updated at the **end** of each job (not the start) to avoid race conditions where a partial job marks a race as ready.
 
 ---
 

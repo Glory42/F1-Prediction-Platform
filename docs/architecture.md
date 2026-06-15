@@ -70,6 +70,7 @@ The `db/` folder holds only the generated SQL migration files.
 ```
 Saturday
   data-engine: ingest_qualifying   → qualifying_results table
+  data-engine: ingest_fp2          → fp2_long_run_times table
   data-engine: compute_features    → driver_prediction_features table
   data-engine: compute_predictions → race_predictions table
   race.status: scheduled → qualifying_done
@@ -96,6 +97,7 @@ Saturday
   race.status: sprint_qualifying_done → sprint_done
 
   data-engine: ingest_qualifying    → qualifying_results
+  data-engine: ingest_fp2           → fp2_long_run_times
   data-engine: compute_features     → driver_prediction_features
   data-engine: compute_predictions  → race_predictions
   race.status: sprint_done → qualifying_done

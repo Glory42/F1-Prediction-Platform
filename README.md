@@ -97,18 +97,18 @@ python run_backfill.py 2000 2025
 
 | Feature | Weight |
 |---------|--------|
-| Car Performance | 22% |
-| Long Run Pace | 12% |
-| Starting Position | 12% |
-| Driver Rating | 10% |
-| Win Rate | 10% |
+| Car Performance | 20% |
+| Long Run Pace | 15% |
+| Tyre Degradation | 8% |
 | Reliability | 8% |
-| Luck Factor | 8% |
+| Qualifying Delta | 8% |
+| Driver Rating | 8% |
+| Win Rate | 8% |
+| Luck Factor | 7% |
+| Circuit-Adj. Starting Position | 7% |
 | Sector Strength | 6% |
-| Qualifying Delta | 5% |
-| Weather Impact | 3% |
-| Track Overtake Rate | 2% |
-| Position Gain Rate | 2% |
+| Circuit-Adj. Position Gain | 3% |
+| Weather Impact | 2% |
 
 See [docs/prediction-model.md](./docs/prediction-model.md) for full details.
 

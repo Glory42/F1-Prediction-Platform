@@ -159,17 +159,17 @@ Returns the prediction for the next `qualifying_done` race with `race_date >= to
         "driver": { "id": 42, "code": "VER", "fullName": "Max Verstappen", "team": { ... } },
         "features": {
           "carPerformance": "0.91200",
-          "driverRating": "0.88000",
-          "startingPosition": "1.00000",
-          "winRate": "0.77000",
-          "luckFactor": "0.62000",
-          "weatherImpact": "0.50000",
-          "trackOvertake": null,
-          "positionGain": "0.70000",
           "longRunPace": "0.81000",
+          "tyreDeg": "0.85000",
           "reliability": "0.90000",
           "qualifyingDelta": "0.68000",
-          "sectorStrength": "0.74000"
+          "driverRating": "0.88000",
+          "winRate": "0.77000",
+          "luckFactor": "0.62000",
+          "circuitAdjStartPos": "0.95000",
+          "sectorStrength": "0.74000",
+          "circuitAdjPositionGain": "0.55000",
+          "weatherImpact": "0.50000"
         }
       }
     ]
@@ -248,13 +248,13 @@ Returns the sprint prediction for a specific race ID. Includes sprint results if
           "driver": { ... },
           "features": {
             "carPerformance": "0.88000",
-            "startingPosition": "1.00000",
-            "driverRating": "0.75000",
-            "trackOvertake": "0.42000",
+            "circuitAdjStartPos": "1.00000",
             "shortRunPace": "0.91000",
+            "driverRating": "0.75000",
             "weatherImpact": "0.50000",
             "winRate": "0.65000",
-            "luckFactor": "0.55000"
+            "luckFactor": "0.55000",
+            "sqQualifyingDelta": "0.68000"
           }
         }
       ]

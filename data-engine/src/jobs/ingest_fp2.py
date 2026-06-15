@@ -35,10 +35,14 @@ def run(year: int, round_num: int) -> None:
             cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
             driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
 
-        session = get_session(year, round_num, "FP2")
-
-        if session.laps is None or session.laps.empty:
-            raise RuntimeError("FP2 laps not available")
+        try:
+            session = get_session(year, round_num, "FP2")
+            if session.laps is None or session.laps.empty:
+                print(f"  [SKIP] FP2 laps not available for {year} round {round_num}")
+                return
+        except Exception as e:
+            print(f"  [SKIP] FP2 session could not be loaded (likely a sprint weekend without FP2): {e}")
+            return
 
         laps = session.laps
         laps = laps[laps["Compound"].isin(COMPOUND_OFFSET_MS.keys())]
