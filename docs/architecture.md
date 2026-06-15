@@ -47,7 +47,7 @@ The `db/` folder holds only the generated SQL migration files.
 └────────────────────▲────────────────────────────┘
                      │ psycopg2 TCP
 ┌────────────────────┴────────────────────────────┐
-│  data-engine/  (Python — Render cron jobs)      │
+│  data-engine/  (Python — Render Web Service)    │
 │  Fetches F1 data via FastF1, computes           │
 │  features and predictions, writes to DB         │
 └─────────────────────────────────────────────────┘
@@ -128,5 +128,5 @@ Sunday
 |-------|------|---------|
 | `web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-deploys |
 | `api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-deploys |
-| `data-engine/` | Render | Cron jobs (see `data-pipeline.md` for schedule) |
+| `data-engine/` | Render | Web Service (hourly polling) |
 | DB migrations | Neon | Manual: `bun run drizzle-kit push` from `db/` |

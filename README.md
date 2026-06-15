@@ -23,7 +23,7 @@ f1-prediction/
 │       ├── db/schema/   # Drizzle table definitions (source of truth)
 │       └── modules/     # races, drivers, teams, predictions, seasons
 ├── db/            # Drizzle migrations only
-├── data-engine/   # Python ETL batch jobs on Render
+├── data-engine/   # Python ETL polling web service on Render
 │   └── src/jobs/  # sync, ingest, compute jobs
 └── docs/          # Architecture, API reference, schema, pipeline, deployment
 ```
@@ -116,4 +116,4 @@ See [docs/prediction-model.md](./docs/prediction-model.md) for full details.
 
 - **API**: push to GitHub → Cloudflare Workers auto-deploys
 - **Frontend**: push to GitHub → Cloudflare Pages auto-deploys
-- **Data Engine**: Render cron jobs (Sat 22:00 UTC qualifying, Sun 18:00 UTC race)
+- **Data Engine**: Render Web Service (Hourly Polling)
