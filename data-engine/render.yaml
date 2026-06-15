@@ -1,10 +1,9 @@
 services:
-  - type: cron
-    name: f1-auto-runner
+  - type: web
+    name: f1-data-engine
     runtime: python
-    schedule: "0 * * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python src/auto_runner.py
+    startCommand: python src/server.py
     envVars:
       - key: DATABASE_URL
         sync: false

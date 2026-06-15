@@ -40,7 +40,7 @@ def run():
 
     if not race_row:
         print("[auto_runner] No active races found. Exiting.")
-        sys.exit(0)
+        return
 
     race_id = race_row["id"]
     year = race_row["year"]
@@ -56,7 +56,7 @@ def run():
         event = schedule[schedule["RoundNumber"] == round_number].iloc[0]
     except Exception as e:
         print(f"[auto_runner] Failed to fetch schedule from FastF1: {e}")
-        sys.exit(0)
+        return
 
     now_utc = datetime.now(timezone.utc)
 
@@ -120,7 +120,7 @@ def run():
 
     except (DataNotLoadedError, SessionNotAvailableError) as e:
         print(f"[auto_runner] Data not ready from FastF1 yet. Will try again next hour. Details: {e}")
-        sys.exit(0)
+        return
     except Exception as e:
         # For unexpected errors, we want to fail so it shows up in Render logs
         print(f"[auto_runner] Unexpected error during execution: {e}")

@@ -90,13 +90,13 @@ compute_season_stats       → final season stats update
 
 ## Automated Polling (Render)
 
-Instead of relying on fixed days and times (which is fragile due to global timezones and API delays), the pipeline uses an automated polling architecture.
+Instead of relying on fixed days and times (which is fragile due to global timezones and API delays), the pipeline uses an automated polling architecture hosted on a free Render Web Service.
 
-A single cron job runs every hour:
+A persistent web service runs continuously:
 
-| Time (UTC) | Job | Purpose |
-|------------|-----|---------|
-| `0 * * * *` | `python src/auto_runner.py` | Checks if any session data is due and available |
+| Service Type | Command | Purpose |
+|--------------|---------|---------|
+| Web Service | `python src/server.py` | Hosts a basic HTTP server to stay awake via UptimeRobot, and runs `auto_runner.py` every hour in the background. |
 
 ### How `auto_runner.py` works:
 1. Queries the database for the most recent active race (where `status != 'completed'`).

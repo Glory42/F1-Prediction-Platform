@@ -99,11 +99,10 @@ python src/main.py --job sync_season   --year 2025 --round 1
 
 1. Create a new Render service from the `data-engine/` directory.
 2. Add `DATABASE_URL` as an environment variable.
-3. Configure cron jobs:
-   - Command: `python src/auto_runner.py`
-   - Schedule: `0 * * * *` (Every hour)
-   
-   The `auto_runner.py` script automatically queries the database and FastF1 to determine if any qualifying or race data is ready to be ingested, gracefully waiting an extra hour if F1 delays the API data.
+3. Configure as a **Web Service** (not a cron job) to utilize the free tier.
+4. Set the Build Command: `pip install -r requirements.txt`
+5. Set the Start Command: `python src/server.py`
+6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data every hour automatically.
 
 ---
 
