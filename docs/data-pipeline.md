@@ -88,25 +88,27 @@ compute_season_stats       → final season stats update
 `compute_season_stats` should be re-run after each race so that rolling stats
 (win rate, DNF rate, avg position gain, sprint aggregates) are up to date before the next prediction.
 
----
+## Automated Polling (Render)
 
-## Cron Schedule (Render)
+Instead of relying on fixed days and times (which is fragile due to global timezones and API delays), the pipeline uses an automated polling architecture.
 
-### Conventional Weekend
+A single cron job runs every hour:
 
-| Time (UTC) | Jobs |
-|------------|------|
-| Saturday 22:00 | `ingest_qualifying` → `ingest_fp2` → `compute_features` → `compute_predictions` |
-| Sunday 18:00 | `ingest_race` → `compute_season_stats` |
+| Time (UTC) | Job | Purpose |
+|------------|-----|---------|
+| `0 * * * *` | `python src/auto_runner.py` | Checks if any session data is due and available |
 
-### Sprint Weekend
-
-| Time (UTC) | Jobs |
-|------------|------|
-| Friday 22:00 | `ingest_sprint_qualifying` → `compute_sprint_features` → `compute_sprint_predictions` |
-| Saturday 16:00 | `ingest_sprint` → `compute_season_stats` |
-| Saturday 22:00 | `ingest_qualifying` → `ingest_fp2` → `compute_features` → `compute_predictions` |
-| Sunday 18:00 | `ingest_race` → `compute_season_stats` |
+### How `auto_runner.py` works:
+1. Queries the database for the most recent active race (where `status != 'completed'`).
+2. Fetches the official F1 schedule via FastF1 to get exact UTC session times.
+3. Checks if a session ended recently:
+   - Sprint Qualifying + 1.5 hours
+   - Sprint Race + 1.5 hours
+   - Main Qualifying + 2 hours
+   - Main Race + 3 hours
+4. If the time has passed, it attempts to download the data. 
+   - **If F1 data is delayed**, FastF1 throws a `DataNotLoadedError`. The script catches this, exits cleanly, and tries again next hour.
+5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats) and updates the race `status` in the DB.
 
 ---
 
