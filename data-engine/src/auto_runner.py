@@ -1,7 +1,7 @@
 import sys
 from datetime import datetime, timezone, timedelta
 import fastf1
-from fastf1.core import DataNotLoadedError, SessionNotAvailableError
+from fastf1.core import DataNotLoadedError, InvalidSessionError, NoLapDataError
 from src.db.client import get_conn
 
 # Import jobs
@@ -118,7 +118,7 @@ def run():
         else:
             print(f"[auto_runner] Unhandled status '{status}'. Exiting.")
 
-    except (DataNotLoadedError, SessionNotAvailableError) as e:
+    except (DataNotLoadedError, InvalidSessionError, NoLapDataError, ValueError) as e:
         print(f"[auto_runner] Data not ready from FastF1 yet. Will try again next hour. Details: {e}")
         return
     except Exception as e:
