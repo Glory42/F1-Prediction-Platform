@@ -96,7 +96,7 @@ A persistent web service runs continuously:
 
 | Service Type | Command | Purpose |
 |--------------|---------|---------|
-| Web Service | `python src/server.py` | Hosts a basic HTTP server to stay awake via UptimeRobot, and runs `auto_runner.py` every hour in the background. |
+| Web Service | `python -m src.server` | Hosts a basic HTTP server to stay awake via UptimeRobot, and runs `auto_runner.py` every hour in the background. |
 
 ### How `auto_runner.py` works:
 1. Queries the database for the most recent active race (where `status != 'completed'`).

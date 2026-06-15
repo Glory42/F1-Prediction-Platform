@@ -101,7 +101,7 @@ python src/main.py --job sync_season   --year 2025 --round 1
 2. Add `DATABASE_URL` as an environment variable.
 3. Configure as a **Web Service** (not a cron job) to utilize the free tier.
 4. Set the Build Command: `pip install -r requirements.txt`
-5. Set the Start Command: `python src/server.py`
+5. Set the Start Command: `python -m src.server`
 6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data every hour automatically.
 
 ---
