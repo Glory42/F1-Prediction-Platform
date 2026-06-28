@@ -96,7 +96,7 @@ A persistent web service runs continuously:
 
 | Service Type | Command | Purpose |
 |--------------|---------|---------|
-| Web Service | `python -m src.server` | Hosts a basic HTTP server to stay awake via UptimeRobot, and runs `auto_runner.py` every hour in the background. |
+| Web Service | `python -m src.server` | Hosts a live HTML dashboard (and health check) to monitor the engine's status, and runs `auto_runner.py` every hour in the background. |
 
 ### How `auto_runner.py` works:
 1. Queries the database for the most recent active race (where `status != 'completed'`).
@@ -108,7 +108,7 @@ A persistent web service runs continuously:
    - Main Race + 3 hours
 4. If the time has passed, it attempts to download the data. 
    - **If F1 data is delayed**, FastF1 throws a `DataNotLoadedError`. The script catches this, exits cleanly, and tries again next hour.
-5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats) and updates the race `status` in the DB.
+5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats). If any job in the sequence fails, it reverts the race `status` to ensure it safely retries the entire sequence next hour.
 
 ---
 

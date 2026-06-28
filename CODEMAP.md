@@ -271,6 +271,8 @@ Python 3.11+ batch jobs. Fetches F1 data via FastF1, computes predictions, write
 ```
 data-engine/
 ├── src/
+│   ├── auto_runner.py             # Orchestrates ETL jobs via state machine; reverts status on failure
+│   ├── server.py                  # HTTP server exposing a live dashboard and /health for UptimeRobot
 │   ├── main.py                    # CLI entry point — --job, --year, --round, --race_id
 │   │                              # Also auto-detects current race if year/round omitted
 │   ├── config.py                  # FastF1 cache setup, environment loading
