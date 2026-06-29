@@ -16,7 +16,7 @@ STATE = {
 
 def log_update(msg):
     print(msg)
-    STATE["logs"].append({"time": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), "msg": msg})
+    STATE["logs"].append({"time": datetime.now(timezone.utc).isoformat(), "msg": msg})
     if len(STATE["logs"]) > 50:
         STATE["logs"].pop(0)
 
@@ -31,7 +31,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
         
-        logs_html = "".join([f"<li><span class='time'>[{l['time']}]</span> {l['msg']}</li>" for l in reversed(STATE['logs'])])
+        logs_html = "".join([f"<li><span class='time local-time' data-iso='{l['time']}'>[{l['time']}]</span> {l['msg']}</li>" for l in reversed(STATE['logs'])])
         
         html = f"""
         <html>
@@ -51,12 +51,33 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         <body>
             <h2>F1 Data Engine</h2>
             <p><strong>Status:</strong> <span class="status-val">{STATE['status']}</span></p>
-            <p><strong>Last Check:</strong> {STATE['last_check'] or 'Never'}</p>
+            <p><strong>Last Check:</strong> <span class="local-time" data-iso="{STATE['last_check'] or ''}">{STATE['last_check'] or 'Never'}</span></p>
             <p><strong>Last Error:</strong> <span class="error-val">{STATE['last_error'] or 'None'}</span></p>
             <h3>Live Activity Logs (Auto-refresh every 30s):</h3>
             <ul>
                 {logs_html}
             </ul>
+            <script>
+                document.querySelectorAll('.local-time').forEach(el => {{
+                    const iso = el.getAttribute('data-iso');
+                    if (iso) {{
+                        const d = new Date(iso);
+                        if (!isNaN(d.getTime())) {{
+                            const formatted = d.getFullYear() + '-' + 
+                                String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                                String(d.getDate()).padStart(2, '0') + ' ' + 
+                                String(d.getHours()).padStart(2, '0') + ':' + 
+                                String(d.getMinutes()).padStart(2, '0') + ':' + 
+                                String(d.getSeconds()).padStart(2, '0');
+                            if (el.classList.contains('time')) {{
+                                el.textContent = '[' + formatted + ']';
+                            }} else {{
+                                el.textContent = formatted;
+                            }}
+                        }}
+                    }}
+                }});
+            </script>
         </body>
         </html>
         """
@@ -76,7 +97,7 @@ def start_worker():
     while True:
         try:
             STATE["status"] = "Running checks..."
-            STATE["last_check"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            STATE["last_check"] = datetime.now(timezone.utc).isoformat()
             log_update("[worker] Triggering auto_runner checks...")
             
             auto_runner_run(log_func=log_update)
