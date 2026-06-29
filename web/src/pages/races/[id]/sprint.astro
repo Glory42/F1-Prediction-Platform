@@ -368,7 +368,8 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
     if (cdInterval) clearInterval(cdInterval);
     const el = document.getElementById('sprint-countdown');
     if (!el) return;
-    const target = new Date(el.dataset.sprintDate ?? '');
+    const rawDate = el.dataset.sprintDate ?? '';
+    const target = new Date(rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`);
     const digits = document.querySelectorAll<HTMLElement>('.sprint-cd');
     function tick() {
       if (isNaN(target.getTime()) || digits.length < 4) return;

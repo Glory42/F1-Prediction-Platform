@@ -355,7 +355,8 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
     if (cdInterval) clearInterval(cdInterval);
     const el = document.getElementById('race-countdown');
     if (!el) return;
-    const raceDate = new Date(el.dataset.raceDate ?? '');
+    const rawDate = el.dataset.raceDate ?? '';
+    const raceDate = new Date(rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`);
     const digits = document.querySelectorAll<HTMLElement>('.countdown-d');
     function tick() {
       if (isNaN(raceDate.getTime()) || digits.length < 4) return;

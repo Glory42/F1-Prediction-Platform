@@ -296,7 +296,8 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
     const el = document.getElementById('countdown');
     if (!el) return;
 
-    const raceDate = new Date(el.dataset.raceDate ?? '');
+    const rawDate = el.dataset.raceDate ?? '';
+    const raceDate = new Date(rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`);
     const digits = document.querySelectorAll<HTMLElement>('.countdown-digit');
 
     function update() {
