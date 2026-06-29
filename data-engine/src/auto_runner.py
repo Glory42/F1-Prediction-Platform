@@ -29,7 +29,7 @@ def run(log_func=print):
                 SELECT r.id, r.round_number, s.year, r.status, r.event_format
                 FROM races r
                 JOIN seasons s ON r.season_id = s.id
-                WHERE r.status != 'completed'
+                WHERE r.status != 'completed' AND s.year >= EXTRACT(YEAR FROM CURRENT_DATE)
                 ORDER BY r.race_date ASC
                 LIMIT 1
                 """
@@ -162,7 +162,7 @@ def run(log_func=print):
         else:
             log_func(f"[auto_runner] Unhandled status '{status}'. Exiting.")
 
-    except (DataNotLoadedError, InvalidSessionError, NoLapDataError, ValueError) as e:
+    except (DataNotLoadedError, InvalidSessionError, NoLapDataError, ValueError, RuntimeError) as e:
         log_func(f"[auto_runner] Data not ready from FastF1 yet. Will try again next hour. Details: {e}")
         return
     except Exception as e:
