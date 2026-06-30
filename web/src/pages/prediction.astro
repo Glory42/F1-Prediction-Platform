@@ -42,7 +42,12 @@ if (!upcomingSprint) {
 
 const correctCount = history.filter((h) => h.correct === true).length;
 const completedCount = history.filter((h) => h.correct !== null).length;
+const top3Count = history.filter((h) => h.actualWinnerPredictedPosition !== null && h.actualWinnerPredictedPosition <= 3).length;
+const top5Count = history.filter((h) => h.actualWinnerPredictedPosition !== null && h.actualWinnerPredictedPosition <= 5).length;
+
 const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount) * 100) : null;
+const top3Accuracy = completedCount > 0 ? Math.round((top3Count / completedCount) * 100) : null;
+const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount) * 100) : null;
 ---
 
 <BaseLayout title={`${year} F1 Predictions`}>
@@ -223,9 +228,17 @@ const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount)
           <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><History size={11} />./prediction history</span>
           <div class="h-px flex-1 bg-white/[0.05]" />
           {accuracy !== null && (
-            <span class="font-mono text-[8px] text-muted-foreground">
-              {correctCount}/{completedCount} correct · <span class="text-[#a855f7]">{accuracy}%</span>
-            </span>
+            <div class="flex items-center gap-4">
+              <span class="font-mono text-[8px] text-muted-foreground" title="Win correctly predicted">
+                P1 Hit: <span class="text-[#a855f7]">{accuracy}%</span>
+              </span>
+              <span class="font-mono text-[8px] text-muted-foreground" title="Winner landed in predicted Top 3">
+                Top 3 Hit: <span class="text-[#a855f7]">{top3Accuracy}%</span>
+              </span>
+              <span class="font-mono text-[8px] text-muted-foreground" title="Winner landed in predicted Top 5">
+                Top 5 Hit: <span class="text-[#a855f7]">{top5Accuracy}%</span>
+              </span>
+            </div>
           )}
         </div>
         <div class="border border-white/[0.06]">

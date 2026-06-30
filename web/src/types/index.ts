@@ -83,6 +83,7 @@ export type PredictionHistoryItem = {
   raceId: number; raceName: string; raceDate: string; roundNumber: number; circuit: Circuit;
   predictedWinner: Driver; actualWinner: Driver | null; winProbability: string;
   correct: boolean | null; computedAt: string; isSprint: boolean;
+  actualWinnerPredictedPosition: number | null;
 };
 export type IntelStandingRow = {
   driver: Driver; features: FeatureScores; rawWeightedScore: string;

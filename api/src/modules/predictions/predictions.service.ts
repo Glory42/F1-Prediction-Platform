@@ -93,6 +93,7 @@ export class PredictionsService {
             raceId: driverPredictionFeatures.raceId,
             driverId: driverPredictionFeatures.driverId,
             winProbability: driverPredictionFeatures.winProbability,
+            predictedPosition: driverPredictionFeatures.predictedPosition,
           })
           .from(driverPredictionFeatures)
           .where(inArray(driverPredictionFeatures.raceId, raceIds))
@@ -102,6 +103,7 @@ export class PredictionsService {
             raceId: driverSprintFeatures.raceId,
             driverId: driverSprintFeatures.driverId,
             winProbability: driverSprintFeatures.winProbability,
+            predictedPosition: driverSprintFeatures.predictedPosition,
           })
           .from(driverSprintFeatures)
           .where(inArray(driverSprintFeatures.raceId, sprintRaceIds))
@@ -119,10 +121,18 @@ export class PredictionsService {
     }
 
     const probMap = new Map<string, string>();
-    for (const p of probRows) probMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
+    const posMap = new Map<string, number>();
+    for (const p of probRows) {
+      probMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
+      if (p.predictedPosition != null) posMap.set(`${p.raceId}:${p.driverId}`, p.predictedPosition);
+    }
 
     const sprintProbMap = new Map<string, string>();
-    for (const p of sprintProbRows) sprintProbMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
+    const sprintPosMap = new Map<string, number>();
+    for (const p of sprintProbRows) {
+      sprintProbMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
+      if (p.predictedPosition != null) sprintPosMap.set(`${p.raceId}:${p.driverId}`, p.predictedPosition);
+    }
 
     const mainItems: PredictionHistoryItem[] = rows.map((r) => {
       const { races: race, circuits: circuit, drivers: driver, teams: team, race_predictions: pred } = r;
@@ -135,6 +145,9 @@ export class PredictionsService {
         winProbability: probMap.get(`${race.id}:${driver.id}`) ?? '0',
         correct: (race.status === 'completed' && actualWinner !== null)
           ? (actualWinner.id === predictedWinner.id)
+          : null,
+        actualWinnerPredictedPosition: (race.status === 'completed' && actualWinner !== null)
+          ? (posMap.get(`${race.id}:${actualWinner.id}`) ?? null)
           : null,
         computedAt: pred.computedAt.toISOString(),
         isSprint: false,
@@ -152,6 +165,9 @@ export class PredictionsService {
         predictedWinner, actualWinner,
         winProbability: sprintProbMap.get(`${race.id}:${driver.id}`) ?? '0',
         correct: (isDone && actualWinner !== null) ? (actualWinner.id === predictedWinner.id) : null,
+        actualWinnerPredictedPosition: (isDone && actualWinner !== null)
+          ? (sprintPosMap.get(`${race.id}:${actualWinner.id}`) ?? null)
+          : null,
         computedAt: pred.computedAt.toISOString(),
         isSprint: true,
       };

@@ -112,20 +112,25 @@ const FEATURE_LABELS: [string, string][] = [
               <div class="h-px flex-1 bg-white/[0.05]" />
             </div>
             <div class="border border-white/[0.06]">
-              <div class="grid grid-cols-[32px_1fr_80px] sm:grid-cols-[32px_1fr_80px_100px_100px] gap-0 px-4 py-2.5 border-b border-white/[0.06]">
+              <div class={`grid grid-cols-[32px_1fr_80px] ${sprintDetail?.results && sprintDetail.results.length > 0 ? 'sm:grid-cols-[32px_1fr_80px_100px_100px_80px]' : 'sm:grid-cols-[32px_1fr_80px_100px_100px]'} gap-0 px-4 py-2.5 border-b border-white/[0.06]`}>
                 <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
                 <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
                 <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Win %</div>
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Car</div>
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block">Grid</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-center">Car</div>
+                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-center">Grid</div>
+                {sprintDetail?.results && sprintDetail.results.length > 0 && (
+                  <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-right">Actual Pos</div>
+                )}
               </div>
               {prediction.drivers.map((d, i) => {
                 const pct      = Math.round(Number(d.winProbability) * 100);
                 const isActual = sprintWinner?.driver.id === d.driver.id;
                 const isPred   = prediction!.predictedWinner.id === d.driver.id;
-                const gridPos  = Math.round((1 - Number(d.features.startingPosition)) * 20) + 1;
+                const gridPos  = Math.round((1 - Number(d.features.startingPosition)) * 19) + 1;
+                const actualResult = sprintDetail?.results?.find(r => r.driver.id === d.driver.id);
+                const actualPosText = actualResult?.finishPosition ? `P${actualResult.finishPosition}` : (actualResult?.status ?? '—');
                 return (
-                  <div class={`grid grid-cols-[32px_1fr_80px] sm:grid-cols-[32px_1fr_80px_100px_100px] gap-0 items-start sm:items-center px-4 py-3 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isPred ? 'bg-orange-500/[0.04]' : ''}`} style={`border-left: 2px solid ${getTeamColor(d.driver.team.teamKey)};`}>
+                  <div class={`grid grid-cols-[32px_1fr_80px] ${sprintDetail?.results && sprintDetail.results.length > 0 ? 'sm:grid-cols-[32px_1fr_80px_100px_100px_80px]' : 'sm:grid-cols-[32px_1fr_80px_100px_100px]'} gap-0 items-start sm:items-center px-4 py-3 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isPred ? 'bg-orange-500/[0.04]' : ''}`} style={`border-left: 2px solid ${getTeamColor(d.driver.team.teamKey)};`}>
                     <div class={`font-mono text-sm font-bold pt-1 sm:pt-0 ${isPred ? 'text-orange-400' : 'text-muted-foreground'}`}>
                       {String(i+1).padStart(2,'0')}
                     </div>
@@ -153,6 +158,15 @@ const FEATURE_LABELS: [string, string][] = [
                     <div class="font-mono text-[9px] text-muted-foreground text-center hidden sm:block">
                       P{gridPos}
                     </div>
+                    {sprintDetail?.results && sprintDetail.results.length > 0 && (
+                      <div class="font-mono text-[9px] text-muted-foreground text-right hidden sm:block">
+                        {actualResult?.finishPosition === i + 1 ? (
+                          <span class="text-green-400 font-bold">{actualPosText}</span>
+                        ) : (
+                          actualPosText
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -282,27 +296,70 @@ const FEATURE_LABELS: [string, string][] = [
       const dB = drivers[idxB];
       if (!dA || !dB) return;
 
-      barsEl.innerHTML = FEATURES.map(([label, key]) => {
-        const rawA = dA.features[key];
-        const rawB = dB.features[key];
-        if (rawA == null && rawB == null) return '';
-        const a = Math.round(Number(rawA ?? 0) * 100);
-        const b = Math.round(Number(rawB ?? 0) * 100);
-        return `
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-              <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em">${label}</span>
-              <span style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5)">${a} / ${b}</span>
-            </div>
-            <div style="position:relative;height:4px;background:rgba(255,255,255,0.05)">
-              <div style="position:absolute;left:0;top:0;height:100%;background:#fb923c;opacity:0.8;width:${a}%"></div>
-            </div>
-            <div style="position:relative;height:4px;background:rgba(255,255,255,0.05);margin-top:2px">
-              <div style="position:absolute;left:0;top:0;height:100%;background:#60a5fa;opacity:0.8;width:${b}%"></div>
-            </div>
-          </div>
-        `;
-      }).join('');
+      const width = 440;
+      const height = 360;
+      const cx = width / 2;
+      const cy = height / 2;
+      const R = 110;
+      
+      let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;max-width:${width}px;margin:0 auto;display:block;">`;
+      const levels = 5;
+      for (let lvl = 1; lvl <= levels; lvl++) {
+        const r = R * (lvl / levels);
+        let points = '';
+        for (let i = 0; i < 8; i++) {
+          const theta = i * 2 * Math.PI / 8 - Math.PI / 2;
+          const x = cx + r * Math.cos(theta);
+          const y = cy + r * Math.sin(theta);
+          points += `${x},${y} `;
+        }
+        svg += `<polygon points="${points}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
+      }
+      
+      for (let i = 0; i < 8; i++) {
+        const theta = i * 2 * Math.PI / 8 - Math.PI / 2;
+        const x = cx + R * Math.cos(theta);
+        const y = cy + R * Math.sin(theta);
+        svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
+        
+        const labelX = cx + (R + 25) * Math.cos(theta);
+        const labelY = cy + (R + 15) * Math.sin(theta);
+        let anchor = "middle";
+        if (Math.cos(theta) > 0.1) anchor = "start";
+        if (Math.cos(theta) < -0.1) anchor = "end";
+        
+        let baseline = "middle";
+        if (Math.sin(theta) > 0.1) baseline = "hanging";
+        if (Math.sin(theta) < -0.1) baseline = "baseline";
+        
+        svg += `<text x="${labelX}" y="${labelY}" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9px" text-anchor="${anchor}" dominant-baseline="${baseline}" letter-spacing="0.05em">${FEATURES[i][0]}</text>`;
+      }
+      
+      function drawPolygon(d, color, fillOpacity) {
+        let points = '';
+        for (let i = 0; i < 8; i++) {
+          const val = Number(d.features[FEATURES[i][1]] ?? 0);
+          const theta = i * 2 * Math.PI / 8 - Math.PI / 2;
+          const x = cx + val * R * Math.cos(theta);
+          const y = cy + val * R * Math.sin(theta);
+          points += `${x},${y} `;
+        }
+        svg += `<polygon points="${points}" fill="${color}" fill-opacity="${fillOpacity}" stroke="${color}" stroke-width="2"/>`;
+        for (let i = 0; i < 8; i++) {
+          const val = Number(d.features[FEATURES[i][1]] ?? 0);
+          const theta = i * 2 * Math.PI / 8 - Math.PI / 2;
+          const x = cx + val * R * Math.cos(theta);
+          const y = cy + val * R * Math.sin(theta);
+          svg += `<circle cx="${x}" cy="${y}" r="3" fill="#000" stroke="${color}" stroke-width="1.5"/>`;
+        }
+      }
+      
+      drawPolygon(dB, '#60a5fa', 0.2);
+      drawPolygon(dA, '#fb923c', 0.2);
+      
+      svg += `</svg>`;
+      
+      barsEl.innerHTML = svg;
 
       const pA = Math.round(Number(dA.winProbability) * 100);
       const pB = Math.round(Number(dB.winProbability) * 100);
