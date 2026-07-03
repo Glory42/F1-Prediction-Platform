@@ -18,34 +18,34 @@ export class SearchService {
     const uniqueTeams = Array.from(uniqueTeamsMap.values());
 
     const allDriversRows = await db
-      .select({ driver: drivers })
+      .select({ driver: drivers, team: teams })
       .from(drivers)
       .innerJoin(seasons, eq(drivers.seasonId, seasons.id))
+      .innerJoin(teams, eq(drivers.teamId, teams.id))
       .orderBy(desc(seasons.year));
 
-    const uniqueDriversMap = new Map();
+    const uniqueDriversMap = new Map<string, { driver: typeof drivers.$inferSelect; team: typeof teams.$inferSelect }>();
     for (const r of allDriversRows) {
       const fullName = `${r.driver.firstName} ${r.driver.lastName}`;
       if (!uniqueDriversMap.has(fullName)) {
-        uniqueDriversMap.set(fullName, r.driver);
+        uniqueDriversMap.set(fullName, r);
       }
     }
-    const uniqueDriversRaw = Array.from(uniqueDriversMap.values());
+    const uniqueDrivers = Array.from(uniqueDriversMap.values());
 
-    // Build map for quick team lookup by teamId across all team records, not just unique ones.
-    const allTeamsLookup = await db.select().from(teams);
-    const teamMap = new Map(allTeamsLookup.map(t => [t.id, t]));
-
-    const mappedDrivers: Driver[] = uniqueDriversRaw.map(d => {
-      const t = teamMap.get(d.teamId)!;
-      return {
-        id: d.id, seasonId: d.seasonId, teamId: d.teamId, driverNumber: d.driverNumber,
-        code: d.code, firstName: d.firstName, lastName: d.lastName,
-        fullName: `${d.firstName} ${d.lastName}`, nationality: d.nationality,
-        headshotUrl: d.headshotUrl ?? null,
-        team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
-      };
-    });
+    const mappedDrivers: Driver[] = uniqueDrivers.map(({ driver: d, team: t }) => ({
+      id: d.id,
+      seasonId: d.seasonId,
+      teamId: d.teamId,
+      driverNumber: d.driverNumber,
+      code: d.code,
+      firstName: d.firstName,
+      lastName: d.lastName,
+      fullName: `${d.firstName} ${d.lastName}`,
+      nationality: d.nationality,
+      headshotUrl: d.headshotUrl ?? null,
+      team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
+    }));
 
     const allCircuits = await db.select().from(circuits);
 

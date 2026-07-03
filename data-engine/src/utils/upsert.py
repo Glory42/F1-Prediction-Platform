@@ -1,4 +1,5 @@
 from typing import Any
+from psycopg2.extras import execute_batch
 
 
 def upsert(
@@ -33,6 +34,6 @@ def upsert(
     """
 
     with conn.cursor() as cur:
-        for row in rows:
-            cur.execute(query, [row[c] for c in cols])
+        param_list = [[row[c] for c in cols] for row in rows]
+        execute_batch(cur, query, param_list, page_size=200)
     conn.commit()
