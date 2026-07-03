@@ -48,6 +48,15 @@ const CIRCUITS_2025 = [
   { circuitKey: 'india',         name: 'Buddh International Circuit',             country: 'India',        city: 'Greater Noida',  lapCount: 60, trackLengthKm: '5.125', overtakeRate: '0.55', numberOfCorners: 16, drsZones: 3 },
   { circuitKey: 'bahrain_outer', name: 'Bahrain International Circuit (Outer)',   country: 'Bahrain',      city: 'Sakhir',         lapCount: 87, trackLengthKm: '3.543', overtakeRate: '0.90', numberOfCorners: 11, drsZones: 4 },
   { circuitKey: 'fuji_speedway', name: 'Fuji Speedway',                           country: 'Japan',        city: 'Oyama',          lapCount: 67, trackLengthKm: '4.563', overtakeRate: '0.60', numberOfCorners: 16, drsZones: null },
+  // 1990-1999 historical circuits
+  { circuitKey: 'phoenix',       name: 'Phoenix Street Circuit',                  country: 'USA',          city: 'Phoenix',        lapCount: 81, trackLengthKm: '3.798', overtakeRate: '0.40', numberOfCorners: 15, drsZones: null },
+  { circuitKey: 'estoril',       name: 'Autódromo do Estoril',                    country: 'Portugal',     city: 'Estoril',        lapCount: 71, trackLengthKm: '4.360', overtakeRate: '0.50', numberOfCorners: 13, drsZones: null },
+  { circuitKey: 'jerez',         name: 'Circuito de Jerez',                       country: 'Spain',        city: 'Jerez de la Frontera', lapCount: 69, trackLengthKm: '4.428', overtakeRate: '0.35', numberOfCorners: 15, drsZones: null },
+  { circuitKey: 'adelaide',      name: 'Adelaide Street Circuit',                 country: 'Australia',    city: 'Adelaide',       lapCount: 81, trackLengthKm: '3.780', overtakeRate: '0.55', numberOfCorners: 16, drsZones: null },
+  { circuitKey: 'kyalami',       name: 'Kyalami Racing Circuit',                  country: 'South Africa', city: 'Midrand',        lapCount: 72, trackLengthKm: '4.261', overtakeRate: '0.45', numberOfCorners: 13, drsZones: null },
+  { circuitKey: 'donington',     name: 'Donington Park',                          country: 'UK',           city: 'Castle Donington', lapCount: 76, trackLengthKm: '4.020', overtakeRate: '0.60', numberOfCorners: 12, drsZones: null },
+  { circuitKey: 'okayama',       name: 'TI Circuit Aida',                         country: 'Japan',        city: 'Okayama',        lapCount: 83, trackLengthKm: '3.703', overtakeRate: '0.30', numberOfCorners: 13, drsZones: null },
+  { circuitKey: 'buenos_aires',  name: 'Autódromo Oscar y Juan Gálvez',           country: 'Argentina',    city: 'Buenos Aires',   lapCount: 72, trackLengthKm: '4.259', overtakeRate: '0.40', numberOfCorners: 15, drsZones: null },
 ];
 
 async function seed() {
@@ -55,6 +64,8 @@ async function seed() {
 
   console.log('Seeding seasons...');
   await db.insert(seasons).values([
+    { year: 1990 }, { year: 1991 }, { year: 1992 }, { year: 1993 }, { year: 1994 },
+    { year: 1995 }, { year: 1996 }, { year: 1997 }, { year: 1998 }, { year: 1999 },
     { year: 2000 }, { year: 2001 }, { year: 2002 }, { year: 2003 }, { year: 2004 },
     { year: 2005 }, { year: 2006 }, { year: 2007 }, { year: 2008 }, { year: 2009 },
     { year: 2010 }, { year: 2011 }, { year: 2012 }, { year: 2013 }, { year: 2014 },

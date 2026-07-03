@@ -50,11 +50,19 @@ def run(year: int, round_num: int = 1) -> None:
             except (ValueError, TypeError):
                 driver_number = 0
 
+            # Resolve driver code, fallback to last name for legacy seasons
+            code = info.get("Abbreviation")
+            if not code or str(code).strip() == "":
+                code = "".join(c for c in last_name if c.isalpha())[:3].upper() if last_name else "".join(c for c in first_name if c.isalpha())[:3].upper()
+                if len(code) < 3:
+                    code = (code + str(driver_number))[:3].upper()
+            code = str(code).upper()[:3]
+
             drivers_raw.append({
                 "season_id": season_id,
                 "team_key": team_key,
                 "driver_number": driver_number,
-                "code": str(info.get("Abbreviation", drv_num[:3])).upper()[:3],
+                "code": code,
                 "first_name": first_name,
                 "last_name": last_name,
                 "nationality": str(info.get("CountryCode", "")) or None,

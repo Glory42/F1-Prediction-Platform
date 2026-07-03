@@ -19,6 +19,8 @@ from src.jobs.compute_predictions import run as compute_predictions
 
 # Round counts per year
 ROUND_COUNTS = {
+    1990: 16, 1991: 16, 1992: 16, 1993: 16, 1994: 16,
+    1995: 17, 1996: 16, 1997: 17, 1998: 16, 1999: 16,
     2000: 17, 2001: 17, 2002: 17, 2003: 16, 2004: 18,
     2005: 19, 2006: 18, 2007: 17, 2008: 18, 2009: 17,
     2010: 19, 2011: 19, 2012: 20, 2013: 19, 2014: 19,
@@ -71,6 +73,7 @@ def backfill_year(year: int) -> None:
 
     for r in range(1, max_round + 1):
         print(f"\n  [{year} R{r:02d}]")
+        safe(sync_season, year, r)
         safe(q_fn, year, r)
         safe(r_fn, year, r)
 

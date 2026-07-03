@@ -215,5 +215,6 @@ Drivers are ranked by `win_probability` descending. Rank 1 = predicted winner, s
 | 2018–present | Full Q1/Q2/Q3 + sector times | Full per-lap telemetry | Full SQ times + sprint lap times |
 | 2006–2017 | Q1/Q2/Q3 times | None | N/A (sprint format started 2021) |
 | 2000–2005 | Single best lap time only | None | N/A |
+| 1990–1999 | None (fell back to race starting grid) | None | N/A |
 
 For races without qualifying data, `compute_features` cannot run — those races have no predictions.

@@ -43,23 +43,44 @@ def run(year: int, round_num: int) -> None:
 
         session = _get_session(year, round_num)
 
-        if session.results is None or session.results.empty:
-            print("  No qualifying data available — skipping")
+        results_df = session.results
+        is_fallback = False
+        if results_df is None or results_df.empty:
+            print("  No qualifying results in Ergast — falling back to race grid positions")
+            race_session = fastf1.get_session(year, round_num, "R")
+            race_session.load(laps=False, telemetry=False, weather=False, messages=False)
+            results_df = race_session.results
+            is_fallback = True
+
+        if results_df is None or results_df.empty:
+            print("  No qualifying or race data available — skipping")
             return
 
         rows_to_upsert = []
-        for _, row in session.results.iterrows():
-            if pd.isna(row.get("Position")):
-                continue
-            code = str(row.get("Abbreviation", "")).upper()
-            if not code:
-                continue
+        for _, row in results_df.iterrows():
+            code = row.get("Abbreviation")
+            if not code or pd.isna(code) or str(code).strip() == "":
+                last_name = row.get("LastName", "")
+                first_name = row.get("FirstName", "")
+                code = "".join(c for c in str(last_name) if c.isalpha())[:3].upper() if not pd.isna(last_name) and last_name else "".join(c for c in str(first_name) if c.isalpha())[:3].upper()
+                if len(code) < 3:
+                    num = row.get("DriverNumber", row.get("number", "0"))
+                    code = (code + str(num))[:3].upper()
+            code = str(code).upper()[:3]
+
             driver_id = driver_map.get(code)
             if not driver_id:
                 print(f"  [warn] Unknown driver: {code}")
                 continue
 
-            grid_pos = int(row["Position"])
+            if is_fallback:
+                if pd.isna(row.get("GridPosition")):
+                    continue
+                grid_pos = int(row["GridPosition"])
+            else:
+                if pd.isna(row.get("Position")):
+                    continue
+                grid_pos = int(row["Position"])
 
             # Q1/Q2/Q3 available from 2006+ via Ergast
             q1 = _ms(row.get("Q1"))

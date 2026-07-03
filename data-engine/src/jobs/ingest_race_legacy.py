@@ -12,8 +12,9 @@ from src.utils.fastf1_helpers import ms_to_int as _ms
 
 def _get_session(year: int, round_num: int) -> Any:
     session = fastf1.get_session(year, round_num, "R")
-    # Skip laps — pre-2018 has no timing data, loading saves time
-    session.load(laps=False, telemetry=False, weather=True, messages=False)
+    # Skip laps — pre-2018 has no timing data, loading saves time.
+    # Disable weather to avoid 403/404 on Formula 1's live timing server for older years.
+    session.load(laps=False, telemetry=False, weather=False, messages=False)
     return session
 
 
@@ -57,9 +58,16 @@ def run(year: int, round_num: int) -> None:
 
         results_to_upsert = []
         for _, row in session.results.iterrows():
-            code = str(row.get("Abbreviation", "")).upper()
-            if not code:
-                continue
+            code = row.get("Abbreviation")
+            if not code or pd.isna(code) or str(code).strip() == "":
+                last_name = row.get("LastName", "")
+                first_name = row.get("FirstName", "")
+                code = "".join(c for c in str(last_name) if c.isalpha())[:3].upper() if not pd.isna(last_name) and last_name else "".join(c for c in str(first_name) if c.isalpha())[:3].upper()
+                if len(code) < 3:
+                    num = row.get("DriverNumber", row.get("number", "0"))
+                    code = (code + str(num))[:3].upper()
+            code = str(code).upper()[:3]
+
             driver_id = driver_map.get(code)
             if not driver_id:
                 print(f"  [warn] Unknown driver: {code}")

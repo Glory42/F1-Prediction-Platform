@@ -178,6 +178,7 @@ python backfill_sprint.py --years 2026          # single year
 | 2018–present | Full Q1/Q2/Q3 + sector times | Full per-lap | Full SQ + sprint lap times |
 | 2006–2017 | Q1/Q2/Q3 times | None | None (sprint format started 2021) |
 | 2000–2005 | Single best lap only | None | None |
+| 1990–1999 | None (fell back to race starting grid) | None | None |
 
 **Sprint format years:** 2021 (3 rounds), 2022 (3 rounds), 2023 (6 rounds), 2024 (6 rounds), 2025 (6 rounds), 2026+.
 

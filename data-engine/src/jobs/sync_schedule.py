@@ -64,6 +64,15 @@ LOCATION_TO_CIRCUIT_KEY: dict[str, str] = {
     "Sepang": "sepang",
     "Indianapolis": "indianapolis",
     "Valencia": "valencia",
+    # 1990-1999 historical
+    "Phoenix": "phoenix",
+    "Estoril": "estoril",
+    "Jerez de la Frontera": "jerez",
+    "Adelaide": "adelaide",
+    "Midrand": "kyalami",
+    "Castle Donington": "donington",
+    "Okayama": "okayama",
+    "Buenos Aires": "buenos_aires",
 }
 
 
