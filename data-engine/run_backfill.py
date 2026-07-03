@@ -29,13 +29,24 @@ ROUND_COUNTS = {
 }
 
 
+import time
+import random
+
 def safe(fn, *args, **kwargs) -> bool:
-    try:
-        fn(*args, **kwargs)
-        return True
-    except Exception as e:
-        print(f"  [WARN] {fn.__name__} failed: {e}")
-        return False
+    max_retries = 4
+    for attempt in range(max_retries):
+        try:
+            fn(*args, **kwargs)
+            time.sleep(0.5)  # Stagger requests to avoid Ergast 429 rate limit
+            return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                sleep_time = (2 ** attempt) + random.uniform(0.5, 1.5)
+                print(f"  [WARN] {fn.__name__} failed: {e}. Retrying (attempt {attempt + 2}/{max_retries}) in {sleep_time:.1f}s...")
+                time.sleep(sleep_time)
+            else:
+                print(f"  [WARN] {fn.__name__} failed after {max_retries} attempts: {e}")
+    return False
 
 
 def get_completed_race_ids(year: int) -> list[int]:
