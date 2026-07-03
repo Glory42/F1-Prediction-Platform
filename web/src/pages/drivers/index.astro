@@ -1,7 +1,8 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
-import type { DriverStanding, SeasonSummary } from '@/types';
+import type { DriverStanding, SeasonSummary, DriverProgression } from '@/types';
+import ChampionshipChart from '@/components/ChampionshipChart';
 import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Users } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
@@ -10,12 +11,19 @@ import { getTeamLogo } from '@/lib/teamLogos';
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
 let standings: DriverStanding[] = [];
+let progression: DriverProgression[] = [];
 let seasons: SeasonSummary[] = [];
 let error: string | null = null;
 try {
-  [standings, seasons] = await Promise.all([api.getDriverStandings(year), api.getSeasons()]);
+  [standings, progression, seasons] = await Promise.all([
+    api.getDriverStandings(year), 
+    api.getDriverProgression(year),
+    api.getSeasons()
+  ]);
+  console.log('progression length on server:', progression.length);
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load standings';
+  console.error('Error fetching standings:', e);
 }
 
 function isTopPos(pos: number | null, i: number) {
@@ -52,8 +60,14 @@ function champPos(pos: number | null, i: number) {
         <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No standings available for {year}</p>
       </div>
     ) : (
-      <div class="border border-white/[0.06]">
-        <!-- Table header -->
+      <>
+        {progression.length > 0 && (
+          <div class="mb-8">
+            <ChampionshipChart data={progression} type="drivers" client:load />
+          </div>
+        )}
+        <div class="border border-white/[0.06]">
+          <!-- Table header -->
         <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_120px_60px_60px_60px] lg:grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
@@ -122,7 +136,8 @@ function champPos(pos: number | null, i: number) {
               <div class="font-mono text-sm text-right text-muted-foreground hidden lg:block">{s.stats.racesEntered}</div>
             </a>
         ))}
-      </div>
+        </div>
+      </>
     )}
   </div>
 </BaseLayout>

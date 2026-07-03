@@ -331,3 +331,20 @@ export type SprintDetailResponse = {
   results: SprintResult[];
   laps: LapSummary[];
 };
+
+export type ProgressionRound = {
+  round: number;
+  raceName: string;
+  pointsGained: number;
+  cumulativePoints: number;
+};
+
+export type DriverProgression = {
+  driver: Driver;
+  progression: ProgressionRound[];
+};
+
+export type TeamProgression = {
+  team: Team;
+  progression: ProgressionRound[];
+};

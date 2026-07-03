@@ -1,7 +1,8 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
-import type { TeamStanding, SeasonSummary } from '@/types';
+import type { TeamStanding, SeasonSummary, TeamProgression } from '@/types';
+import ChampionshipChart from '@/components/ChampionshipChart';
 import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Building2 } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
@@ -10,10 +11,15 @@ import { getTeamLogo } from '@/lib/teamLogos';
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
 let standings: TeamStanding[] = [];
+let progression: TeamProgression[] = [];
 let seasons: SeasonSummary[] = [];
 let error: string | null = null;
 try {
-  [standings, seasons] = await Promise.all([api.getTeamStandings(year), api.getSeasons()]);
+  [standings, progression, seasons] = await Promise.all([
+    api.getTeamStandings(year),
+    api.getTeamProgression(year),
+    api.getSeasons()
+  ]);
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load standings';
 }
@@ -48,8 +54,14 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
         <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No standings available for {year}</p>
       </div>
     ) : (
-      <div class="border border-white/[0.06]">
-        <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_60px_60px_60px_80px] lg:grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+      <>
+        {progression.length > 0 && (
+          <div class="mb-8">
+            <ChampionshipChart data={progression} type="teams" client:load />
+          </div>
+        )}
+        <div class="border border-white/[0.06]">
+          <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_60px_60px_60px_80px] lg:grid-cols-[40px_1fr_80px_60px_60px_80px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Constructor</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pts</div>
@@ -108,7 +120,8 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
               </div>
             </a>
         ))}
-      </div>
+        </div>
+      </>
     )}
   </div>
 </BaseLayout>

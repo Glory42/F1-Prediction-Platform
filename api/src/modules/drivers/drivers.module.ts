@@ -4,6 +4,7 @@ import { DriversController } from './drivers.controller';
 
 const driversModule = new Hono<{ Bindings: Bindings }>();
 
+driversModule.get('/standings/progression', DriversController.getStandingsProgression);
 driversModule.get('/standings', DriversController.getStandings);
 driversModule.get('/', DriversController.getAll);
 driversModule.get('/:id/career', DriversController.getCareerStats);

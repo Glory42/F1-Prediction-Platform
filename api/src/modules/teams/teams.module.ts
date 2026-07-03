@@ -4,6 +4,7 @@ import { TeamsController } from './teams.controller';
 
 const teamsModule = new Hono<{ Bindings: Bindings }>();
 
+teamsModule.get('/standings/progression', TeamsController.getStandingsProgression);
 teamsModule.get('/standings', TeamsController.getStandings);
 teamsModule.get('/', TeamsController.getAll);
 teamsModule.get('/:id/career', TeamsController.getCareerStats);

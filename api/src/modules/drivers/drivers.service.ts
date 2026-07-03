@@ -1,7 +1,7 @@
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { asc, eq, and, desc, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database';
-import { drivers, teams, seasons, driverSeasonStats, raceResults, races } from '../../db/schema';
-import type { Driver, DriverDetailResponse, DriverStanding, DriverYearStats } from '../../common/types';
+import { drivers, teams, seasons, driverSeasonStats, raceResults, sprintResults, races } from '../../db/schema';
+import type { Driver, DriverDetailResponse, DriverStanding, DriverYearStats, DriverProgression } from '../../common/types';
 
 function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferSelect): Driver {
   return {
@@ -167,5 +167,68 @@ export class DriversService {
         driver, race: { name: r.race.name, raceDate: r.race.raceDate },
       })),
     };
+  }
+  async findStandingsProgression(db: Db, year: number): Promise<DriverProgression[]> {
+    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
+    if (!seasonRows[0]) return [];
+
+    const statsRows = await db
+      .select()
+      .from(driverSeasonStats)
+      .where(and(eq(driverSeasonStats.seasonId, seasonRows[0].id)))
+      .orderBy(asc(driverSeasonStats.championshipPosition))
+      .limit(10);
+
+    if (!statsRows.length) return [];
+    const driverIds = statsRows.map((s) => s.driverId);
+
+    const driverRows = await db
+      .select()
+      .from(drivers)
+      .innerJoin(teams, eq(drivers.teamId, teams.id))
+      .where(inArray(drivers.id, driverIds));
+    const driverMap = new Map(driverRows.map((r) => [r.drivers.id, toDriver(r.drivers, r.teams)]));
+
+    const raceList = await db
+      .select()
+      .from(races)
+      .where(eq(races.seasonId, seasonRows[0].id))
+      .orderBy(asc(races.roundNumber));
+
+    const raceIds = raceList.map((r) => r.id);
+    if (!raceIds.length) return [];
+
+    const [mainRes, sprintRes] = await Promise.all([
+      db.select().from(raceResults).where(inArray(raceResults.raceId, raceIds)),
+      db.select().from(sprintResults).where(inArray(sprintResults.raceId, raceIds)),
+    ]);
+
+    const resultsByRaceAndDriver = new Map<string, number>();
+    for (const r of mainRes) {
+      const key = `${r.raceId}-${r.driverId}`;
+      resultsByRaceAndDriver.set(key, (resultsByRaceAndDriver.get(key) ?? 0) + Number(r.points));
+    }
+    for (const r of sprintRes) {
+      const key = `${r.raceId}-${r.driverId}`;
+      resultsByRaceAndDriver.set(key, (resultsByRaceAndDriver.get(key) ?? 0) + Number(r.points));
+    }
+
+    return statsRows.map((s) => {
+      const driver = driverMap.get(s.driverId)!;
+      let cumulativePoints = 0;
+      const progression = [];
+      for (const race of raceList) {
+        if (race.status === 'scheduled') continue;
+        const pts = resultsByRaceAndDriver.get(`${race.id}-${driver.id}`) ?? 0;
+        cumulativePoints += pts;
+        progression.push({
+          round: race.roundNumber,
+          raceName: race.name,
+          pointsGained: pts,
+          cumulativePoints,
+        });
+      }
+      return { driver, progression };
+    });
   }
 }

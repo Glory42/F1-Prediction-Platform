@@ -4,6 +4,7 @@ import type {
   PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
+  DriverProgression, TeamProgression
 } from '@/types';
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
@@ -35,6 +36,7 @@ export const api = {
   // Drivers
   getDrivers: (year: number) => get<Driver[]>(`/api/drivers?year=${year}`),
   getDriverStandings: (year: number) => get<DriverStanding[]>(`/api/drivers/standings?year=${year}`),
+  getDriverProgression: (year: number) => get<DriverProgression[]>(`/api/drivers/standings/progression?year=${year}`),
   getDriverById: (id: number, year: number) => get<DriverDetailResponse>(`/api/drivers/${id}?year=${year}`),
   getDriverCareer: (id: number) => get<DriverYearStats[]>(`/api/drivers/${id}/career`),
 
@@ -49,6 +51,7 @@ export const api = {
   // Teams
   getTeams: (year: number) => get<Team[]>(`/api/teams?year=${year}`),
   getTeamStandings: (year: number) => get<TeamStanding[]>(`/api/teams/standings?year=${year}`),
+  getTeamProgression: (year: number) => get<TeamProgression[]>(`/api/teams/standings/progression?year=${year}`),
   getTeamById: (id: number, year: number) => get<TeamDetailResponse>(`/api/teams/${id}?year=${year}`),
   getTeamCareer: (id: number) => get<TeamYearStats[]>(`/api/teams/${id}/career`),
 };

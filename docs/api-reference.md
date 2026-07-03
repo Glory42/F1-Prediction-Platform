@@ -95,6 +95,10 @@ Returns historical race results at a specific circuit across all years. Each ite
 
 Returns driver championship standings for the year, ordered by points.
 
+### `GET /api/drivers/standings/progression?year=N`
+
+Returns point progression for the top 10 drivers across all completed rounds in the given year.
+
 ### `GET /api/drivers/:id?year=N`
 
 Returns a single driver with their season stats for the given year.
@@ -114,6 +118,10 @@ Returns all teams for the season.
 ### `GET /api/teams/standings?year=N`
 
 Returns constructor championship standings for the year, ordered by points.
+
+### `GET /api/teams/standings/progression?year=N`
+
+Returns point progression for the top 10 constructor teams across all completed rounds in the given year.
 
 ### `GET /api/teams/:id?year=N`
 

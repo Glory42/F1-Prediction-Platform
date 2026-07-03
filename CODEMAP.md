@@ -183,6 +183,7 @@ web/
 │   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
+│   │   ├── ChampionshipChart.tsx  # Standings progression line chart for drivers and teams
 │   │   └── ui/                    # Shadcn/ui primitives
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
