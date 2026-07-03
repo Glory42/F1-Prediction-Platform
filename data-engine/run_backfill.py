@@ -37,11 +37,12 @@ def safe(fn, *args, **kwargs) -> bool:
     for attempt in range(max_retries):
         try:
             fn(*args, **kwargs)
-            time.sleep(0.5)  # Stagger requests to avoid Ergast 429 rate limit
+            time.sleep(2.5)  # Generous stagger to avoid Ergast 429 rate limit
             return True
         except Exception as e:
             if attempt < max_retries - 1:
-                sleep_time = (2 ** attempt) + random.uniform(0.5, 1.5)
+                # Longer backoff (10s, 20s, 30s) to clear any rate limits
+                sleep_time = 10 * (attempt + 1) + random.uniform(1.0, 3.0)
                 print(f"  [WARN] {fn.__name__} failed: {e}. Retrying (attempt {attempt + 2}/{max_retries}) in {sleep_time:.1f}s...")
                 time.sleep(sleep_time)
             else:
@@ -72,7 +73,9 @@ def backfill_year(year: int) -> None:
     print(f"  BACKFILLING {year}  ({max_round} rounds)  {'[LEGACY]' if legacy else ''}")
     print(f"{'='*52}")
 
-    safe(sync_schedule, year)
+    if not safe(sync_schedule, year):
+        print(f"  [ERROR] sync_schedule failed for {year}. Skipping this year.")
+        return
     safe(sync_season, year, 1)
 
     if legacy:
