@@ -24,7 +24,8 @@ try {
 
 const race       = sprintData?.race ?? null;
 const prediction = sprintData?.prediction ?? null;
-const results    = sprintData?.results ?? [];
+const rawResults = sprintData?.results ?? [];
+const results    = rawResults.filter((r) => r.status !== 'grid_set');
 const laps       = sprintData?.laps ?? [];
 
 if (race) {
@@ -55,7 +56,7 @@ const podium = (prediction?.drivers ?? [])
   .slice(0, 5);
 
 // SQ grid — map SprintResult → QualifyingResult shape so QualifyingGrid can be reused
-const sqGrid: QualifyingResult[] = [...results]
+const sqGrid: QualifyingResult[] = [...rawResults]
   .sort((a, b) => a.gridPosition - b.gridPosition)
   .map((r) => ({
     id: r.id,

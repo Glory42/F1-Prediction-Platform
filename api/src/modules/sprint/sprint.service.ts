@@ -66,9 +66,8 @@ export class SprintService {
         .where(eq(sprintLapTimes.raceId, raceId)),
     ]);
 
-    // Only return actual results — exclude placeholder grid_set rows
+    // Return all rows (including grid_set placeholder rows) so frontend can render qualifying times
     const completedResults: SprintResult[] = resultRows
-      .filter((r) => r.sprint_results.status !== 'grid_set')
       .map((r) => ({
         id: r.sprint_results.id,
         raceId: r.sprint_results.raceId,
