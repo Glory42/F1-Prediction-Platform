@@ -86,10 +86,14 @@ api/
 │       │   ├── sprint.service.ts  # Sprint detail — results, SQ grid, lap summaries, prediction
 │       │   ├── sprint.controller.ts
 │       │   └── sprint.module.ts   # GET /upcoming, /race/:id
-│       └── seasons/
-│           ├── seasons.service.ts # Season list
-│           ├── seasons.controller.ts
-│           └── seasons.module.ts  # GET /
+│       ├── seasons/
+│       │   ├── seasons.service.ts # Season list
+│       │   ├── seasons.controller.ts
+│       │   └── seasons.module.ts  # GET /
+│       └── search/
+│           ├── search.service.ts  # Global search query — unique drivers, teams, circuits
+│           ├── search.controller.ts
+│           └── search.module.ts   # GET /
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # Points to api/src/db/schema
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
@@ -183,6 +187,7 @@ web/
 │   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
+│   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
 │   │   └── ui/                    # Shadcn/ui primitives
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
@@ -192,6 +197,7 @@ web/
 │   │   ├── api.ts                 # Typed API client — all fetch calls, uses PUBLIC_API_URL
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
+│   │   ├── countryFlags.ts        # country → emoji flag helper
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,

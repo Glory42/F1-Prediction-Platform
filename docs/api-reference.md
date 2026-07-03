@@ -267,6 +267,66 @@ Returns the sprint prediction for a specific race ID. Includes sprint results if
 
 ---
 
+## Search
+
+### `GET /api/search`
+
+Returns all unique drivers (their latest profiles), teams, and circuits across all seasons for autocomplete search.
+
+```json
+{
+  "data": {
+    "drivers": [
+      {
+        "id": 420,
+        "seasonId": 27,
+        "teamId": 10,
+        "driverNumber": 1,
+        "code": "VER",
+        "firstName": "Max",
+        "lastName": "Verstappen",
+        "fullName": "Max Verstappen",
+        "nationality": "Dutch",
+        "headshotUrl": "https://...",
+        "team": {
+          "id": 10,
+          "seasonId": 27,
+          "teamKey": "red_bull",
+          "name": "Red Bull Racing",
+          "nationality": "Austrian"
+        }
+      }
+    ],
+    "teams": [
+      {
+        "id": 10,
+        "seasonId": 27,
+        "teamKey": "red_bull",
+        "name": "Red Bull Racing",
+        "nationality": "Austrian"
+      }
+    ],
+    "circuits": [
+      {
+        "id": 1,
+        "circuitKey": "albert_park",
+        "name": "Albert Park Circuit",
+        "country": "Australia",
+        "city": "Melbourne",
+        "lapCount": 58,
+        "trackLengthKm": "5.278",
+        "overtakeRate": "0.320",
+        "numberOfCorners": 14,
+        "drsZones": 4,
+        "scProbability": "0.600"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## Error Codes
 
 | Code | HTTP | Meaning |
@@ -274,3 +334,4 @@ Returns the sprint prediction for a specific race ID. Includes sprint results if
 | `NOT_FOUND` | 404 | Route doesn't exist |
 | `DB_ERROR` | 503 | Database unreachable |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
+

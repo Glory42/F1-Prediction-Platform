@@ -1,6 +1,6 @@
 import type {
   PredictionResponse, RaceDetailResponse, DriverDetailResponse, TeamDetailResponse,
-  Race, Driver, Team, DriverStanding, TeamStanding,
+  Race, Driver, Team, DriverStanding, TeamStanding, Circuit,
   PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
@@ -45,6 +45,9 @@ export const api = {
 
   // Seasons
   getSeasons: () => get<SeasonSummary[]>('/api/seasons'),
+
+  // Search
+  getGlobalSearch: () => get<{ drivers: Driver[]; teams: Team[]; circuits: Circuit[] }>('/api/search'),
 
   // Teams
   getTeams: (year: number) => get<Team[]>(`/api/teams?year=${year}`),

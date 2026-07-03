@@ -1,5 +1,6 @@
 ---
-import { Home, Flag, Users, Building2, Cpu } from 'lucide-react';
+import { Home, Flag, Users, Building2, Cpu, Search } from 'lucide-react';
+import { GlobalSearch } from './GlobalSearch';
 
 const currentPath = Astro.url.pathname;
 
@@ -20,7 +21,7 @@ function isActive(href: string) {
 <!-- Desktop top bar -->
 <header class="fixed top-0 left-0 right-0 z-50 h-[48px] bg-black border-b border-white/[0.06]">
 
-  <div class="h-full flex items-center justify-between sm:justify-center px-5 sm:px-0">
+  <div class="h-full flex items-center justify-between sm:justify-center px-5 sm:px-0 relative">
 
     <!-- Mobile logo -->
     <a href="/" class="sm:hidden flex items-center gap-2">
@@ -40,12 +41,17 @@ function isActive(href: string) {
     </a>
 
     <!-- Mobile live dot -->
-    <div class="sm:hidden flex items-center gap-1.5">
-      <span class="relative flex h-[6px] w-[6px]">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a855f7] opacity-50" />
-        <span class="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#a855f7]" />
-      </span>
-      <span class="font-mono text-[8px] tracking-[0.2em] text-[rgba(168,85,247,0.55)] uppercase">live</span>
+    <div class="sm:hidden flex items-center gap-4">
+      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="text-muted-foreground hover:text-foreground">
+        <Search size={16} />
+      </button>
+      <div class="flex items-center gap-1.5">
+        <span class="relative flex h-[6px] w-[6px]">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a855f7] opacity-50" />
+          <span class="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#a855f7]" />
+        </span>
+        <span class="font-mono text-[8px] tracking-[0.2em] text-[rgba(168,85,247,0.55)] uppercase">live</span>
+      </div>
     </div>
 
     <nav class="hidden sm:flex items-center gap-5">
@@ -63,6 +69,17 @@ function isActive(href: string) {
         </a>
       ))}
     </nav>
+
+    <!-- Desktop Search Button (Right aligned) -->
+    <div class="hidden sm:flex absolute right-5 items-center h-full">
+      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-150">
+        <Search size={12} />
+        <span class="font-mono text-[9px] tracking-[0.18em] uppercase">Search</span>
+        <kbd class="hidden xl:inline-flex items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+          <span class="text-[9px]">⌘K</span>
+        </kbd>
+      </button>
+    </div>
 
   </div><!-- end nav content -->
 
@@ -89,4 +106,4 @@ function isActive(href: string) {
   </div>
 </nav>
 
-
+<GlobalSearch client:load />
