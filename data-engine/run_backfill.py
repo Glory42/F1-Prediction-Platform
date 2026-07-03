@@ -109,6 +109,9 @@ if __name__ == "__main__":
     for year in range(start, end + 1):
         try:
             backfill_year(year)
+            if year < end:
+                print("\nSleeping 30 seconds to cool down Jolpica API rate limit...")
+                time.sleep(30)
         except Exception:
             print(f"\n[ERROR] Year {year} aborted:")
             traceback.print_exc()
