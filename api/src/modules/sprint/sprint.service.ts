@@ -128,9 +128,9 @@ export class SprintService {
             .innerJoin(circuits, eq(races.circuitId, circuits.id))
             .where(and(
               inArray(races.status, ['sprint_qualifying_done', 'sprint_done', 'qualifying_done']),
-              gte(races.raceDate, sql`CURRENT_DATE`),
+              gte(sql`DATE(${races.sprintDate})`, sql`CURRENT_DATE`),
             ))
-            .orderBy(asc(races.raceDate))
+            .orderBy(asc(races.sprintDate))
             .limit(1)
         : await db
             .select()
