@@ -44,6 +44,19 @@ export class RacesService {
     let driverDominance: { driver: any; wins: number }[] = [];
     let weatherStats = { dry: 0, wet: 0, mixed: 0, unknown: 0 };
     let fastestLapResult: CircuitDetailResponse['fastestLap'] = null;
+    let dominance: CircuitDetailResponse['dominance'] = {
+      all: { constructors: [], drivers: [] },
+      modern: { constructors: [], drivers: [] },
+      legacy: { constructors: [], drivers: [] },
+      nineties: { constructors: [], drivers: [] },
+    };
+    let poleToWinRate = 0;
+    let avgWinnerGridPos = 1.0;
+    let completedRacesWithScData = 0;
+    let totalScLaps = 0;
+    let racesWithSc = 0;
+    let avgScLaps = 0;
+    let scRaceRate = 0;
 
     if (raceIds.length > 0) {
       const winnerRows = await db
@@ -54,15 +67,29 @@ export class RacesService {
         .where(and(inArray(raceResults.raceId, raceIds), eq(raceResults.finishPosition, 1)));
 
       const winnerMap = new Map<number, typeof winnerRows[0]>();
-      const teamWins = new Map<string, { team: any; wins: number; bestIdx: number }>();
-      const driverWinsMap = new Map<string, { driver: any; team: any; wins: number; bestIdx: number }>();
+      const raceMap = new Map(raceRows.map(r => [r.id, r]));
+
+      const teamWinsByEra: Record<string, Map<string, { team: any; wins: number; bestIdx: number }>> = {
+        all: new Map(),
+        modern: new Map(),
+        legacy: new Map(),
+        nineties: new Map(),
+      };
+      const driverWinsByEra: Record<string, Map<string, { driver: any; team: any; wins: number; bestIdx: number }>> = {
+        all: new Map(),
+        modern: new Map(),
+        legacy: new Map(),
+        nineties: new Map(),
+      };
 
       const raceOrder = new Map(raceIds.map((id, idx) => [id, idx]));
 
       for (const w of winnerRows) {
         winnerMap.set(w.race_results.raceId, w);
         const currentIdx = raceOrder.get(w.race_results.raceId) ?? 999;
-        
+        const race = raceMap.get(w.race_results.raceId);
+        const year = race ? new Date(race.raceDate).getFullYear() : 2000;
+
         let teamKey = w.teams.teamKey;
         if (teamKey === 'red_bull') teamKey = 'red_bull_racing';
         if (teamKey === 'rb') teamKey = 'racing_bulls';
@@ -70,32 +97,41 @@ export class RacesService {
         if (teamKey === 'alfa_romeo') teamKey = 'alfa_romeo_racing';
         if (teamKey === 'lotus_f1') teamKey = 'lotus';
 
-        if (!teamWins.has(teamKey)) {
-          teamWins.set(teamKey, { team: w.teams, wins: 0, bestIdx: currentIdx });
-        } else {
-          const existing = teamWins.get(teamKey)!;
-          if (currentIdx < existing.bestIdx) {
-            existing.bestIdx = currentIdx;
-            existing.team = w.teams;
-          }
-        }
-        teamWins.get(teamKey)!.wins += 1;
+        const targetEras = ['all'];
+        if (year >= 2018) targetEras.push('modern');
+        else if (year >= 2000) targetEras.push('legacy');
+        else if (year >= 1990) targetEras.push('nineties');
 
-        const driverKey = `${w.drivers.firstName} ${w.drivers.lastName}`;
-        if (!driverWinsMap.has(driverKey)) {
-          driverWinsMap.set(driverKey, { driver: w.drivers, team: w.teams, wins: 0, bestIdx: currentIdx });
-        } else {
-          const existing = driverWinsMap.get(driverKey)!;
-          if (currentIdx < existing.bestIdx) {
-            existing.bestIdx = currentIdx;
-            existing.driver = w.drivers;
-            existing.team = w.teams;
+        for (const era of targetEras) {
+          const teamWins = teamWinsByEra[era];
+          if (!teamWins.has(teamKey)) {
+            teamWins.set(teamKey, { team: w.teams, wins: 0, bestIdx: currentIdx });
+          } else {
+            const existing = teamWins.get(teamKey)!;
+            if (currentIdx < existing.bestIdx) {
+              existing.bestIdx = currentIdx;
+              existing.team = w.teams;
+            }
           }
+          teamWins.get(teamKey)!.wins += 1;
+
+          const driverWinsMap = driverWinsByEra[era];
+          const driverKey = `${w.drivers.firstName} ${w.drivers.lastName}`;
+          if (!driverWinsMap.has(driverKey)) {
+            driverWinsMap.set(driverKey, { driver: w.drivers, team: w.teams, wins: 0, bestIdx: currentIdx });
+          } else {
+            const existing = driverWinsMap.get(driverKey)!;
+            if (currentIdx < existing.bestIdx) {
+              existing.bestIdx = currentIdx;
+              existing.driver = w.drivers;
+              existing.team = w.teams;
+            }
+          }
+          driverWinsMap.get(driverKey)!.wins += 1;
         }
-        driverWinsMap.get(driverKey)!.wins += 1;
       }
 
-      const driverLastNames = Array.from(driverWinsMap.values())
+      const driverLastNames = Array.from(driverWinsByEra.all.values())
         .map(v => v.driver.lastName)
         .filter(c => c !== null);
       if (driverLastNames.length > 0) {
@@ -114,11 +150,15 @@ export class RacesService {
         const seenFullNames = new Set<string>();
         for (const p of latestProfiles) {
           const fullName = `${p.driver.firstName} ${p.driver.lastName}`;
-          if (fullName && !seenFullNames.has(fullName) && driverWinsMap.has(fullName)) {
+          if (fullName && !seenFullNames.has(fullName)) {
             seenFullNames.add(fullName);
-            const entry = driverWinsMap.get(fullName)!;
-            entry.driver = p.driver;
-            entry.team = p.team;
+            for (const era of ['all', 'modern', 'legacy', 'nineties']) {
+              const entry = driverWinsByEra[era].get(fullName);
+              if (entry) {
+                entry.driver = p.driver;
+                entry.team = p.team;
+              }
+            }
           }
         }
       }
@@ -128,7 +168,7 @@ export class RacesService {
         let winnerObj = null;
         if (w) {
           const driverKey = `${w.drivers.firstName} ${w.drivers.lastName}`;
-          const latestProfile = driverWinsMap.get(driverKey);
+          const latestProfile = driverWinsByEra.all.get(driverKey);
           winnerObj = toDriver(w.drivers, w.teams);
           if (!winnerObj.headshotUrl && latestProfile?.driver.headshotUrl) {
             winnerObj.headshotUrl = latestProfile.driver.headshotUrl;
@@ -145,13 +185,69 @@ export class RacesService {
         };
       });
 
-      constructorDominance = Array.from(teamWins.values()).sort((a, b) => b.wins - a.wins);
-      driverDominance = Array.from(driverWinsMap.values())
-        .sort((a, b) => b.wins - a.wins)
-        .map((d) => ({
-          driver: toDriver(d.driver, d.team),
-          wins: d.wins,
-        }));
+      const getEraDominance = (era: string) => {
+        const teamWins = teamWinsByEra[era];
+        const driverWinsMap = driverWinsByEra[era];
+        
+        const constructors = Array.from(teamWins.values())
+          .sort((a, b) => b.wins - a.wins);
+        const drivers = Array.from(driverWinsMap.values())
+          .sort((a, b) => b.wins - a.wins)
+          .map((d) => ({
+            driver: toDriver(d.driver, d.team),
+            wins: d.wins,
+          }));
+        return { constructors, drivers };
+      };
+
+      dominance = {
+        all: getEraDominance('all'),
+        modern: getEraDominance('modern'),
+        legacy: getEraDominance('legacy'),
+        nineties: getEraDominance('nineties'),
+      };
+
+      constructorDominance = dominance.all.constructors;
+      driverDominance = dominance.all.drivers;
+
+      // Qualifying Impact & Safety Car calculations
+      let poleWins = 0;
+      let totalWinnerGridPos = 0;
+      const completedWinnerCount = winnerRows.length;
+
+      for (const w of winnerRows) {
+        const gridPos = w.race_results.gridPosition;
+        if (gridPos === 1) {
+          poleWins++;
+        }
+        if (gridPos !== null && gridPos !== undefined) {
+          totalWinnerGridPos += gridPos;
+        } else {
+          totalWinnerGridPos += 1;
+        }
+      }
+
+      poleToWinRate = completedWinnerCount > 0 ? (poleWins / completedWinnerCount) : 0;
+      avgWinnerGridPos = completedWinnerCount > 0 ? (totalWinnerGridPos / completedWinnerCount) : 1.0;
+
+      for (const r of raceRows) {
+        const w = (r.weather || '').toLowerCase();
+        if (w.includes('wet') || w.includes('rain')) weatherStats.wet++;
+        else if (w.includes('mixed') || w.includes('changeable')) weatherStats.mixed++;
+        else if (w.includes('dry') || w.includes('clear') || w.includes('sunny') || w.includes('cloudy')) weatherStats.dry++;
+        else weatherStats.unknown++;
+
+        if (r.safetyCarLaps !== null && r.safetyCarLaps !== undefined) {
+          completedRacesWithScData++;
+          totalScLaps += r.safetyCarLaps;
+          if (r.safetyCarLaps > 0) {
+            racesWithSc++;
+          }
+        }
+      }
+
+      avgScLaps = completedRacesWithScData > 0 ? (totalScLaps / completedRacesWithScData) : 0;
+      scRaceRate = completedRacesWithScData > 0 ? (racesWithSc / completedRacesWithScData) : 0;
 
       const lapRows = await db
         .select()
@@ -171,23 +267,24 @@ export class RacesService {
           year: new Date(row.races.raceDate).getFullYear(),
         };
       }
-
-      for (const r of raceRows) {
-        const w = (r.weather || '').toLowerCase();
-        if (w.includes('wet') || w.includes('rain')) weatherStats.wet++;
-        else if (w.includes('mixed') || w.includes('changeable')) weatherStats.mixed++;
-        else if (w.includes('dry') || w.includes('clear') || w.includes('sunny') || w.includes('cloudy')) weatherStats.dry++;
-        else weatherStats.unknown++;
-      }
     }
 
     return {
       circuit: toCircuit(circuit),
       history,
       fastestLap: fastestLapResult,
+      dominance,
       constructorDominance,
       driverDominance,
       weatherStats,
+      qualifyingImpact: {
+        poleToWinRate,
+        avgWinnerGridPos,
+      },
+      safetyCarStats: {
+        avgScLaps,
+        scRaceRate,
+      },
     };
   }
 

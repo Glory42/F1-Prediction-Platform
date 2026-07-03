@@ -247,6 +247,24 @@ export type CircuitDetailResponse = {
     driver: Driver;
     year: number;
   } | null;
+  dominance: {
+    all: {
+      constructors: { team: Team; wins: number }[];
+      drivers: { driver: Driver; wins: number }[];
+    };
+    modern: {
+      constructors: { team: Team; wins: number }[];
+      drivers: { driver: Driver; wins: number }[];
+    };
+    legacy: {
+      constructors: { team: Team; wins: number }[];
+      drivers: { driver: Driver; wins: number }[];
+    };
+    nineties: {
+      constructors: { team: Team; wins: number }[];
+      drivers: { driver: Driver; wins: number }[];
+    };
+  };
   constructorDominance: {
     team: Team;
     wins: number;
@@ -260,6 +278,14 @@ export type CircuitDetailResponse = {
     wet: number;
     mixed: number;
     unknown: number;
+  };
+  qualifyingImpact: {
+    poleToWinRate: number;
+    avgWinnerGridPos: number;
+  };
+  safetyCarStats: {
+    avgScLaps: number;
+    scRaceRate: number;
   };
 };
 

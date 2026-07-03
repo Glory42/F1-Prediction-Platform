@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
-import { MapPin, ChevronRight, Zap, User, Shield } from 'lucide-react';
+import { MapPin, ChevronRight, Zap, User, Shield, Trophy, AlertTriangle } from 'lucide-react';
 import { getCountryFlag } from '@/lib/countryFlags';
 
 const { key } = Astro.params;
@@ -21,7 +21,7 @@ if (!details) {
   return Astro.redirect('/races');
 }
 
-const { circuit, history, fastestLap, constructorDominance, driverDominance, weatherStats } = details;
+const { circuit, history, fastestLap, dominance, weatherStats, qualifyingImpact, safetyCarStats } = details;
 const totalWeather = weatherStats.dry + weatherStats.wet + weatherStats.mixed;
 const dryPct = totalWeather ? Math.round((weatherStats.dry / totalWeather) * 100) : 0;
 const wetPct = totalWeather ? Math.round((weatherStats.wet / totalWeather) * 100) : 0;
@@ -36,7 +36,7 @@ function formatLapTime(ms: number) {
 ---
 
 <BaseLayout title={`${circuit.name} - Circuit Details`}>
-  <div class="mt-7 space-y-10">
+  <div class="mt-7 space-y-8">
     <!-- Header -->
     <div>
       <div class="flex items-center gap-3 mb-2">
@@ -49,9 +49,11 @@ function formatLapTime(ms: number) {
         {circuit.name} <span class="text-2xl ml-1.5 align-middle select-none">{getCountryFlag(circuit.country)}</span>
       </h1>
       <div class="flex items-center gap-2 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-        <MapPin size={10} /> {circuit.city}, {circuit.country} <span class="text-xs select-none">{getCountryFlag(circuit.country)}</span>
+        <MapPin size={10} /> {circuit.city}, {circuit.country}
       </div>
     </div>
+
+
 
     {error ? (
       <div class="border border-destructive/40 bg-destructive/10 p-8 text-center">
@@ -82,28 +84,52 @@ function formatLapTime(ms: number) {
             </div>
           </div>
 
+          <!-- Model Insights & Qualifying Impact -->
           <div class="border border-purple-500/20 bg-purple-500/[0.02] p-5">
             <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
-              <Zap size={12} /> Model Insights
+              <Zap size={12} /> Model & Qualifying Insights
             </h3>
             <div class="grid sm:grid-cols-2 gap-6">
-              <div>
-                <div class="flex items-end gap-2 mb-1">
-                  <span class="text-2xl font-bold">{circuit.overtakeRate || '-'}</span>
+              <div class="space-y-5">
+                <div>
+                  <div class="flex items-end gap-2 mb-1">
+                    <span class="text-2xl font-bold">{circuit.overtakeRate || '-'}</span>
+                  </div>
+                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Overtake Rate</span>
+                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Used by the model to weigh starting position. High rates reduce the starting penalty.
+                  </p>
                 </div>
-                <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Overtake Rate</span>
-                <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                  Used by the model to weigh the importance of starting position. High rates reduce the penalty of starting further back.
-                </p>
+                <div>
+                  <div class="flex items-end gap-2 mb-1">
+                    <span class="text-2xl font-bold text-white">{Math.round(qualifyingImpact.poleToWinRate * 100)}%</span>
+                  </div>
+                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Pole to Win Conversion</span>
+                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Percentage of races won from Pole position. Indicates the difficulty of climbing positions.
+                  </p>
+                </div>
               </div>
-              <div>
-                <div class="flex items-end gap-2 mb-1">
-                  <span class="text-2xl font-bold">{circuit.scProbability ? `${(Number(circuit.scProbability) * 100).toFixed(0)}%` : '-'}</span>
+
+              <div class="space-y-5">
+                <div>
+                  <div class="flex items-end gap-2 mb-1">
+                    <span class="text-2xl font-bold">{circuit.scProbability ? `${(Number(circuit.scProbability) * 100).toFixed(0)}%` : '-'}</span>
+                  </div>
+                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Seeded SC Probability</span>
+                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Underlying Safety Car baseline probability. High probability increases model variance.
+                  </p>
                 </div>
-                <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">SC Probability</span>
-                <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                  Historically, how often a Safety Car is deployed here. High probability increases the "luck factor" variance.
-                </p>
+                <div>
+                  <div class="flex items-end gap-2 mb-1">
+                    <span class="text-2xl font-bold text-white">Grid P{qualifyingImpact.avgWinnerGridPos.toFixed(1)}</span>
+                  </div>
+                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Avg Winner Start Position</span>
+                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    The average starting position of all historical race winners at this circuit.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -171,6 +197,26 @@ function formatLapTime(ms: number) {
             )}
           </div>
 
+          <!-- Safety Car Stats -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">
+              <AlertTriangle size={11} className="text-yellow-500/70" /> Safety Car Stats
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-white/[0.01] p-3 border border-white/[0.03]">
+                <span class="block font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Avg SC Laps</span>
+                <span class="text-lg font-semibold text-white">{safetyCarStats.avgScLaps.toFixed(1)} <span class="text-[10px] text-muted-foreground font-normal">laps</span></span>
+              </div>
+              <div class="bg-white/[0.01] p-3 border border-white/[0.03]">
+                <span class="block font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Safety Car Rate</span>
+                <span class="text-lg font-semibold text-white">{Math.round(safetyCarStats.scRaceRate * 100)}% <span class="text-[10px] text-muted-foreground font-normal">races</span></span>
+              </div>
+            </div>
+            <p class="mt-3 text-[10px] text-muted-foreground leading-relaxed">
+              Derived from historical safety car lap counters. A higher rate indicates a chaotic race environment with frequent yellow flags.
+            </p>
+          </div>
+
           <!-- Weather Split -->
           <div class="border border-white/[0.06] bg-black p-5">
             <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Historical Weather</h3>
@@ -192,75 +238,146 @@ function formatLapTime(ms: number) {
             )}
           </div>
 
-          <!-- Constructor Dominance -->
-          <div class="border border-white/[0.06] bg-black p-5">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Top Constructors</h3>
-              <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground/40 bg-white/[0.03] px-1.5 py-0.5 border border-white/[0.05]">Since 1990</span>
-            </div>
-            {constructorDominance.length > 0 ? (
-              <div class="space-y-3">
-                {constructorDominance.slice(0, 5).map((dom) => {
-                  const logo = getTeamLogo(dom.team.teamKey);
-                  const color = getTeamColor(dom.team.teamKey);
-                  return (
-                    <a href={`/teams/${dom.team.id}`} class="flex items-center justify-between p-2 bg-white/[0.02] border-l-2 hover:bg-white/[0.06] transition-colors group" style={`border-color: ${color}`}>
-                      <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 flex items-center justify-center shrink-0 bg-white/[0.02]">
-                          {logo ? (
-                            <img src={logo} alt={dom.team.name} class="max-w-full max-h-full object-contain p-1" />
-                          ) : (
-                            <Shield size={16} className="text-white/20" />
-                          )}
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
-                      </div>
-                      <span class="font-mono text-[10px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
-                    </a>
-                  );
-                })}
+          <!-- Dominance Card with Era Selector -->
+          <div class="border border-white/[0.06] bg-black p-5 space-y-6">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h3>
+                <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-purple-400/60 bg-purple-500/[0.03] px-1.5 py-0.5 border border-purple-500/10">Era Filter</span>
               </div>
-            ) : (
-              <span class="text-sm text-muted-foreground">No data available</span>
-            )}
+              
+              <!-- Era selector tabs -->
+              <div class="flex border-b border-white/[0.06] mb-4 pb-1 gap-1 overflow-x-auto select-none">
+                {[
+                  { id: 'all', label: 'All-Time' },
+                  { id: 'modern', label: 'Modern (18+)' },
+                  { id: 'legacy', label: 'Legacy (00-17)' },
+                  { id: 'nineties', label: '90s (90-99)' }
+                ].map((era) => (
+                  <button
+                    class="era-tab px-2.5 py-1 font-mono text-[8px] tracking-wider uppercase border border-white/[0.05] hover:bg-white/[0.02] transition-colors shrink-0 text-muted-foreground bg-white/[0.01]"
+                    data-era={era.id}
+                  >
+                    {era.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <!-- Constructor Dominance Lists -->
+            <div>
+              <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h4>
+              <div class="constructor-dominance-container">
+                {['all', 'modern', 'legacy', 'nineties'].map((era) => (
+                  <div class={`era-constructor-list era-content-${era} space-y-3`}>
+                    {dominance[era as keyof typeof dominance].constructors.length > 0 ? (
+                      dominance[era as keyof typeof dominance].constructors.slice(0, 5).map((dom) => {
+                        const logo = getTeamLogo(dom.team.teamKey);
+                        const color = getTeamColor(dom.team.teamKey);
+                        return (
+                          <a href={`/teams/${dom.team.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${color}`}>
+                            <div class="flex items-center gap-3">
+                              <div class="w-7 h-7 flex items-center justify-center shrink-0 bg-white/[0.01]">
+                                {logo ? (
+                                  <img src={logo} alt={dom.team.name} class="max-w-full max-h-full object-contain p-0.5" />
+                                ) : (
+                                  <Shield size={14} className="text-white/20" />
+                                )}
+                              </div>
+                              <span class="text-xs font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
+                            </div>
+                            <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+                          </a>
+                        );
+                      })
+                    ) : (
+                      <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
+                        No wins in this era
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <!-- Driver Dominance Lists -->
+            <div>
+              <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h4>
+              <div class="driver-dominance-container">
+                {['all', 'modern', 'legacy', 'nineties'].map((era) => (
+                  <div class={`era-driver-list era-content-${era} space-y-3`}>
+                    {dominance[era as keyof typeof dominance].drivers.length > 0 ? (
+                      dominance[era as keyof typeof dominance].drivers.slice(0, 5).map((dom) => {
+                        const color = getTeamColor(dom.driver.team.teamKey);
+                        return (
+                          <a href={`/drivers/${dom.driver.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${color}`}>
+                            <div class="flex items-center gap-3">
+                              <div class="w-7 h-7 flex items-end justify-center shrink-0 overflow-hidden bg-white/[0.01]">
+                                {dom.driver.headshotUrl ? (
+                                  <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
+                                ) : (
+                                  <User size={16} className="text-white/20 mb-0.5" />
+                                )}
+                              </div>
+                              <div class="flex flex-col justify-center">
+                                <span class="text-xs font-medium leading-none group-hover:text-white transition-colors">{dom.driver.fullName}</span>
+                              </div>
+                            </div>
+                            <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+                          </a>
+                        );
+                      })
+                    ) : (
+                      <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
+                        No wins in this era
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
 
-          <!-- Driver Dominance -->
-          <div class="border border-white/[0.06] bg-black p-5">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Top Drivers</h3>
-              <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground/40 bg-white/[0.03] px-1.5 py-0.5 border border-white/[0.05]">Since 1990</span>
-            </div>
-            {driverDominance && driverDominance.length > 0 ? (
-              <div class="space-y-3">
-                {driverDominance.slice(0, 5).map((dom) => {
-                  const color = getTeamColor(dom.driver.team.teamKey);
-                  return (
-                    <a href={`/drivers/${dom.driver.id}`} class="flex items-center justify-between p-2 bg-white/[0.02] border-l-2 hover:bg-white/[0.06] transition-colors group" style={`border-color: ${color}`}>
-                      <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 flex items-end justify-center shrink-0 overflow-hidden bg-white/[0.02]">
-                          {dom.driver.headshotUrl ? (
-                            <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
-                          ) : (
-                            <User size={20} className="text-white/20 mb-0.5" />
-                          )}
-                        </div>
-                        <div class="flex flex-col justify-center">
-                          <span class="text-sm font-medium leading-none group-hover:text-white transition-colors">{dom.driver.fullName}</span>
-                        </div>
-                      </div>
-                      <span class="font-mono text-[10px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            ) : (
-              <span class="text-sm text-muted-foreground">No data available</span>
-            )}
-          </div>
         </div>
-
       </div>
     )}
   </div>
 </BaseLayout>
+
+<script>
+  // Simple vanilla JS era tabs filter logic
+  const tabs = document.querySelectorAll('.era-tab');
+  
+  function setEra(selectedEra: string) {
+    tabs.forEach(tab => {
+      const era = tab.getAttribute('data-era');
+      if (era === selectedEra) {
+        tab.classList.remove('text-muted-foreground', 'bg-white/[0.01]');
+        tab.classList.add('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
+      } else {
+        tab.classList.remove('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
+        tab.classList.add('text-muted-foreground', 'bg-white/[0.01]');
+      }
+    });
+
+    const allContent = document.querySelectorAll('[class*="era-content-"]');
+    allContent.forEach(content => {
+      if (content.classList.contains(`era-content-${selectedEra}`)) {
+        content.classList.remove('hidden');
+      } else {
+        content.classList.add('hidden');
+      }
+    });
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const era = tab.getAttribute('data-era');
+      if (era) setEra(era);
+    });
+  });
+
+  // Initialize with All-Time selected
+  setEra('all');
+</script>
