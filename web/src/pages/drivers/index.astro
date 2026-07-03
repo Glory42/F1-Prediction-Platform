@@ -6,6 +6,7 @@ import YearSelect from '@/components/YearSelect.astro';
 import { Trophy, Users } from 'lucide-react';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
+import { getNationalityFlag, getDriverFlagByCode, getDriverNationalityCode } from '@/lib/countryFlags';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -54,9 +55,10 @@ function champPos(pos: number | null, i: number) {
     ) : (
       <div class="border border-white/[0.06]">
         <!-- Table header -->
-        <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_120px_60px_60px_60px] lg:grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]">
+        <div class="grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_280px_60px_60px_60px] md:grid-cols-[40px_360px_280px_1fr_60px_60px_60px] lg:grid-cols-[40px_360px_280px_1fr_60px_60px_60px_60px_80px] gap-0 px-5 py-2.5 border-b border-white/[0.06]" style="border-left: 3px solid transparent;">
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
+          <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block pr-4">Nationality</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden md:block">Team</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Pts</div>
           <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right hidden sm:block">W</div>
@@ -68,7 +70,7 @@ function champPos(pos: number | null, i: number) {
         {standings.map((s, i) => (
             <a
               href={`/drivers/${s.driver.id}?year=${year}`}
-              class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_60px_60px_60px] md:grid-cols-[40px_1fr_120px_60px_60px_60px] lg:grid-cols-[40px_1fr_120px_60px_60px_60px_60px_80px] gap-0 items-start sm:items-center px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
+              class={`grid grid-cols-[40px_1fr_60px] sm:grid-cols-[40px_1fr_280px_60px_60px_60px] md:grid-cols-[40px_360px_280px_1fr_60px_60px_60px] lg:grid-cols-[40px_360px_280px_1fr_60px_60px_60px_60px_80px] gap-0 items-start sm:items-center px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}
               style={`border-left: 3px solid ${getTeamColor(s.driver.team.teamKey)};`}
             >
               <!-- Position — pt-1 aligns with name text -->
@@ -102,6 +104,11 @@ function champPos(pos: number | null, i: number) {
                     <span>{s.stats.poles} Pole</span>
                   </div>
                 </div>
+              </div>
+              <!-- Nationality (sm+) -->
+              <div class="hidden sm:flex items-center gap-1.5 min-w-0 pr-4">
+                <span class="text-sm select-none">{s.driver.nationality ? getNationalityFlag(s.driver.nationality) : getDriverFlagByCode(s.driver.code)}</span>
+                <span class="font-mono text-[9px] text-muted-foreground uppercase">{s.driver.nationality || getDriverNationalityCode(s.driver.code)}</span>
               </div>
               <!-- Team (md+) -->
               <div class="hidden md:flex items-center gap-2 min-w-0">

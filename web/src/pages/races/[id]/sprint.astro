@@ -5,7 +5,7 @@ import { QualifyingGrid } from '@/components/QualifyingGrid';
 import LapChart from '@/components/LapChart.astro';
 import { api } from '@/lib/api';
 import { formatDate, formatMs } from '@/lib/utils';
-import type { SprintDetailResponse, RaceResult, QualifyingResult } from '@/types';
+import type { SprintDetailResponse, RaceResult, QualifyingResult, CircuitHistoryItem } from '@/types';
 import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer, Flag, CornerDownRight, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import RaceYearSelect from '@/components/RaceYearSelect.astro';
@@ -13,7 +13,7 @@ import RaceYearSelect from '@/components/RaceYearSelect.astro';
 const { id } = Astro.params;
 
 let sprintData: SprintDetailResponse | null = null;
-let circuitHistory: Awaited<ReturnType<typeof api.getCircuitHistory>> = [];
+let circuitHistory: CircuitHistoryItem[] = [];
 let error: string | null = null;
 
 try {
@@ -28,7 +28,10 @@ const results    = sprintData?.results ?? [];
 const laps       = sprintData?.laps ?? [];
 
 if (race) {
-  try { circuitHistory = await api.getCircuitHistory(race.circuit.circuitKey); } catch {}
+  try {
+    const details = await api.getCircuitDetails(race.circuit.circuitKey);
+    circuitHistory = details.history;
+  } catch {}
 }
 
 const isSprintDone = race != null && ['sprint_done', 'qualifying_done', 'completed'].includes(race.status);

@@ -7,6 +7,7 @@ import type { DriverYearStats } from '@/types';
 import { BarChart2, History, ChevronRight, Trophy } from 'lucide-react';
 import YearSelectLinks from '@/components/YearSelectLinks.astro';
 import { getTeamColor } from '@/lib/teamColors';
+import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
 
 const { id } = Astro.params;
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
@@ -29,6 +30,9 @@ const careerWithStats = career.filter((y) => y.stats !== null);
 const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.headshotUrl ?? null;
 const thisYear = new Date().getFullYear();
 const titles = careerWithStats.filter((y) => y.year < thisYear && y.stats?.championshipPosition === 1).length;
+const nationalityFlag = driver
+  ? (driver.nationality ? getNationalityFlag(driver.nationality) : getDriverFlagByCode(driver.code))
+  : '🏁';
 ---
 
 <BaseLayout title={driver?.fullName ?? 'Driver'}>
@@ -74,11 +78,13 @@ const titles = careerWithStats.filter((y) => y.year < thisYear && y.stats?.champ
                 #{driver.driverNumber} · {driver.code}
               </span>
               {driver.nationality && (
-                <span class="font-mono text-[9px] text-muted-foreground">{driver.nationality}</span>
+                <span class="font-mono text-[9px] text-muted-foreground">· {driver.nationality}</span>
               )}
             </div>
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold">{driver.fullName}</h1>
+              <h1 class="text-2xl font-bold">
+                {driver.fullName} <span class="text-xl ml-1.5 align-middle select-none">{nationalityFlag}</span>
+              </h1>
               {titles > 0 && (
                 <div class="flex items-center gap-1" title={`${titles}× World Champion`}>
                   {Array.from({ length: titles }).map((_, i) => (

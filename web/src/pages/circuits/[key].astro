@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
 import { MapPin, ChevronRight, Zap, User, Shield } from 'lucide-react';
+import { getCountryFlag } from '@/lib/countryFlags';
 
 const { key } = Astro.params;
 if (!key) return Astro.redirect('/races');
@@ -44,9 +45,11 @@ function formatLapTime(ms: number) {
         <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-white">circuit</span>
         <div class="h-px w-16 bg-white/[0.05]" />
       </div>
-      <h1 class="text-3xl font-bold">{circuit.name}</h1>
+      <h1 class="text-3xl font-bold">
+        {circuit.name} <span class="text-2xl ml-1.5 align-middle select-none">{getCountryFlag(circuit.country)}</span>
+      </h1>
       <div class="flex items-center gap-2 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-        <MapPin size={10} /> {circuit.city}, {circuit.country}
+        <MapPin size={10} /> {circuit.city}, {circuit.country} <span class="text-xs select-none">{getCountryFlag(circuit.country)}</span>
       </div>
     </div>
 
@@ -122,7 +125,7 @@ function formatLapTime(ms: number) {
                           {race.winner.headshotUrl ? (
                             <img src={race.winner.headshotUrl} alt={race.winner.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
                           ) : (
-                            <User size={24} class="text-white/20 mb-1" />
+                            <User size={24} className="text-white/20 mb-1" />
                           )}
                         </div>
                         <div class="flex flex-col">
@@ -134,7 +137,7 @@ function formatLapTime(ms: number) {
                       <span class="font-medium text-sm text-muted-foreground">N/A</span>
                     )}
                   </div>
-                  <ChevronRight size={12} class="text-white/20 shrink-0" />
+                  <ChevronRight size={12} className="text-white/20 shrink-0" />
                 </a>
               )) : (
                 <div class="p-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
@@ -207,7 +210,7 @@ function formatLapTime(ms: number) {
                           {logo ? (
                             <img src={logo} alt={dom.team.name} class="max-w-full max-h-full object-contain p-1" />
                           ) : (
-                            <Shield size={16} class="text-white/20" />
+                            <Shield size={16} className="text-white/20" />
                           )}
                         </div>
                         <span class="text-sm font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
@@ -239,7 +242,7 @@ function formatLapTime(ms: number) {
                           {dom.driver.headshotUrl ? (
                             <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
                           ) : (
-                            <User size={20} class="text-white/20 mb-0.5" />
+                            <User size={20} className="text-white/20 mb-0.5" />
                           )}
                         </div>
                         <div class="flex flex-col justify-center">
