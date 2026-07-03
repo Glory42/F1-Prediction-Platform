@@ -147,5 +147,25 @@ export type SprintPredictionResponse = {
   drivers: DriverSprintPrediction[];
 };
 export type SprintDetailResponse = {
-  race: Race; prediction: SprintPredictionResponse | null; results: SprintResult[]; laps: LapSummary[];
+  race: Race;
+  prediction: SprintPredictionResponse | null;
+  results: SprintResult[];
+  laps: LapSummary[];
+};
+
+export type ProgressionRound = {
+  round: number;
+  raceName: string;
+  pointsGained: number;
+  cumulativePoints: number;
+};
+
+export type DriverProgression = {
+  driver: Driver;
+  progression: ProgressionRound[];
+};
+
+export type TeamProgression = {
+  team: Team;
+  progression: ProgressionRound[];
 };

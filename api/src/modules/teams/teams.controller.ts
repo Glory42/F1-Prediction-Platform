@@ -18,6 +18,12 @@ export const TeamsController = {
     return c.json({ data, error: null });
   },
 
+  getStandingsProgression: async (c: Context<{ Bindings: Bindings }>) => {
+    const year = Number(c.req.query('year') ?? new Date().getFullYear());
+    const data = await service.findStandingsProgression(createDb(c.env.DATABASE_URL), year);
+    return c.json({ data, error: null });
+  },
+
   getCareerStats: async (c: Context<{ Bindings: Bindings }>) => {
     const id = Number(c.req.param('id'));
     if (isNaN(id)) {
