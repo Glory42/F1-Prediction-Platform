@@ -81,7 +81,7 @@ export class RacesService {
         }
         teamWins.get(teamKey)!.wins += 1;
 
-        const driverKey = w.drivers.code || w.drivers.lastName;
+        const driverKey = `${w.drivers.firstName} ${w.drivers.lastName}`;
         if (!driverWinsMap.has(driverKey)) {
           driverWinsMap.set(driverKey, { driver: w.drivers, team: w.teams, wins: 0, bestIdx: currentIdx });
         } else {
@@ -95,10 +95,10 @@ export class RacesService {
         driverWinsMap.get(driverKey)!.wins += 1;
       }
 
-      const driverCodes = Array.from(driverWinsMap.values())
-        .map(v => v.driver.code)
+      const driverLastNames = Array.from(driverWinsMap.values())
+        .map(v => v.driver.lastName)
         .filter(c => c !== null);
-      if (driverCodes.length > 0) {
+      if (driverLastNames.length > 0) {
         const latestProfiles = await db
           .select({
             driver: drivers,
@@ -108,15 +108,15 @@ export class RacesService {
           .from(drivers)
           .innerJoin(teams, eq(drivers.teamId, teams.id))
           .innerJoin(seasons, eq(drivers.seasonId, seasons.id))
-          .where(inArray(drivers.code, driverCodes))
+          .where(inArray(drivers.lastName, driverLastNames))
           .orderBy(desc(seasons.year));
 
-        const seenCodes = new Set<string>();
+        const seenFullNames = new Set<string>();
         for (const p of latestProfiles) {
-          const code = p.driver.code;
-          if (code && !seenCodes.has(code) && driverWinsMap.has(code)) {
-            seenCodes.add(code);
-            const entry = driverWinsMap.get(code)!;
+          const fullName = `${p.driver.firstName} ${p.driver.lastName}`;
+          if (fullName && !seenFullNames.has(fullName) && driverWinsMap.has(fullName)) {
+            seenFullNames.add(fullName);
+            const entry = driverWinsMap.get(fullName)!;
             entry.driver = p.driver;
             entry.team = p.team;
           }
@@ -127,7 +127,7 @@ export class RacesService {
         const w = winnerMap.get(r.id);
         let winnerObj = null;
         if (w) {
-          const driverKey = w.drivers.code || w.drivers.lastName;
+          const driverKey = `${w.drivers.firstName} ${w.drivers.lastName}`;
           const latestProfile = driverWinsMap.get(driverKey);
           winnerObj = toDriver(w.drivers, w.teams);
           if (!winnerObj.headshotUrl && latestProfile?.driver.headshotUrl) {

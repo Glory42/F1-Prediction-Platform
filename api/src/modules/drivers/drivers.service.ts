@@ -95,14 +95,19 @@ export class DriversService {
     const driverRow = await db.select().from(drivers).where(eq(drivers.id, driverId)).limit(1);
     if (!driverRow[0]) return [];
 
-    const code = driverRow[0].code;
+    const { firstName, lastName } = driverRow[0];
 
     const allEntries = await db
       .select()
       .from(drivers)
       .innerJoin(seasons, eq(drivers.seasonId, seasons.id))
       .innerJoin(teams, eq(drivers.teamId, teams.id))
-      .where(eq(drivers.code, code))
+      .where(
+        and(
+          eq(drivers.firstName, firstName),
+          eq(drivers.lastName, lastName)
+        )
+      )
       .orderBy(desc(seasons.year));
 
     if (!allEntries.length) return [];
