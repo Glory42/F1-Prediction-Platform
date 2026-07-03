@@ -16,9 +16,9 @@ export const RacesController = {
     return c.json({ data, error: null });
   },
 
-  getCircuitHistory: async (c: Context<{ Bindings: Bindings }>) => {
+  getCircuitDetails: async (c: Context<{ Bindings: Bindings }>) => {
     const circuitKey = c.req.param('circuitKey') ?? '';
-    const data = await service.findCircuitHistory(createDb(c.env.DATABASE_URL), circuitKey);
+    const data = await service.findCircuitDetails(createDb(c.env.DATABASE_URL), circuitKey);
     return c.json({ data, error: null });
   },
 

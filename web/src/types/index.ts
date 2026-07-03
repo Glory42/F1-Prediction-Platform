@@ -93,6 +93,29 @@ export type IntelStandingRow = {
 export type CircuitHistoryItem = {
   raceId: number; raceName: string; raceDate: string; year: number; hasSprint: boolean; winner: Driver | null;
 };
+export type CircuitDetailResponse = {
+  circuit: Circuit;
+  history: CircuitHistoryItem[];
+  fastestLap: {
+    timeMs: number;
+    driver: Driver;
+    year: number;
+  } | null;
+  constructorDominance: {
+    team: Team;
+    wins: number;
+  }[];
+  driverDominance: {
+    driver: Driver;
+    wins: number;
+  }[];
+  weatherStats: {
+    dry: number;
+    wet: number;
+    mixed: number;
+    unknown: number;
+  };
+};
 export type DriverYearStats = {
   year: number; driverId: number; driverNumberThatYear: number; teamName: string; headshotUrl: string | null; stats: DriverSeasonStats | null;
 };

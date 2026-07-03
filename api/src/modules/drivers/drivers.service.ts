@@ -129,14 +129,11 @@ export class DriversService {
   }
 
   async findById(db: Db, driverId: number, year: number): Promise<DriverDetailResponse | null> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return null;
-
     const driverRows = await db
       .select()
       .from(drivers)
       .innerJoin(teams, eq(drivers.teamId, teams.id))
-      .where(and(eq(drivers.id, driverId), eq(drivers.seasonId, seasonRows[0].id)))
+      .where(eq(drivers.id, driverId))
       .limit(1);
 
     if (!driverRows[0]) return null;
@@ -146,7 +143,7 @@ export class DriversService {
       db
         .select()
         .from(driverSeasonStats)
-        .where(and(eq(driverSeasonStats.driverId, driverId), eq(driverSeasonStats.seasonId, seasonRows[0].id)))
+        .where(and(eq(driverSeasonStats.driverId, driverId), eq(driverSeasonStats.seasonId, driverRows[0].drivers.seasonId)))
         .limit(1),
 
       db

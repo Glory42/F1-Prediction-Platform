@@ -1,7 +1,7 @@
 import type {
   PredictionResponse, RaceDetailResponse, DriverDetailResponse, TeamDetailResponse,
   Race, Driver, Team, DriverStanding, TeamStanding,
-  PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem,
+  PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
 } from '@/types';
@@ -30,7 +30,7 @@ export const api = {
     return get<Race[]>(`/api/races${q}`);
   },
   getRaceById: (id: number) => get<RaceDetailResponse>(`/api/races/${id}`),
-  getCircuitHistory: (circuitKey: string) => get<CircuitHistoryItem[]>(`/api/races/circuit/${circuitKey}`),
+  getCircuitDetails: (circuitKey: string) => get<CircuitDetailResponse>(`/api/races/circuit/${circuitKey}`),
 
   // Drivers
   getDrivers: (year: number) => get<Driver[]>(`/api/drivers?year=${year}`),

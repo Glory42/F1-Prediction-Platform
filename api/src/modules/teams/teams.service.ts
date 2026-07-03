@@ -98,13 +98,10 @@ export class TeamsService {
   }
 
   async findById(db: Db, teamId: number, year: number): Promise<TeamDetailResponse | null> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return null;
-
     const teamRows = await db
       .select()
       .from(teams)
-      .where(and(eq(teams.id, teamId), eq(teams.seasonId, seasonRows[0].id)))
+      .where(eq(teams.id, teamId))
       .limit(1);
 
     if (!teamRows[0]) return null;
@@ -114,13 +111,13 @@ export class TeamsService {
       db
         .select()
         .from(teamSeasonStats)
-        .where(and(eq(teamSeasonStats.teamId, teamId), eq(teamSeasonStats.seasonId, seasonRows[0].id)))
+        .where(and(eq(teamSeasonStats.teamId, teamId), eq(teamSeasonStats.seasonId, teamRows[0].seasonId)))
         .limit(1),
 
       db
         .select()
         .from(drivers)
-        .where(and(eq(drivers.teamId, teamId), eq(drivers.seasonId, seasonRows[0].id))),
+        .where(and(eq(drivers.teamId, teamId), eq(drivers.seasonId, teamRows[0].seasonId))),
     ]);
 
     const stats = statsRows[0];
