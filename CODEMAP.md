@@ -150,6 +150,8 @@ web/
 │   │   ├── docs/
 │   │   │   ├── index.astro        # Docs index — card grid of all docs
 │   │   │   └── [slug].astro       # Individual doc page with sidebar nav
+│   │   ├── circuits/
+│   │   │   └── [key].astro        # Circuit detail — history, dominance, weather
 │   │   ├── races/
 │   │   │   ├── index.astro        # Race calendar — sprint-aware cards
 │   │   │   └── [id]/
@@ -226,6 +228,7 @@ web/
 | `/races` | `GET /api/races?year=N` | Race calendar — filter (ALL/SPRINT/GP), sort (ASC/DESC), sprint weekends as two cards |
 | `/races/[id]` | `GET /api/races/:id` | GP results, qualifying, lap chart |
 | `/races/[id]/sprint` | `GET /api/sprint/race/:id` | Sprint results, SQ grid, sprint lap chart, conditions |
+| `/circuits/[key]` | `GET /api/races/circuit/:circuitKey` | Circuit detail — history, dominance, weather |
 | `/drivers` | `GET /api/drivers/standings?year=N` | Standings table |
 | `/drivers/[id]` | `GET /api/drivers/:id?year=N` | Profile + career |
 | `/teams` | `GET /api/teams/standings?year=N` | Standings table |

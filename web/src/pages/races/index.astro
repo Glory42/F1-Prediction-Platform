@@ -136,10 +136,10 @@ const sortHref = sort === 'asc'
                 const href = isSprint ? `/races/${race.id}/sprint` : `/races/${race.id}`;
                 const date = isSprint && race.sprintDate ? race.sprintDate : race.raceDate;
                 return (
-                  <a
-                    href={href}
-                    class={`flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isSprint ? 'border-l-2 border-l-orange-500/30' : ''}`}
+                  <div
+                    class={`relative flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150 group ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isSprint ? 'border-l-2 border-l-orange-500/30' : ''}`}
                   >
+                    <a href={href} class="absolute inset-0 z-0" aria-label={race.name} />
                     <span class={`font-mono text-[10px] w-6 shrink-0 ${isSprint ? 'text-orange-400/50' : 'text-muted-foreground'}`}>
                       {race.roundNumber}
                     </span>
@@ -154,8 +154,11 @@ const sortHref = sort === 'asc'
                           </span>
                         )}
                       </div>
-                      <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground mt-0.5 truncate sm:flex">
-                        <MapPin size={9} />{race.circuit.city}, {race.circuit.country}
+                      <div class="relative z-10 flex items-center gap-1 font-mono text-[9px] text-muted-foreground mt-0.5 truncate sm:flex">
+                        <MapPin size={9} />
+                        <a href={`/circuits/${race.circuit.circuitKey}`} class="hover:text-white underline decoration-white/30 underline-offset-[2px] transition-all">
+                          {race.circuit.city}, {race.circuit.country}
+                        </a>
                       </div>
                     </div>
                     <span class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground md:flex shrink-0">
@@ -167,7 +170,7 @@ const sortHref = sort === 'asc'
                     <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.12em] uppercase shrink-0 transition-colors duration-150 ${isSprint ? 'text-orange-400/60 group-hover:text-orange-400' : 'text-muted-foreground group-hover:text-[#a855f7]'}`}>
                       results <ChevronRight size={10} />
                     </span>
-                  </a>
+                  </div>
                 );
               })}
             </div>
@@ -219,8 +222,11 @@ const sortHref = sort === 'asc'
                     <span class={`font-semibold text-sm leading-snug block mb-1 transition-colors duration-150 ${isSprint ? 'group-hover:text-orange-400' : 'group-hover:text-[#a855f7]'}`}>
                       {race.name}
                     </span>
-                    <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground mb-3">
-                      <MapPin size={9} />{race.circuit.city}, {race.circuit.country}
+                    <div class="relative z-10 flex items-center gap-1 font-mono text-[9px] text-muted-foreground mb-3">
+                      <MapPin size={9} />
+                      <a href={`/circuits/${race.circuit.circuitKey}`} class="hover:text-white underline decoration-white/30 underline-offset-[2px] transition-all">
+                        {race.circuit.city}, {race.circuit.country}
+                      </a>
                     </div>
                     <div class="flex items-center gap-1 font-mono text-[9px] text-muted-foreground tracking-widest">
                       <CalendarDays size={10} />{formatDate(date)}

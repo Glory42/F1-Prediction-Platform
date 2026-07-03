@@ -1,0 +1,263 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { api } from '@/lib/api';
+import { getTeamColor } from '@/lib/teamColors';
+import { getTeamLogo } from '@/lib/teamLogos';
+import { MapPin, ChevronRight, Zap, User, Shield } from 'lucide-react';
+
+const { key } = Astro.params;
+if (!key) return Astro.redirect('/races');
+
+let details;
+let error: string | null = null;
+try {
+  details = await api.getCircuitDetails(key);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load circuit';
+}
+
+if (!details) {
+  return Astro.redirect('/races');
+}
+
+const { circuit, history, fastestLap, constructorDominance, driverDominance, weatherStats } = details;
+const totalWeather = weatherStats.dry + weatherStats.wet + weatherStats.mixed;
+const dryPct = totalWeather ? Math.round((weatherStats.dry / totalWeather) * 100) : 0;
+const wetPct = totalWeather ? Math.round((weatherStats.wet / totalWeather) * 100) : 0;
+const mixedPct = totalWeather ? Math.round((weatherStats.mixed / totalWeather) * 100) : 0;
+
+function formatLapTime(ms: number) {
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const msRem = ms % 1000;
+  return `${m}:${s.toString().padStart(2, '0')}.${msRem.toString().padStart(3, '0')}`;
+}
+---
+
+<BaseLayout title={`${circuit.name} - Circuit Details`}>
+  <div class="mt-7 space-y-10">
+    <!-- Header -->
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <a href="/races" class="font-mono text-[9px] tracking-[0.25em] uppercase hover:text-white transition-colors" style="color: rgba(168,85,247,0.55)">./races</a>
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-muted-foreground">/</span>
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-white">circuit</span>
+        <div class="h-px w-16 bg-white/[0.05]" />
+      </div>
+      <h1 class="text-3xl font-bold">{circuit.name}</h1>
+      <div class="flex items-center gap-2 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
+        <MapPin size={10} /> {circuit.city}, {circuit.country}
+      </div>
+    </div>
+
+    {error ? (
+      <div class="border border-destructive/40 bg-destructive/10 p-8 text-center">
+        <p class="font-mono text-[10px] text-destructive tracking-widest uppercase">Error loading circuit</p>
+        <p class="mt-2 font-mono text-[9px] text-muted-foreground">{error}</p>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Stats & Model Info -->
+        <div class="space-y-6 lg:col-span-2">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06] border border-white/[0.06]">
+            <div class="bg-black p-4">
+              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Laps</span>
+              <span class="text-xl font-medium">{circuit.lapCount}</span>
+            </div>
+            <div class="bg-black p-4">
+              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Length</span>
+              <span class="text-xl font-medium">{circuit.trackLengthKm} <span class="text-sm text-muted-foreground">km</span></span>
+            </div>
+            <div class="bg-black p-4">
+              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Corners</span>
+              <span class="text-xl font-medium">{circuit.numberOfCorners || '-'}</span>
+            </div>
+            <div class="bg-black p-4">
+              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">DRS Zones</span>
+              <span class="text-xl font-medium">{circuit.drsZones || '-'}</span>
+            </div>
+          </div>
+
+          <div class="border border-purple-500/20 bg-purple-500/[0.02] p-5">
+            <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
+              <Zap size={12} /> Model Insights
+            </h3>
+            <div class="grid sm:grid-cols-2 gap-6">
+              <div>
+                <div class="flex items-end gap-2 mb-1">
+                  <span class="text-2xl font-bold">{circuit.overtakeRate || '-'}</span>
+                </div>
+                <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Overtake Rate</span>
+                <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                  Used by the model to weigh the importance of starting position. High rates reduce the penalty of starting further back.
+                </p>
+              </div>
+              <div>
+                <div class="flex items-end gap-2 mb-1">
+                  <span class="text-2xl font-bold">{circuit.scProbability ? `${(Number(circuit.scProbability) * 100).toFixed(0)}%` : '-'}</span>
+                </div>
+                <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">SC Probability</span>
+                <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                  Historically, how often a Safety Car is deployed here. High probability increases the "luck factor" variance.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- History Table -->
+          <div>
+            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">Recent Winners</h3>
+            <div class="border border-white/[0.06]">
+              {history.length > 0 ? history.map((race, i) => (
+                <a href={`/races/${race.raceId}`} class={`flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+                  <div class="flex items-center gap-4">
+                    <span class="font-mono text-[10px] text-muted-foreground w-8">{race.year}</span>
+                    {race.winner ? (
+                      <div class="flex items-center gap-3">
+                        <div 
+                          class="w-10 h-10 shrink-0 border-b-2 overflow-hidden bg-white/[0.02] flex items-end justify-center"
+                          style={`border-color: ${getTeamColor(race.winner.team.teamKey)}`}
+                        >
+                          {race.winner.headshotUrl ? (
+                            <img src={race.winner.headshotUrl} alt={race.winner.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
+                          ) : (
+                            <User size={24} class="text-white/20 mb-1" />
+                          )}
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="font-medium text-sm transition-colors group-hover:text-purple-400">{race.winner.fullName}</span>
+                          <span class="font-mono text-[9px] tracking-widest uppercase text-muted-foreground mt-0.5">{race.winner.team.name}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span class="font-medium text-sm text-muted-foreground">N/A</span>
+                    )}
+                  </div>
+                  <ChevronRight size={12} class="text-white/20 shrink-0" />
+                </a>
+              )) : (
+                <div class="p-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
+                  No historical races yet
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Context & Records -->
+        <div class="space-y-6">
+          <!-- Fastest Lap -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Fastest Lap Record</h3>
+            {fastestLap ? (
+              <div>
+                <span class="text-3xl font-bold font-mono tracking-tight text-white mb-1 block">
+                  {formatLapTime(fastestLap.timeMs)}
+                </span>
+                <div class="flex items-center justify-between mt-3">
+                  <div>
+                    <span class="block text-sm font-medium">{fastestLap.driver.fullName}</span>
+                    <span class="block font-mono text-[9px] text-muted-foreground mt-0.5">{fastestLap.driver.team.name}</span>
+                  </div>
+                  <span class="font-mono text-[10px] text-white/40 border border-white/10 px-2 py-1">{fastestLap.year}</span>
+                </div>
+              </div>
+            ) : (
+              <span class="text-sm text-muted-foreground">No data available</span>
+            )}
+          </div>
+
+          <!-- Weather Split -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Historical Weather</h3>
+            {totalWeather > 0 ? (
+              <>
+                <div class="h-2 w-full flex rounded-full overflow-hidden mb-3">
+                  {dryPct > 0 && <div class="bg-yellow-500/80" style={`width: ${dryPct}%`} />}
+                  {mixedPct > 0 && <div class="bg-blue-400/80" style={`width: ${mixedPct}%`} />}
+                  {wetPct > 0 && <div class="bg-blue-600/80" style={`width: ${wetPct}%`} />}
+                </div>
+                <div class="flex justify-between font-mono text-[9px] tracking-widest uppercase text-muted-foreground">
+                  <span class={dryPct > 0 ? "text-yellow-500/80" : "hidden"}>Dry {dryPct}%</span>
+                  <span class={mixedPct > 0 ? "text-blue-400/80" : "hidden"}>Mixed {mixedPct}%</span>
+                  <span class={wetPct > 0 ? "text-blue-600/80" : "hidden"}>Wet {wetPct}%</span>
+                </div>
+              </>
+            ) : (
+              <span class="text-sm text-muted-foreground">No data available</span>
+            )}
+          </div>
+
+          <!-- Constructor Dominance -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Top Constructors</h3>
+              <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground/40 bg-white/[0.03] px-1.5 py-0.5 border border-white/[0.05]">Since 2000</span>
+            </div>
+            {constructorDominance.length > 0 ? (
+              <div class="space-y-3">
+                {constructorDominance.slice(0, 5).map((dom) => {
+                  const logo = getTeamLogo(dom.team.teamKey);
+                  const color = getTeamColor(dom.team.teamKey);
+                  return (
+                    <a href={`/teams/${dom.team.id}`} class="flex items-center justify-between p-2 bg-white/[0.02] border-l-2 hover:bg-white/[0.06] transition-colors group" style={`border-color: ${color}`}>
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 flex items-center justify-center shrink-0 bg-white/[0.02]">
+                          {logo ? (
+                            <img src={logo} alt={dom.team.name} class="max-w-full max-h-full object-contain p-1" />
+                          ) : (
+                            <Shield size={16} class="text-white/20" />
+                          )}
+                        </div>
+                        <span class="text-sm font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
+                      </div>
+                      <span class="font-mono text-[10px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <span class="text-sm text-muted-foreground">No data available</span>
+            )}
+          </div>
+
+          <!-- Driver Dominance -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Top Drivers</h3>
+              <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground/40 bg-white/[0.03] px-1.5 py-0.5 border border-white/[0.05]">Since 2000</span>
+            </div>
+            {driverDominance && driverDominance.length > 0 ? (
+              <div class="space-y-3">
+                {driverDominance.slice(0, 5).map((dom) => {
+                  const color = getTeamColor(dom.driver.team.teamKey);
+                  return (
+                    <a href={`/drivers/${dom.driver.id}`} class="flex items-center justify-between p-2 bg-white/[0.02] border-l-2 hover:bg-white/[0.06] transition-colors group" style={`border-color: ${color}`}>
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 flex items-end justify-center shrink-0 overflow-hidden bg-white/[0.02]">
+                          {dom.driver.headshotUrl ? (
+                            <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
+                          ) : (
+                            <User size={20} class="text-white/20 mb-0.5" />
+                          )}
+                        </div>
+                        <div class="flex flex-col justify-center">
+                          <span class="text-sm font-medium leading-none group-hover:text-white transition-colors">{dom.driver.fullName}</span>
+                        </div>
+                      </div>
+                      <span class="font-mono text-[10px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <span class="text-sm text-muted-foreground">No data available</span>
+            )}
+          </div>
+        </div>
+
+      </div>
+    )}
+  </div>
+</BaseLayout>
