@@ -71,7 +71,7 @@ Scopes: `web`, `api`, `db`, `etl`, `navbar`, `prediction`, `races`, `drivers`, `
 ## Project Docs
 
 - [`CLAUDE.md`](CLAUDE.md) — full architecture reference and constraints
-- [`PLAN.md`](PLAN.md) — database schema, feature engineering, API routes
+- [`CODEMAP.md`](CODEMAP.md) — full file-level reference map
 - [`api/README.md`](api/README.md) — API setup and routes
 - [`web/README.md`](web/README.md) — frontend setup and pages
 - [`data-engine/README.md`](data-engine/README.md) — ETL jobs and cron schedule

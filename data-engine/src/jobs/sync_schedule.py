@@ -71,8 +71,17 @@ LOCATION_TO_CIRCUIT_KEY: dict[str, str] = {
     "Adelaide": "adelaide",
     "Midrand": "kyalami",
     "Castle Donington": "donington",
-    "Okayama": "okayama",
     "Buenos Aires": "buenos_aires",
+    # 1980s historical
+    "California": "long_beach",
+    "Heusden-Zolder": "zolder",
+    "Kent": "brands_hatch",
+    "Nevada": "caesars_palace",
+    "New York State": "watkins_glen",
+    "Rio de Janeiro": "jacarepagua",
+    "Dallas": "dallas",
+    "Detroit": "detroit",
+    "Dijon": "dijon",
 }
 
 
@@ -112,6 +121,11 @@ def run(year: int) -> None:
         for _, event in schedule.iterrows():
             location = str(event.get("Location", ""))
             circuit_key = LOCATION_TO_CIRCUIT_KEY.get(location)
+
+            if location == "Madrid" and year < 2026:
+                circuit_key = "jarama"
+            elif location == "Spielberg" and year < 2014:
+                circuit_key = "a1_ring"
 
             if not circuit_key:
                 print(f"  [warn] No circuit_key mapping for Location='{location}' (Round {event['RoundNumber']})")

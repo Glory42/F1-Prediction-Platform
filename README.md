@@ -2,7 +2,7 @@
 
 ![F1 Prediction Platform](./preview/Preview-landingPage.png)
 
-F1 race winner prediction using historical and current data via FastF1. A weighted 12-feature scoring model with softmax outputs win probabilities for all drivers before each race. Historical data covers 2000–2025.
+F1 race winner prediction using historical and current data via FastF1. A weighted 12-feature scoring model with softmax outputs win probabilities for all drivers before each race. Features a detailed Circuits directory mapping track footprints, overtake rates, and safety car likelihood, along with Driver and Team head-to-head performance comparison tools. Historical data covers 1980–2026.
 
 ## Stack
 

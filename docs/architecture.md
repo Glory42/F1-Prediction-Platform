@@ -120,6 +120,22 @@ Sunday
 
 ![Race detail page](../preview/Preview-races[id]Page.png)
 
+**Circuits directory**
+
+![Circuits page](../preview/Preview-circuitsPage.png)
+
+**Circuit detail**
+
+![Circuit detail page](../preview/Preview-circuit[id]Page.png)
+
+**Driver comparison tool**
+
+![Driver comparison page](../preview/Preview-driverComparisonPage.png)
+
+**Team comparison tool**
+
+![Team comparison page](../preview/Preview-teamComparisonPage.png)
+
 ---
 
 ## Deployment

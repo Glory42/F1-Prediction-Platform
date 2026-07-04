@@ -59,6 +59,17 @@ const CIRCUITS_2025 = [
   { circuitKey: 'donington',     name: 'Donington Park',                          country: 'UK',           city: 'Castle Donington', lapCount: 76, trackLengthKm: '4.020', overtakeRate: '0.60', numberOfCorners: 12, drsZones: null, imageUrl: `${R2_BASE}/donington.jpg` },
   { circuitKey: 'okayama',       name: 'TI Circuit Aida',                         country: 'Japan',        city: 'Okayama',        lapCount: 83, trackLengthKm: '3.703', overtakeRate: '0.30', numberOfCorners: 13, drsZones: null, imageUrl: `${R2_BASE}/okayama.jpg` },
   { circuitKey: 'buenos_aires',  name: 'Autódromo Oscar y Juan Gálvez',           country: 'Argentina',    city: 'Buenos Aires',   lapCount: 72, trackLengthKm: '4.259', overtakeRate: '0.40', numberOfCorners: 15, drsZones: null, imageUrl: `${R2_BASE}/buenos_aires.jpg` },
+  // 1980-1989 historical circuits
+  { circuitKey: 'brands_hatch',  name: 'Brands Hatch',                          country: 'UK',           city: 'Kent',           lapCount: 76, trackLengthKm: '4.207', overtakeRate: '0.500', numberOfCorners: 9,  drsZones: null, imageUrl: `${R2_BASE}/brands_hatch.jpg` },
+  { circuitKey: 'zolder',        name: 'Circuit Zolder',                        country: 'Belgium',      city: 'Heusden-Zolder', lapCount: 70, trackLengthKm: '4.262', overtakeRate: '0.450', numberOfCorners: 10, drsZones: null, imageUrl: `${R2_BASE}/zolder.jpg` },
+  { circuitKey: 'dijon',         name: 'Dijon-Prenois',                         country: 'France',       city: 'Dijon',          lapCount: 79, trackLengthKm: '3.801', overtakeRate: '0.400', numberOfCorners: 8,  drsZones: null, imageUrl: `${R2_BASE}/dijon.jpg` },
+  { circuitKey: 'jacarepagua',   name: 'Jacarepaguá',                           country: 'Brazil',       city: 'Rio de Janeiro', lapCount: 61, trackLengthKm: '5.031', overtakeRate: '0.550', numberOfCorners: 11, drsZones: null, imageUrl: `${R2_BASE}/jacarepagua.jpg` },
+  { circuitKey: 'detroit',       name: 'Detroit Street Circuit',                country: 'USA',          city: 'Detroit',        lapCount: 63, trackLengthKm: '4.168', overtakeRate: '0.350', numberOfCorners: 18, drsZones: null, imageUrl: `${R2_BASE}/detroit.jpg` },
+  { circuitKey: 'dallas',        name: 'Dallas Fair Park Grand Prix Circuit',   country: 'USA',          city: 'Dallas',         lapCount: 67, trackLengthKm: '3.901', overtakeRate: '0.350', numberOfCorners: 14, drsZones: null, imageUrl: `${R2_BASE}/dallas.jpg` },
+  { circuitKey: 'caesars_palace',name: 'Caesars Palace Grand Prix Circuit',     country: 'USA',          city: 'Las Vegas',      lapCount: 75, trackLengthKm: '3.650', overtakeRate: '0.400', numberOfCorners: 14, drsZones: null, imageUrl: `${R2_BASE}/caesars_palace.jpg` },
+  { circuitKey: 'watkins_glen',  name: 'Watkins Glen International',            country: 'USA',          city: 'Watkins Glen',   lapCount: 59, trackLengthKm: '5.435', overtakeRate: '0.500', numberOfCorners: 11, drsZones: null, imageUrl: `${R2_BASE}/watkins_glen.jpg` },
+  { circuitKey: 'jarama',        name: 'Circuito del Jarama',                    country: 'Spain',        city: 'Madrid',         lapCount: 80, trackLengthKm: '3.404', overtakeRate: '0.300', numberOfCorners: 11, drsZones: null, imageUrl: `${R2_BASE}/jarama.jpg` },
+  { circuitKey: 'long_beach',    name: 'Long Beach Street Circuit',             country: 'USA',          city: 'Long Beach',     lapCount: 75, trackLengthKm: '3.275', overtakeRate: '0.450', numberOfCorners: 11, drsZones: null, imageUrl: `${R2_BASE}/long_beach.jpg` },
 ];
 
 async function seed() {
@@ -66,6 +77,8 @@ async function seed() {
 
   console.log('Seeding seasons...');
   await db.insert(seasons).values([
+    { year: 1980 }, { year: 1981 }, { year: 1982 }, { year: 1983 }, { year: 1984 },
+    { year: 1985 }, { year: 1986 }, { year: 1987 }, { year: 1988 }, { year: 1989 },
     { year: 1990 }, { year: 1991 }, { year: 1992 }, { year: 1993 }, { year: 1994 },
     { year: 1995 }, { year: 1996 }, { year: 1997 }, { year: 1998 }, { year: 1999 },
     { year: 2000 }, { year: 2001 }, { year: 2002 }, { year: 2003 }, { year: 2004 },
