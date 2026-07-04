@@ -13,13 +13,16 @@ export function GlobalSearch() {
   const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'drivers' | 'teams' | 'circuits'>('all');
 
-  // Toggle the menu when ctrl + K is pressed
+  // Toggle the menu when ctrl + K is pressed or close when Escape is pressed
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
+      } else if (e.key === "Escape") {
+        setOpen(false);
       }
     };
 
@@ -77,6 +80,7 @@ export function GlobalSearch() {
           label="Global Command Menu"
           className="flex w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-black/95 shadow-2xl backdrop-blur-md"
         >
+        {/* Search input header */}
         <div className="flex items-center border-b border-white/10 px-3">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Command.Input
@@ -91,12 +95,32 @@ export function GlobalSearch() {
           </div>
         </div>
 
+        {/* Category Filter Pills (Discover options) */}
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/10 bg-white/[0.01] overflow-x-auto select-none">
+          {(['all', 'drivers', 'teams', 'circuits'] as const).map((filter) => {
+            const active = activeFilter === filter;
+            return (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`font-mono text-[8px] tracking-widest uppercase px-2.5 py-1 border transition-colors duration-150 focus:outline-none shrink-0 ${
+                  active
+                    ? 'border-[#a855f7]/60 bg-[#a855f7]/10 text-[#a855f7]'
+                    : 'border-white/[0.06] text-muted-foreground hover:text-white hover:bg-white/[0.02]'
+                }`}
+              >
+                {filter}
+              </button>
+            );
+          })}
+        </div>
+
         <Command.List className="max-h-[300px] overflow-y-auto overflow-x-hidden p-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
           <Command.Empty className="py-6 text-center text-sm">
             {loading ? "Loading..." : "No results found."}
           </Command.Empty>
 
-          {!loading && drivers.length > 0 && (
+          {!loading && (activeFilter === 'all' || activeFilter === 'drivers') && drivers.length > 0 && (
             <Command.Group heading="Drivers">
               {drivers.map((driver) => (
                 <Command.Item
@@ -136,7 +160,7 @@ export function GlobalSearch() {
             </Command.Group>
           )}
 
-          {!loading && teams.length > 0 && (
+          {!loading && (activeFilter === 'all' || activeFilter === 'teams') && teams.length > 0 && (
             <Command.Group heading="Teams">
               {teams.map((team) => {
                 const logo = getTeamLogo(team.teamKey);
@@ -169,7 +193,7 @@ export function GlobalSearch() {
             </Command.Group>
           )}
 
-          {!loading && circuits.length > 0 && (
+          {!loading && (activeFilter === 'all' || activeFilter === 'circuits') && circuits.length > 0 && (
             <Command.Group heading="Circuits">
               {circuits.map(circuit => (
                 <Command.Item
