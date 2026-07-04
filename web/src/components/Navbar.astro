@@ -1,21 +1,30 @@
 ---
-import { Home, Flag, Users, Building2, MapPin, Cpu, Search } from 'lucide-react';
+import { Home, Flag, Users, Building2, Cpu, Search } from 'lucide-react';
 import { GlobalSearch } from '@/components/GlobalSearch';
 
 const currentPath = Astro.url.pathname;
 
 const links = [
   { href: '/',           label: 'home',       icon: Home       },
-  { href: '/races',      label: 'races',      icon: Flag       },
+  {
+    href: '/races',
+    label: 'races',
+    icon: Flag,
+    dropdown: [
+      { href: '/races',    label: 'seasons'  },
+      { href: '/circuits', label: 'circuits' },
+    ]
+  },
   { href: '/drivers',    label: 'drivers',    icon: Users      },
   { href: '/teams',      label: 'teams',      icon: Building2  },
-  { href: '/circuits',   label: 'circuits',   icon: MapPin     },
   { href: '/prediction', label: 'prediction', icon: Cpu        },
 ];
 
-function isActive(href: string) {
+function isActive(href: string, dropdown?: { href: string }[]) {
   if (href === '/') return currentPath === '/';
-  return currentPath.startsWith(href);
+  if (currentPath.startsWith(href)) return true;
+  if (dropdown && dropdown.some((sub) => currentPath.startsWith(sub.href))) return true;
+  return false;
 }
 ---
 
@@ -55,20 +64,52 @@ function isActive(href: string) {
       </div>
     </div>
 
-    <nav class="hidden sm:flex items-center gap-5">
-      {links.map(({ href, label, icon: Icon }) => (
-        <a
-          href={href}
-          class={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
-            isActive(href)
-              ? 'text-[#a855f7]'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Icon size={12} />
-          {label}
-        </a>
-      ))}
+    <nav class="hidden sm:flex items-center gap-5 h-full">
+      {links.map((link) => {
+        const { href, label, icon: Icon, dropdown } = link as any;
+        const active = isActive(href, dropdown);
+        if (dropdown) {
+          return (
+            <div class="relative group h-full flex items-center">
+              <a
+                href={href}
+                class={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
+                  active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon size={12} />
+                {label}
+                <span class="text-[7px] ml-0.5 opacity-65 group-hover:rotate-180 transition-transform duration-200">▼</span>
+              </a>
+
+              {/* Dropdown panel (starts at top-44px to overlap slightly, eliminating the mouse gap) */}
+              <div class="absolute top-[44px] pt-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 min-w-[120px]">
+                <div class="border border-white/[0.08] bg-black py-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                  {dropdown.map((sub: any) => (
+                    <a
+                      href={sub.href}
+                      class="block px-4 py-2 font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-100"
+                    >
+                      {sub.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <a
+            href={href}
+            class={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
+              active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon size={12} />
+            {label}
+          </a>
+        );
+      })}
     </nav>
 
     <!-- Desktop Search Button (Right aligned) -->
@@ -89,8 +130,9 @@ function isActive(href: string) {
 <!-- Mobile bottom tab bar -->
 <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-white/[0.06]">
   <div class="flex items-stretch">
-    {links.map(({ href, label, icon: Icon }) => {
-      const active = isActive(href);
+    {links.map((link) => {
+      const { href, label, icon: Icon, dropdown } = link as any;
+      const active = isActive(href, dropdown);
       return (
         <a
           href={href}

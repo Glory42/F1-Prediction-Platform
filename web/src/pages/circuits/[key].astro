@@ -269,7 +269,7 @@ function formatLapTime(ms: number) {
               <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h4>
               <div class="constructor-dominance-container">
                 {['all', 'modern', 'legacy', 'nineties'].map((era) => (
-                  <div class={`era-constructor-list era-content-${era} space-y-3`}>
+                  <div class={`era-constructor-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
                     {dominance[era as keyof typeof dominance].constructors.length > 0 ? (
                       dominance[era as keyof typeof dominance].constructors.slice(0, 5).map((dom) => {
                         const logo = getTeamLogo(dom.team.teamKey);
@@ -305,7 +305,7 @@ function formatLapTime(ms: number) {
               <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h4>
               <div class="driver-dominance-container">
                 {['all', 'modern', 'legacy', 'nineties'].map((era) => (
-                  <div class={`era-driver-list era-content-${era} space-y-3`}>
+                  <div class={`era-driver-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
                     {dominance[era as keyof typeof dominance].drivers.length > 0 ? (
                       dominance[era as keyof typeof dominance].drivers.slice(0, 5).map((dom) => {
                         const color = getTeamColor(dom.driver.team.teamKey);
@@ -346,38 +346,41 @@ function formatLapTime(ms: number) {
 </BaseLayout>
 
 <script>
-  // Simple vanilla JS era tabs filter logic
-  const tabs = document.querySelectorAll('.era-tab');
-  
-  function setEra(selectedEra: string) {
+  // Simple vanilla JS era tabs filter logic (compatible with Astro ClientRouter transitions)
+  document.addEventListener('astro:page-load', () => {
+    const tabs = document.querySelectorAll('.era-tab');
+    if (tabs.length === 0) return;
+
+    function setEra(selectedEra: string) {
+      tabs.forEach(tab => {
+        const era = tab.getAttribute('data-era');
+        if (era === selectedEra) {
+          tab.classList.remove('text-muted-foreground', 'bg-white/[0.01]');
+          tab.classList.add('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
+        } else {
+          tab.classList.remove('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
+          tab.classList.add('text-muted-foreground', 'bg-white/[0.01]');
+        }
+      });
+
+      const allContent = document.querySelectorAll('[class*="era-content-"]');
+      allContent.forEach(content => {
+        if (content.classList.contains(`era-content-${selectedEra}`)) {
+          content.classList.remove('hidden');
+        } else {
+          content.classList.add('hidden');
+        }
+      });
+    }
+
     tabs.forEach(tab => {
-      const era = tab.getAttribute('data-era');
-      if (era === selectedEra) {
-        tab.classList.remove('text-muted-foreground', 'bg-white/[0.01]');
-        tab.classList.add('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
-      } else {
-        tab.classList.remove('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
-        tab.classList.add('text-muted-foreground', 'bg-white/[0.01]');
-      }
+      tab.addEventListener('click', () => {
+        const era = tab.getAttribute('data-era');
+        if (era) setEra(era);
+      });
     });
 
-    const allContent = document.querySelectorAll('[class*="era-content-"]');
-    allContent.forEach(content => {
-      if (content.classList.contains(`era-content-${selectedEra}`)) {
-        content.classList.remove('hidden');
-      } else {
-        content.classList.add('hidden');
-      }
-    });
-  }
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const era = tab.getAttribute('data-era');
-      if (era) setEra(era);
-    });
+    // Initialize with All-Time selected
+    setEra('all');
   });
-
-  // Initialize with All-Time selected
-  setEra('all');
 </script>

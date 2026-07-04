@@ -16,6 +16,15 @@ function getRegion(country: string): string {
   return 'Other';
 }
 
+const REGION_COLORS: Record<string, { border: string; bg: string; text: string; borderRaw: string; textRaw: string; gradient: string }> = {
+  'All': { border: 'border-[#a855f7]/40', bg: 'bg-[#a855f7]/[0.12]', text: 'text-[#a855f7]', borderRaw: 'rgba(168, 85, 247, 0.4)', textRaw: '#a855f7', gradient: 'from-[#a855f7]/60 to-[#a855f7]' },
+  'Europe': { border: 'border-[#10b981]/40', bg: 'bg-[#10b981]/[0.12]', text: 'text-[#10b981]', borderRaw: 'rgba(16, 185, 129, 0.4)', textRaw: '#10b981', gradient: 'from-[#10b981]/60 to-[#10b981]' },
+  'Asia-Pacific': { border: 'border-[#06b6d4]/40', bg: 'bg-[#06b6d4]/[0.12]', text: 'text-[#06b6d4]', borderRaw: 'rgba(6, 182, 212, 0.4)', textRaw: '#06b6d4', gradient: 'from-[#06b6d4]/60 to-[#06b6d4]' },
+  'Americas': { border: 'border-[#f97316]/40', bg: 'bg-[#f97316]/[0.12]', text: 'text-[#f97316]', borderRaw: 'rgba(249, 115, 22, 0.4)', textRaw: '#f97316', gradient: 'from-[#f97316]/60 to-[#f97316]' },
+  'Middle East': { border: 'border-[#eab308]/40', bg: 'bg-[#eab308]/[0.12]', text: 'text-[#eab308]', borderRaw: 'rgba(234, 179, 8, 0.4)', textRaw: '#eab308', gradient: 'from-[#eab308]/60 to-[#eab308]' },
+  'Other': { border: 'border-[#6b7280]/40', bg: 'bg-[#6b7280]/[0.12]', text: 'text-[#6b7280]', borderRaw: 'rgba(107, 114, 128, 0.4)', textRaw: '#6b7280', gradient: 'from-[#6b7280]/60 to-[#6b7280]' },
+};
+
 export function CircuitsGrid({ initialCircuits }: Props) {
   const [selectedRegion, setSelectedRegion] = useState('All');
   const [sortBy, setSortBy] = useState<'name' | 'length' | 'overtake'>('name');
@@ -55,13 +64,14 @@ export function CircuitsGrid({ initialCircuits }: Props) {
         <div className="flex flex-wrap items-center gap-1">
           {regions.map((region) => {
             const active = selectedRegion === region;
+            const colors = REGION_COLORS[region] || REGION_COLORS['Other'];
             return (
               <button
                 key={region}
                 onClick={() => setSelectedRegion(region)}
                 className={`font-mono text-[9px] tracking-[0.12em] uppercase px-3 py-1.5 border border-white/[0.08] transition-all duration-150 ${
                   active
-                    ? 'bg-[rgba(168,85,247,0.12)] text-[#a855f7] border-[#a855f7]/40'
+                    ? `${colors.bg} ${colors.text} ${colors.border}`
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -113,17 +123,22 @@ export function CircuitsGrid({ initialCircuits }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedCircuits.map((circuit) => {
             const overtakePct = circuit.overtakeRate ? Math.round(parseFloat(circuit.overtakeRate) * 100) : null;
+            const circuitRegion = getRegion(circuit.country);
+            const colors = REGION_COLORS[circuitRegion] || REGION_COLORS['Other'];
             return (
               <a
                 key={circuit.id}
                 href={`/circuits/${circuit.circuitKey}`}
-                className="group border border-white/[0.06] bg-black hover:border-[#a855f7]/40 hover:shadow-[0_0_15px_rgba(168,85,247,0.03)] flex flex-col justify-between overflow-hidden transition-all duration-300 transform hover:-translate-y-0.5"
-                style={{ borderLeft: '3px solid rgba(168, 85, 247, 0.4)' }}
+                className="group border border-white/[0.06] bg-black hover:border-white/[0.15] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] flex flex-col justify-between overflow-hidden transition-all duration-300 transform hover:-translate-y-0.5"
+                style={{
+                  borderLeft: `3px solid ${colors.borderRaw}`,
+                  '--hover-color': colors.textRaw,
+                } as React.CSSProperties}
               >
                 {/* Card Header */}
                 <div className="p-5 space-y-3">
                   <div className="flex justify-between items-start gap-2">
-                    <h3 className="font-bold text-base group-hover:text-[#a855f7] transition-colors duration-150 truncate max-w-[80%]">
+                    <h3 className="font-bold text-base transition-colors duration-150 truncate max-w-[80%] [color:var(--text-color)] group-hover:[color:var(--hover-color)]">
                       {circuit.name}
                     </h3>
                     <span className="text-xl shrink-0 select-none" title={circuit.country}>
@@ -166,11 +181,11 @@ export function CircuitsGrid({ initialCircuits }: Props) {
                     <div className="space-y-1">
                       <div className="flex justify-between text-[7px] font-mono text-muted-foreground tracking-widest uppercase">
                         <span className="flex items-center gap-1"><Zap size={8} /> Overtake Rate</span>
-                        <span className="font-bold text-[#a855f7]">{overtakePct}%</span>
+                        <span className="font-bold [color:var(--hover-color)]">{overtakePct}%</span>
                       </div>
                       <div className="w-full h-1 bg-white/[0.04] overflow-hidden relative">
                         <div
-                          className="h-full bg-gradient-to-r from-[#a855f7]/60 to-[#a855f7]"
+                          className={`h-full bg-gradient-to-r ${colors.gradient}`}
                           style={{ width: `${overtakePct}%` }}
                         />
                       </div>
