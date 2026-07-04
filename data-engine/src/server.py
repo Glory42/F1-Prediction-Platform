@@ -93,7 +93,7 @@ def start_server():
     server.serve_forever()
 
 def start_worker():
-    log_update("[worker] Background worker started. Will run auto_runner every hour.")
+    log_update("[worker] Background worker started. Will run auto_runner every 15 minutes.")
     while True:
         try:
             STATE["status"] = "Running checks..."
@@ -109,8 +109,8 @@ def start_worker():
             STATE["status"] = "Error"
             STATE["last_error"] = str(e)
             
-        log_update("[worker] Checks finished. Sleeping for 1 hour...")
-        time.sleep(3600)
+        log_update("[worker] Checks finished. Sleeping for 15 minutes...")
+        time.sleep(900)
 
 def main():
     server_thread = threading.Thread(target=start_server, daemon=True)
