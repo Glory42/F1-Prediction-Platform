@@ -193,6 +193,7 @@ web/
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
 │   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
 │   │   ├── CircuitsGrid.tsx       # React component for circuits grid (filters/sorting)
+│   │   ├── WeatherForecast.tsx    # React weather forecast widget (Open-Meteo API)
 │   │   ├── DriverCompareTool.tsx  # React component for driver head-to-head stats comparison
 │   │   ├── TeamCompareTool.tsx    # React component for team head-to-head stats comparison
 │   │   └── ui/                    # Shadcn/ui primitives
@@ -205,6 +206,7 @@ web/
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   ├── countryFlags.ts        # country → emoji flag helper
+│   │   ├── circuitMetadata.ts     # Track coordinate and telemetry configuration
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,

@@ -5,14 +5,39 @@ import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
 import { MapPin, ChevronRight, Zap, User, Shield, Trophy, AlertTriangle } from 'lucide-react';
 import { getCountryFlag } from '@/lib/countryFlags';
+import { getCircuitMetadata } from '@/lib/circuitMetadata';
+import { WeatherForecast } from '@/components/WeatherForecast';
 
 const { key } = Astro.params;
 if (!key) return Astro.redirect('/races');
 
 let details;
 let error: string | null = null;
+let isUpcomingCircuit = false;
 try {
   details = await api.getCircuitDetails(key);
+  if (details) {
+    try {
+      const currentYear = new Date().getFullYear();
+      const races = await api.getRaces(currentYear);
+      if (races && races.length > 0) {
+        const futureRaces = races
+          .filter(r => r.status !== 'completed')
+          .sort((a, b) => new Date(a.raceDate).getTime() - new Date(b.raceDate).getTime());
+        
+        if (futureRaces.length > 0) {
+          isUpcomingCircuit = futureRaces[0].circuit.circuitKey === details.circuit.circuitKey;
+        } else {
+          const sorted = [...races].sort((a, b) => new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime());
+          if (sorted.length > 0) {
+            isUpcomingCircuit = sorted[0].circuit.circuitKey === details.circuit.circuitKey;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to check upcoming calendar race for weather forecast", e);
+    }
+  }
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load circuit';
 }
@@ -26,6 +51,17 @@ const totalWeather = weatherStats.dry + weatherStats.wet + weatherStats.mixed;
 const dryPct = totalWeather ? Math.round((weatherStats.dry / totalWeather) * 100) : 0;
 const wetPct = totalWeather ? Math.round((weatherStats.wet / totalWeather) * 100) : 0;
 const mixedPct = totalWeather ? Math.round((weatherStats.mixed / totalWeather) * 100) : 0;
+
+const meta = getCircuitMetadata(circuit.circuitKey, Number(circuit.trackLengthKm), circuit.numberOfCorners || 15);
+const { lat, lng } = meta;
+
+let assetsUrl = import.meta.env.PUBLIC_ASSETS_URL || '';
+if (assetsUrl && !assetsUrl.startsWith('http://') && !assetsUrl.startsWith('https://')) {
+  assetsUrl = `https://${assetsUrl}`;
+}
+const imageUrl = assetsUrl 
+  ? `${assetsUrl.replace(/\/$/, '')}/circuits/${circuit.circuitKey}.jpg`
+  : `/circuits/${circuit.circuitKey}.jpg`;
 
 function formatLapTime(ms: number) {
   const m = Math.floor(ms / 60000);
@@ -53,8 +89,6 @@ function formatLapTime(ms: number) {
       </div>
     </div>
 
-
-
     {error ? (
       <div class="border border-destructive/40 bg-destructive/10 p-8 text-center">
         <p class="font-mono text-[10px] text-destructive tracking-widest uppercase">Error loading circuit</p>
@@ -65,73 +99,88 @@ function formatLapTime(ms: number) {
         
         <!-- Left Column: Stats & Model Info -->
         <div class="space-y-6 lg:col-span-2">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06] border border-white/[0.06]">
-            <div class="bg-black p-4">
-              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Laps</span>
-              <span class="text-xl font-medium">{circuit.lapCount}</span>
-            </div>
-            <div class="bg-black p-4">
-              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Length</span>
-              <span class="text-xl font-medium">{circuit.trackLengthKm} <span class="text-sm text-muted-foreground">km</span></span>
-            </div>
-            <div class="bg-black p-4">
-              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Corners</span>
-              <span class="text-xl font-medium">{circuit.numberOfCorners || '-'}</span>
-            </div>
-            <div class="bg-black p-4">
-              <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">DRS Zones</span>
-              <span class="text-xl font-medium">{circuit.drsZones || '-'}</span>
-            </div>
-          </div>
+          
+          {/* Nested Grid for Track Image & Key Stats */}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Track Layout Card (Bigger and Left Aligned) */}
+            <div class="relative w-full aspect-square bg-black border border-white/[0.06] overflow-hidden flex items-center justify-center group">
+              <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
+              <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.05),transparent_70%)]" />
 
-          <!-- Model Insights & Qualifying Impact -->
-          <div class="border border-purple-500/20 bg-purple-500/[0.02] p-5">
-            <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
-              <Zap size={12} /> Model & Qualifying Insights
-            </h3>
-            <div class="grid sm:grid-cols-2 gap-6">
-              <div class="space-y-5">
-                <div>
-                  <div class="flex items-end gap-2 mb-1">
-                    <span class="text-2xl font-bold">{circuit.overtakeRate || '-'}</span>
-                  </div>
-                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Overtake Rate</span>
-                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Used by the model to weigh starting position. High rates reduce the starting penalty.
-                  </p>
+              <img
+                id="circuit-img"
+                src={imageUrl}
+                alt={`${circuit.name} track layout`}
+                class="max-h-[92%] max-w-[92%] object-contain p-4 z-10 transition-transform duration-500 group-hover:scale-105"
+                onerror="this.style.display='none'; document.getElementById('circuit-svg-fallback').classList.remove('hidden');"
+              />
+
+              <div id="circuit-svg-fallback" class="hidden absolute inset-0 z-10 flex items-center justify-center p-8 select-none">
+                <svg class="w-20 h-20 opacity-20 animate-pulse" viewBox="0 0 100 100" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M 20,50 C 20,30 40,20 60,30 C 80,40 90,60 70,80 C 50,100 30,80 20,50 Z" />
+                  <path d="M 30,50 C 30,40 45,35 60,40 C 70,45 75,55 65,65 C 55,75 40,65 30,50 Z" stroke-dasharray="2 2" opacity="0.5" />
+                </svg>
+                <span class="absolute bottom-4 font-mono text-[7px] tracking-[0.25em] text-muted-foreground/40 uppercase">circuit footprint off-grid</span>
+              </div>
+
+              {lat !== 0 && (
+                <div class="absolute bottom-3 left-4 font-mono text-[8px] tracking-widest text-muted-foreground/60 select-none hidden sm:block">
+                  LAT_LNG: <span class="text-[#a855f7]/80">{lat.toFixed(4)}N / {lng.toFixed(4)}E</span>
                 </div>
-                <div>
-                  <div class="flex items-end gap-2 mb-1">
-                    <span class="text-2xl font-bold text-white">{Math.round(qualifyingImpact.poleToWinRate * 100)}%</span>
-                  </div>
-                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Pole to Win Conversion</span>
-                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Percentage of races won from Pole position. Indicates the difficulty of climbing positions.
-                  </p>
+              )}
+              <div class="absolute bottom-3 right-4 font-mono text-[8px] tracking-widest text-muted-foreground/60 select-none hidden sm:block">
+                SYSTEM // ACTIVE
+              </div>
+            </div>
+
+            {/* Stats and Model Insights */}
+            <div class="space-y-6">
+              <div class="grid grid-cols-2 gap-px bg-white/[0.06] border border-white/[0.06]">
+                <div class="bg-black p-4">
+                  <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Laps</span>
+                  <span class="text-xl font-medium">{circuit.lapCount}</span>
+                </div>
+                <div class="bg-black p-4">
+                  <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Length</span>
+                  <span class="text-xl font-medium">{circuit.trackLengthKm} <span class="text-xs text-muted-foreground">km</span></span>
+                </div>
+                <div class="bg-black p-4">
+                  <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">Corners</span>
+                  <span class="text-xl font-medium">{circuit.numberOfCorners || '-'}</span>
+                </div>
+                <div class="bg-black p-4">
+                  <span class="block font-mono text-[9px] text-muted-foreground tracking-widest uppercase mb-1">DRS Zones</span>
+                  <span class="text-xl font-medium">{circuit.drsZones || '-'}</span>
                 </div>
               </div>
 
-              <div class="space-y-5">
-                <div>
-                  <div class="flex items-end gap-2 mb-1">
-                    <span class="text-2xl font-bold">{circuit.scProbability ? `${(Number(circuit.scProbability) * 100).toFixed(0)}%` : '-'}</span>
+              <!-- Model Insights & Qualifying Impact -->
+              <div class="border border-purple-500/20 bg-purple-500/[0.02] p-5">
+                <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
+                  <Zap size={12} /> Model Insights
+                </h3>
+                <div class="space-y-4">
+                  <div class="flex items-baseline justify-between border-b border-white/[0.04] pb-1.5">
+                    <span class="font-mono text-[9px] text-muted-foreground uppercase">Overtake Rate</span>
+                    <span class="font-mono text-sm font-semibold text-white">{circuit.overtakeRate || '-'}</span>
                   </div>
-                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Seeded SC Probability</span>
-                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Underlying Safety Car baseline probability. High probability increases model variance.
-                  </p>
-                </div>
-                <div>
-                  <div class="flex items-end gap-2 mb-1">
-                    <span class="text-2xl font-bold text-white">Grid P{qualifyingImpact.avgWinnerGridPos.toFixed(1)}</span>
+                  <div class="flex items-baseline justify-between border-b border-white/[0.04] pb-1.5">
+                    <span class="font-mono text-[9px] text-muted-foreground uppercase">Pole to Win</span>
+                    <span class="font-mono text-sm font-semibold text-white">{Math.round(qualifyingImpact.poleToWinRate * 100)}%</span>
                   </div>
-                  <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">Avg Winner Start Position</span>
-                  <p class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    The average starting position of all historical race winners at this circuit.
-                  </p>
+                  <div class="flex items-baseline justify-between border-b border-white/[0.04] pb-1.5">
+                    <span class="font-mono text-[9px] text-muted-foreground uppercase">Seeded SC Prob</span>
+                    <span class="font-mono text-sm font-semibold text-white">{circuit.scProbability ? `${(Number(circuit.scProbability) * 100).toFixed(0)}%` : '-'}</span>
+                  </div>
+                  <div class="flex items-baseline justify-between">
+                    <span class="font-mono text-[9px] text-muted-foreground uppercase">Avg Winner Start</span>
+                    <span class="font-mono text-sm font-semibold text-white">Grid P{qualifyingImpact.avgWinnerGridPos.toFixed(1)}</span>
+                  </div>
                 </div>
               </div>
             </div>
+
           </div>
 
           <!-- History Table -->
@@ -176,6 +225,64 @@ function formatLapTime(ms: number) {
 
         <!-- Right Column: Context & Records -->
         <div class="space-y-6">
+          <!-- Telemetry & Track Bias -->
+          <div class="border border-white/[0.06] bg-black p-5">
+            <h3 class="font-mono text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-4">Telemetry & Bias</h3>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
+                <span class="font-mono text-[9px] tracking-wider text-muted-foreground uppercase">Longest Straight</span>
+                <span class="font-mono text-xs font-semibold text-white">{meta.longestStraightM} m</span>
+              </div>
+
+              <div>
+                <span class="block font-mono text-[9px] tracking-wider text-muted-foreground uppercase mb-2">Corner Distribution</span>
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
+                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">Low Speed</span>
+                    <span class="font-mono text-xs font-semibold text-white">{meta.lowSpeedCorners}</span>
+                  </div>
+                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
+                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">Medium</span>
+                    <span class="font-mono text-xs font-semibold text-white">{meta.medSpeedCorners}</span>
+                  </div>
+                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
+                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">High Speed</span>
+                    <span class="font-mono text-xs font-semibold text-white">{meta.highSpeedCorners}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <span class="block font-mono text-[9px] tracking-wider text-muted-foreground uppercase">Track Bias</span>
+                <div class="space-y-1.5">
+                  <div>
+                    <div class="flex justify-between font-mono text-[8px] text-muted-foreground/80 mb-0.5">
+                      <span>Straight-Line Power</span>
+                      <span>{meta.powerWeight}%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
+                      <div class="h-full bg-purple-500" style={`width: ${meta.powerWeight}%`} />
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between font-mono text-[8px] text-muted-foreground/80 mb-0.5">
+                      <span>Aerodynamic Downforce</span>
+                      <span>{meta.downforceWeight}%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
+                      <div class="h-full bg-purple-500" style={`width: ${meta.downforceWeight}%`} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Weather Forecast Widget -->
+          {isUpcomingCircuit && (
+            <WeatherForecast lat={lat} lng={lng} cityName={circuit.city} client:load />
+          )}
+
           <!-- Fastest Lap -->
           <div class="border border-white/[0.06] bg-black p-5">
             <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Fastest Lap Record</h3>
@@ -382,5 +489,21 @@ function formatLapTime(ms: number) {
 
     // Initialize with All-Time selected
     setEra('all');
+
+    // Handle image error fallback cleanly
+    const img = document.getElementById('circuit-img') as HTMLImageElement | null;
+    if (img) {
+      if (img.complete && img.naturalWidth === 0) {
+        img.style.display = 'none';
+        const fallback = document.getElementById('circuit-svg-fallback');
+        if (fallback) fallback.classList.remove('hidden');
+      } else {
+        img.addEventListener('error', () => {
+          img.style.display = 'none';
+          const fallback = document.getElementById('circuit-svg-fallback');
+          if (fallback) fallback.classList.remove('hidden');
+        });
+      }
+    }
   });
 </script>
