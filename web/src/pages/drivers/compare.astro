@@ -9,12 +9,17 @@ const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear
 
 let seasons: SeasonSummary[] = [];
 let initialDrivers: Driver[] = [];
+let allDrivers: Driver[] = [];
 let error: string | null = null;
 try {
-  [seasons, initialDrivers] = await Promise.all([
+  const [seasonsData, driversData, searchData] = await Promise.all([
     api.getSeasons(),
-    api.getDrivers(year)
+    api.getDrivers(year),
+    api.getGlobalSearch()
   ]);
+  seasons = seasonsData;
+  initialDrivers = driversData;
+  allDrivers = searchData.drivers;
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to initialize comparison';
 }
@@ -45,7 +50,7 @@ try {
         <p class="mt-2 font-mono text-[9px] text-muted-foreground">{error}</p>
       </div>
     ) : (
-      <DriverCompareTool allSeasons={seasons} initialDrivers={initialDrivers} client:load />
+      <DriverCompareTool allSeasons={seasons} initialDrivers={initialDrivers} allDrivers={allDrivers} client:load />
     )}
 
   </div>

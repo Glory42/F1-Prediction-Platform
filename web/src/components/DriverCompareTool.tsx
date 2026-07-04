@@ -8,6 +8,7 @@ import { User, Shield, Trophy, Activity, Zap } from 'lucide-react';
 interface Props {
   allSeasons: SeasonSummary[];
   initialDrivers: Driver[];
+  allDrivers: Driver[];
 }
 
 function SearchSelect({
@@ -103,7 +104,7 @@ function SearchSelect({
   );
 }
 
-export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
+export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
   const defaultYear = years[0] || 2026;
 
@@ -131,10 +132,15 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
     const paramB = params.get('b');
     const paramCareer = params.get('career');
 
+    const isCareerMode = paramCareer === 'true';
     if (paramYear) setYear(parseInt(paramYear));
-    if (paramCareer === 'true') setIsCareer(true);
+    if (isCareerMode) setIsCareer(true);
 
-    if (paramYear && parseInt(paramYear) !== defaultYear) {
+    if (isCareerMode) {
+      setDrivers(allDrivers);
+      if (paramA) setDriverAId(parseInt(paramA));
+      if (paramB) setDriverBId(parseInt(paramB));
+    } else if (paramYear && parseInt(paramYear) !== defaultYear) {
       const targetYear = parseInt(paramYear);
       api.getDrivers(targetYear)
         .then((driversList) => {
@@ -152,11 +158,20 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
     }
   }, []);
 
-  // Update drivers list if year changes
+  // Update drivers list if year or mode changes
   useEffect(() => {
+    if (isCareer) {
+      setDrivers(allDrivers);
+      return;
+    }
+
     let active = true;
     if (year === defaultYear) {
       setDrivers(initialDrivers);
+      if (initialDrivers.length > 0) {
+        if (!initialDrivers.some(d => d.id === driverAId)) setDriverAId(initialDrivers[0].id);
+        if (!initialDrivers.some(d => d.id === driverBId)) setDriverBId(initialDrivers[1]?.id || initialDrivers[0].id);
+      }
       return;
     }
     api.getDrivers(year)
@@ -173,7 +188,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
       });
 
     return () => { active = false; };
-  }, [year, initialDrivers, defaultYear]);
+  }, [isCareer, year, initialDrivers, allDrivers, defaultYear]);
 
   // Sync state to URL parameters
   useEffect(() => {

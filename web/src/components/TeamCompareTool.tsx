@@ -8,6 +8,7 @@ import { Shield, Trophy, Activity, Zap } from 'lucide-react';
 interface Props {
   allSeasons: SeasonSummary[];
   initialTeams: Team[];
+  allTeams: Team[];
 }
 
 function SearchSelect({
@@ -83,24 +84,24 @@ function SearchSelect({
                   }}
                   className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
                     active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
-                  No constructors found
-                </div>
-              )}
+                  }`}
+                >
+                  {item.name}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
+              No constructors found
             </div>
           )}
         </div>
-      );
-    }
+      )}
+    </div>
+  );
+}
 
-export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
+export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
   const defaultYear = years[0] || 2026;
 
@@ -128,10 +129,15 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
     const paramB = params.get('b');
     const paramCareer = params.get('career');
 
+    const isCareerMode = paramCareer === 'true';
     if (paramYear) setYear(parseInt(paramYear));
-    if (paramCareer === 'true') setIsCareer(true);
+    if (isCareerMode) setIsCareer(true);
 
-    if (paramYear && parseInt(paramYear) !== defaultYear) {
+    if (isCareerMode) {
+      setTeams(allTeams);
+      if (paramA) setTeamAId(parseInt(paramA));
+      if (paramB) setTeamBId(parseInt(paramB));
+    } else if (paramYear && parseInt(paramYear) !== defaultYear) {
       const targetYear = parseInt(paramYear);
       api.getTeams(targetYear)
         .then((teamsList) => {
@@ -149,11 +155,20 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
     }
   }, []);
 
-  // Update teams list if year changes
+  // Update teams list if year or mode changes
   useEffect(() => {
+    if (isCareer) {
+      setTeams(allTeams);
+      return;
+    }
+
     let active = true;
     if (year === defaultYear) {
       setTeams(initialTeams);
+      if (initialTeams.length > 0) {
+        if (!initialTeams.some(t => t.id === teamAId)) setTeamAId(initialTeams[0].id);
+        if (!initialTeams.some(t => t.id === teamBId)) setTeamBId(initialTeams[1]?.id || initialTeams[0].id);
+      }
       return;
     }
     api.getTeams(year)
@@ -170,7 +185,7 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
       });
 
     return () => { active = false; };
-  }, [year, initialTeams, defaultYear]);
+  }, [isCareer, year, initialTeams, allTeams, defaultYear]);
 
   // Sync state to URL parameters
   useEffect(() => {

@@ -9,12 +9,17 @@ const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear
 
 let seasons: SeasonSummary[] = [];
 let initialTeams: Team[] = [];
+let allTeams: Team[] = [];
 let error: string | null = null;
 try {
-  [seasons, initialTeams] = await Promise.all([
+  const [seasonsData, teamsData, searchData] = await Promise.all([
     api.getSeasons(),
-    api.getTeams(year)
+    api.getTeams(year),
+    api.getGlobalSearch()
   ]);
+  seasons = seasonsData;
+  initialTeams = teamsData;
+  allTeams = searchData.teams;
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to initialize comparison';
 }
@@ -45,7 +50,7 @@ try {
         <p class="mt-2 font-mono text-[9px] text-muted-foreground">{error}</p>
       </div>
     ) : (
-      <TeamCompareTool allSeasons={seasons} initialTeams={initialTeams} client:load />
+      <TeamCompareTool allSeasons={seasons} initialTeams={initialTeams} allTeams={allTeams} client:load />
     )}
 
   </div>
