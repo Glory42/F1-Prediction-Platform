@@ -17,7 +17,7 @@ let error = null;
 
 try {
   career = await api.getTeamCareer(Number(id));
-  const activeYears = career.filter((y) => y.stats !== null).map((y) => y.year);
+  const activeYears = career.map((y) => y.year);
   
   if (activeYears.length > 0) {
     const requestedYear = Astro.url.searchParams.get('year') ? Number(Astro.url.searchParams.get('year')) : null;
@@ -38,7 +38,7 @@ try {
 }
 
 const team = data?.team;
-const careerWithStats = career.filter((y) => y.stats !== null);
+const careerWithStats = career;
 
 const driverIds = new Set(data?.drivers.map((d) => d.id) ?? []);
 const teamStandings = driverStandings.filter((s) => driverIds.has(s.driver.id));

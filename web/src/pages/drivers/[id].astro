@@ -18,7 +18,7 @@ let error = null;
 
 try {
   career = await api.getDriverCareer(Number(id));
-  const activeYears = career.filter((y) => y.stats !== null).map((y) => y.year);
+  const activeYears = career.map((y) => y.year);
   
   if (activeYears.length > 0) {
     const requestedYear = Astro.url.searchParams.get('year') ? Number(Astro.url.searchParams.get('year')) : null;
@@ -36,7 +36,7 @@ try {
 }
 
 const driver = data?.driver;
-const careerWithStats = career.filter((y) => y.stats !== null);
+const careerWithStats = career;
 const headshotUrl = driver?.headshotUrl ?? career.find((y) => y.headshotUrl)?.headshotUrl ?? null;
 const thisYear = new Date().getFullYear();
 const titles = careerWithStats.filter((y) => y.year < thisYear && y.stats?.championshipPosition === 1).length;
