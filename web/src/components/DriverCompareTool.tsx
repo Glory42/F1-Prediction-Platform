@@ -432,8 +432,9 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Driver A Card */}
             {driverA && (
-              <div
-                className="group border border-white/[0.06] bg-black p-5 flex items-center justify-between"
+              <a
+                href={`/drivers/${driverA.id}${isCareer ? '' : `?year=${year}`}`}
+                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
                 style={{ borderLeft: `3px solid ${colorA}` }}
               >
                 <div className="flex items-center gap-4">
@@ -445,7 +446,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight">{driverA.fullName}</h3>
+                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{driverA.fullName}</h3>
                     <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-wider uppercase mt-1">
                       <span className="text-[#a855f7] font-bold">#{driverA.driverNumber || '—'}</span>
                       <span>•</span>
@@ -456,13 +457,14 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                 <span className="text-3xl shrink-0 select-none opacity-80" title={driverA.country}>
                   {getCountryFlag(driverA.country)}
                 </span>
-              </div>
+              </a>
             )}
 
             {/* Driver B Card */}
             {driverB && (
-              <div
-                className="group border border-white/[0.06] bg-black p-5 flex items-center justify-between"
+              <a
+                href={`/drivers/${driverB.id}${isCareer ? '' : `?year=${year}`}`}
+                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
                 style={{ borderLeft: `3px solid ${colorB}` }}
               >
                 <div className="flex items-center gap-4">
@@ -474,7 +476,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight">{driverB.fullName}</h3>
+                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{driverB.fullName}</h3>
                     <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-wider uppercase mt-1">
                       <span className="text-[#a855f7] font-bold">#{driverB.driverNumber || '—'}</span>
                       <span>•</span>
@@ -485,7 +487,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                 <span className="text-3xl shrink-0 select-none opacity-80" title={driverB.country}>
                   {getCountryFlag(driverB.country)}
                 </span>
-              </div>
+              </a>
             )}
           </div>
 

@@ -415,8 +415,9 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Team A Card */}
             {teamA && (
-              <div
-                className="group border border-white/[0.06] bg-black p-5 flex items-center justify-between"
+              <a
+                href={`/teams/${teamA.id}${isCareer ? '' : `?year=${year}`}`}
+                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
                 style={{ borderLeft: `3px solid ${colorA}` }}
               >
                 <div className="flex items-center gap-4">
@@ -428,17 +429,18 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight">{teamA.name}</h3>
+                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{teamA.name}</h3>
                     <span className="font-mono text-[8px] text-muted-foreground tracking-widest uppercase block mt-1">Constructor</span>
                   </div>
                 </div>
-              </div>
+              </a>
             )}
 
             {/* Team B Card */}
             {teamB && (
-              <div
-                className="group border border-white/[0.06] bg-black p-5 flex items-center justify-between"
+              <a
+                href={`/teams/${teamB.id}${isCareer ? '' : `?year=${year}`}`}
+                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
                 style={{ borderLeft: `3px solid ${colorB}` }}
               >
                 <div className="flex items-center gap-4">
@@ -450,11 +452,11 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight">{teamB.name}</h3>
+                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{teamB.name}</h3>
                     <span className="font-mono text-[8px] text-muted-foreground tracking-widest uppercase block mt-1">Constructor</span>
                   </div>
                 </div>
-              </div>
+              </a>
             )}
           </div>
 
