@@ -1,5 +1,8 @@
 from src.db.client import get_conn
-from src.utils.fastf1_helpers import get_session, session_to_race_results, session_to_lap_times, get_weather, get_weather_details, get_sc_vsc_laps
+from src.utils.fastf1_helpers import (
+    get_session, session_to_race_results, session_to_lap_times,
+    get_weather, get_weather_details, get_sc_vsc_laps, validate_session_data
+)
 from src.utils.upsert import upsert
 
 SPRINT_FORMATS = {"sprint", "sprint_qualifying", "sprint_shootout"}
@@ -38,8 +41,8 @@ def run(year: int, round_num: int) -> None:
 
         session = get_session(year, round_num, "S")
 
-        if session.results is None or session.results.empty:
-            raise RuntimeError("Sprint results not available yet — retry later")
+        if not validate_session_data(session, "S"):
+            raise RuntimeError("Sprint results not fully available or complete yet — retry later")
 
         sprint_result_rows = session_to_race_results(session)
 

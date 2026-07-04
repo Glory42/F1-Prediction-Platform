@@ -207,3 +207,46 @@ def get_sc_vsc_laps(session: Session) -> dict[str, int]:
         return {"safety_car_laps": int(sc), "vsc_laps": int(vsc)}
     except Exception:
         return {"safety_car_laps": 0, "vsc_laps": 0}
+
+
+def validate_session_data(session: Session, session_type: str) -> bool:
+    """
+    Validates if the FastF1 session results and lap times are complete and correct.
+    Returns True if valid, False if data contains placeholders/nulls/empty values.
+    """
+    # 1. Basic checks
+    if session.results is None or session.results.empty:
+        print("[validate_session_data] Session results are missing or empty.")
+        return False
+
+    # 2. Check position validity: at least 10 drivers must have non-null, non-zero positions
+    valid_positions = session.results["Position"].dropna()
+    valid_positions = valid_positions[valid_positions > 0]
+    if len(valid_positions) < 10:
+        print(f"[validate_session_data] Only found {len(valid_positions)} valid finishing positions.")
+        return False
+
+    # 3. Check winner (Position 1) has a valid finish time (timedelta > 0)
+    winner_row = session.results[session.results["Position"] == 1.0]
+    if winner_row.empty:
+        winner_row = session.results.iloc[0:1]
+
+    if not winner_row.empty:
+        winner_time = winner_row.iloc[0].get("Time")
+        if pd.isna(winner_time) or winner_time == pd.Timedelta(0):
+            print("[validate_session_data] Winner has no valid Time duration.")
+            return False
+
+    # 4. Check lap count
+    if session.laps is None or session.laps.empty:
+        print("[validate_session_data] Laps dataframe is missing or empty.")
+        return False
+
+    total_laps = len(session.laps)
+    min_laps = 50 if session_type == "S" else 100
+    if total_laps < min_laps:
+        print(f"[validate_session_data] Total laps count {total_laps} is below minimum {min_laps}.")
+        return False
+
+    return True
+
