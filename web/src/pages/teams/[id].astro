@@ -8,7 +8,7 @@ import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
 
 const { id } = Astro.params;
-const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+let year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
 let data = null;
 let career: TeamYearStats[] = [];
@@ -16,11 +16,23 @@ let driverStandings: DriverStanding[] = [];
 let error = null;
 
 try {
-  [data, career, driverStandings] = await Promise.all([
-    api.getTeamById(Number(id), year),
-    api.getTeamCareer(Number(id)),
-    api.getDriverStandings(year),
-  ]);
+  career = await api.getTeamCareer(Number(id));
+  const activeYears = career.filter((y) => y.stats !== null).map((y) => y.year);
+  
+  if (activeYears.length > 0) {
+    const requestedYear = Astro.url.searchParams.get('year') ? Number(Astro.url.searchParams.get('year')) : null;
+    const targetYear = (requestedYear && activeYears.includes(requestedYear))
+      ? requestedYear
+      : (activeYears.includes(new Date().getFullYear()) ? new Date().getFullYear() : Math.max(...activeYears));
+    
+    year = targetYear;
+    [data, driverStandings] = await Promise.all([
+      api.getTeamById(Number(id), targetYear),
+      api.getDriverStandings(targetYear),
+    ]);
+  } else {
+    error = 'Team has no career records';
+  }
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load team';
 }

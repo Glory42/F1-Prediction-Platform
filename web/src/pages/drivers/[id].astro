@@ -10,17 +10,27 @@ import { getTeamColor } from '@/lib/teamColors';
 import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
 
 const { id } = Astro.params;
-const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+let year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
 let data = null;
 let career: DriverYearStats[] = [];
 let error = null;
 
 try {
-  [data, career] = await Promise.all([
-    api.getDriverById(Number(id), year),
-    api.getDriverCareer(Number(id)),
-  ]);
+  career = await api.getDriverCareer(Number(id));
+  const activeYears = career.filter((y) => y.stats !== null).map((y) => y.year);
+  
+  if (activeYears.length > 0) {
+    const requestedYear = Astro.url.searchParams.get('year') ? Number(Astro.url.searchParams.get('year')) : null;
+    const targetYear = (requestedYear && activeYears.includes(requestedYear))
+      ? requestedYear
+      : (activeYears.includes(new Date().getFullYear()) ? new Date().getFullYear() : Math.max(...activeYears));
+    
+    year = targetYear;
+    data = await api.getDriverById(Number(id), targetYear);
+  } else {
+    error = 'Driver has no career records';
+  }
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load driver';
 }
