@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { api } from '@/lib/api';
 import type { Driver, DriverDetailResponse, DriverYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
@@ -8,6 +8,99 @@ import { User, Shield, Trophy, Activity, Zap } from 'lucide-react';
 interface Props {
   allSeasons: SeasonSummary[];
   initialDrivers: Driver[];
+}
+
+function SearchSelect({
+  items,
+  selectedId,
+  onSelect,
+  placeholder = "Search driver..."
+}: {
+  items: Driver[];
+  selectedId: number;
+  onSelect: (id: number) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  
+  const selectedItem = items.find(item => item.id === selectedId);
+
+  const filtered = useMemo(() => {
+    if (!query) return items;
+    const q = query.toLowerCase();
+    return items.filter(item => 
+      item.fullName.toLowerCase().includes(q) || 
+      (item.team?.name || '').toLowerCase().includes(q)
+    );
+  }, [items, query]);
+
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen && selectedItem) {
+      setQuery('');
+    }
+  }, [isOpen, selectedItem]);
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <div className="relative">
+        <input
+          type="text"
+          value={isOpen ? query : (selectedItem ? `${selectedItem.fullName} (${selectedItem.team?.name || 'No Team'})` : '')}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full pr-8 cursor-text"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none text-[8px] font-mono select-none">
+          {isOpen ? '▲' : '▼'}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-y-auto border border-white/[0.08] bg-black shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+          {filtered.length > 0 ? (
+            filtered.map((item) => {
+              const active = item.id === selectedId;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onSelect(item.id);
+                    setIsOpen(false);
+                    setQuery('');
+                  }}
+                  className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
+                    active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
+                  }`}
+                >
+                  {item.fullName} <span className="text-[8px] text-muted-foreground/60 ml-1">({item.team?.name || 'No Team'})</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
+              No drivers found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
@@ -41,7 +134,6 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
     if (paramYear) setYear(parseInt(paramYear));
     if (paramCareer === 'true') setIsCareer(true);
 
-    // If params are set, we will trigger loading of drivers for that year
     if (paramYear && parseInt(paramYear) !== defaultYear) {
       const targetYear = parseInt(paramYear);
       api.getDrivers(targetYear)
@@ -71,7 +163,6 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
       .then((data) => {
         if (!active) return;
         setDrivers(data);
-        // Reset selected IDs if they don't exist in new year
         if (data.length > 0) {
           if (!data.some(d => d.id === driverAId)) setDriverAId(data[0].id);
           if (!data.some(d => d.id === driverBId)) setDriverBId(data[1]?.id || data[0].id);
@@ -133,7 +224,6 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
     return () => { active = false; };
   }, [driverAId, driverBId, year, isCareer]);
 
-  // Helper info
   const driverA = useMemo(() => drivers.find(d => d.id === driverAId), [drivers, driverAId]);
   const driverB = useMemo(() => drivers.find(d => d.id === driverBId), [drivers, driverBId]);
 
@@ -245,21 +335,16 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Controls: Selectors and Toggle */}
+      {/* Controls: Autocomplete Selectors and Toggle */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between border-b border-white/[0.06] pb-5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-3xl">
           <div className="flex-1 min-w-[200px]">
-            <select
-              value={driverAId}
-              onChange={(e) => setDriverAId(parseInt(e.target.value))}
-              className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full"
-            >
-              {drivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.fullName} ({d.team?.name || 'No Team'})
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              items={drivers}
+              selectedId={driverAId}
+              onSelect={setDriverAId}
+              placeholder="Search Driver A..."
+            />
           </div>
 
           <div className="flex justify-center shrink-0">
@@ -267,17 +352,12 @@ export function DriverCompareTool({ allSeasons, initialDrivers }: Props) {
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <select
-              value={driverBId}
-              onChange={(e) => setDriverBId(parseInt(e.target.value))}
-              className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full"
-            >
-              {drivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.fullName} ({d.team?.name || 'No Team'})
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              items={drivers}
+              selectedId={driverBId}
+              onSelect={setDriverBId}
+              placeholder="Search Driver B..."
+            />
           </div>
         </div>
 

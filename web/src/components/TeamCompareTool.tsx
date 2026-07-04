@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { api } from '@/lib/api';
 import type { Team, TeamDetailResponse, TeamYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
@@ -9,6 +9,96 @@ interface Props {
   allSeasons: SeasonSummary[];
   initialTeams: Team[];
 }
+
+function SearchSelect({
+  items,
+  selectedId,
+  onSelect,
+  placeholder = "Search constructor..."
+}: {
+  items: Team[];
+  selectedId: number;
+  onSelect: (id: number) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  
+  const selectedItem = items.find(item => item.id === selectedId);
+
+  const filtered = useMemo(() => {
+    if (!query) return items;
+    const q = query.toLowerCase();
+    return items.filter(item => item.name.toLowerCase().includes(q));
+  }, [items, query]);
+
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen && selectedItem) {
+      setQuery('');
+    }
+  }, [isOpen, selectedItem]);
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <div className="relative">
+        <input
+          type="text"
+          value={isOpen ? query : (selectedItem ? selectedItem.name : '')}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full pr-8 cursor-text"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none text-[8px] font-mono select-none">
+          {isOpen ? '▲' : '▼'}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-y-auto border border-white/[0.08] bg-black shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+          {filtered.length > 0 ? (
+            filtered.map((item) => {
+              const active = item.id === selectedId;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onSelect(item.id);
+                    setIsOpen(false);
+                    setQuery('');
+                  }}
+                  className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
+                    active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
+                  No constructors found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
 
 export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
@@ -41,7 +131,6 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
     if (paramYear) setYear(parseInt(paramYear));
     if (paramCareer === 'true') setIsCareer(true);
 
-    // If params are set, load teams for that specific year
     if (paramYear && parseInt(paramYear) !== defaultYear) {
       const targetYear = parseInt(paramYear);
       api.getTeams(targetYear)
@@ -235,15 +324,12 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between border-b border-white/[0.06] pb-5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-3xl">
           <div className="flex-1 min-w-[200px]">
-            <select
-              value={teamAId}
-              onChange={(e) => setTeamAId(parseInt(e.target.value))}
-              className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full"
-            >
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            <SearchSelect
+              items={teams}
+              selectedId={teamAId}
+              onSelect={setTeamAId}
+              placeholder="Search Constructor A..."
+            />
           </div>
 
           <div className="flex justify-center shrink-0">
@@ -251,15 +337,12 @@ export function TeamCompareTool({ allSeasons, initialTeams }: Props) {
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <select
-              value={teamBId}
-              onChange={(e) => setTeamBId(parseInt(e.target.value))}
-              className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full"
-            >
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            <SearchSelect
+              items={teams}
+              selectedId={teamBId}
+              onSelect={setTeamBId}
+              placeholder="Search Constructor B..."
+            />
           </div>
         </div>
 
