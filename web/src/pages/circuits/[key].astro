@@ -55,7 +55,8 @@ const mixedPct = totalWeather ? Math.round((weatherStats.mixed / totalWeather) *
 const meta = getCircuitMetadata(circuit.circuitKey, Number(circuit.trackLengthKm), circuit.numberOfCorners || 15);
 const { lat, lng } = meta;
 
-let assetsUrl = import.meta.env.PUBLIC_ASSETS_URL || '';
+const runtimeEnv = (Astro.locals as any).runtime?.env;
+let assetsUrl = runtimeEnv?.PUBLIC_ASSETS_URL || import.meta.env.PUBLIC_ASSETS_URL || '';
 if (assetsUrl && !assetsUrl.startsWith('http://') && !assetsUrl.startsWith('https://')) {
   assetsUrl = `https://${assetsUrl}`;
 }
