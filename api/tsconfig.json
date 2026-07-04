@@ -9,7 +9,7 @@
     "lib": ["ESNext"],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/db/seed.ts"]
