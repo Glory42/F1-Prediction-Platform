@@ -308,8 +308,8 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
     lowerBetter?: boolean;
   }) {
     const total = valA + valB;
-    const pctA = total > 0 ? (valA / total) * 100 : 50;
-    const pctB = total > 0 ? (valB / total) * 100 : 50;
+    const pctA = total > 0 ? (lowerBetter ? (valB / total) * 100 : (valA / total) * 100) : 50;
+    const pctB = total > 0 ? (lowerBetter ? (valA / total) * 100 : (valB / total) * 100) : 50;
 
     const isWinnerA = lowerBetter ? valA < valB : valA > valB;
     const isWinnerB = lowerBetter ? valB < valA : valB > valA;
