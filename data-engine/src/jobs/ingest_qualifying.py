@@ -77,7 +77,7 @@ def run(year: int, round_num: int) -> None:
 
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE races SET status = 'qualifying_done' WHERE id = %s AND status = 'scheduled'",
+                "UPDATE races SET status = 'qualifying_done' WHERE id = %s AND status IN ('scheduled', 'sprint_done')",
                 (race_id,),
             )
         conn.commit()
