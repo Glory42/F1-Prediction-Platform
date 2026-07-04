@@ -69,7 +69,7 @@ api/
 │       ├── races/
 │       │   ├── races.service.ts   # DB queries — race list, detail, circuit history
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
-│       │   └── races.module.ts    # Hono sub-router: GET /, /:id, /circuit/:key
+│       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── drivers/
 │       │   ├── drivers.service.ts # Driver list, standings, detail, career stats
 │       │   ├── drivers.controller.ts
@@ -118,8 +118,9 @@ Each module follows the same three-file pattern:
 | GET | `/api/health` | — |
 | GET | `/api/seasons` | — |
 | GET | `/api/races` | `year`, `status` |
-| GET | `/api/races/:id` | — |
+| GET | `/api/races/circuits` | — |
 | GET | `/api/races/circuit/:circuitKey` | — |
+| GET | `/api/races/:id` | — |
 | GET | `/api/drivers` | `year`, `team_id` |
 | GET | `/api/drivers/standings` | `year` |
 | GET | `/api/drivers/:id` | `year` |
@@ -155,6 +156,7 @@ web/
 │   │   │   ├── index.astro        # Docs index — card grid of all docs
 │   │   │   └── [slug].astro       # Individual doc page with sidebar nav
 │   │   ├── circuits/
+│   │   │   ├── index.astro        # Circuits directory index (filters/sorting)
 │   │   │   └── [key].astro        # Circuit detail — history, dominance, weather
 │   │   ├── races/
 │   │   │   ├── index.astro        # Race calendar — sprint-aware cards
@@ -188,6 +190,7 @@ web/
 │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
 │   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
+│   │   ├── CircuitsGrid.tsx       # React component for circuits grid (filters/sorting)
 │   │   └── ui/                    # Shadcn/ui primitives
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
@@ -234,6 +237,7 @@ web/
 | `/races` | `GET /api/races?year=N` | Race calendar — filter (ALL/SPRINT/GP), sort (ASC/DESC), sprint weekends as two cards |
 | `/races/[id]` | `GET /api/races/:id` | GP results, qualifying, lap chart |
 | `/races/[id]/sprint` | `GET /api/sprint/race/:id` | Sprint results, SQ grid, sprint lap chart, conditions |
+| `/circuits` | `GET /api/races/circuits` | Circuits directory list page |
 | `/circuits/[key]` | `GET /api/races/circuit/:circuitKey` | Circuit detail — history, dominance, weather |
 | `/drivers` | `GET /api/drivers/standings?year=N` | Standings table |
 | `/drivers/[id]` | `GET /api/drivers/:id?year=N` | Profile + career |

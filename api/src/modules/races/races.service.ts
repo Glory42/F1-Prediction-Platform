@@ -22,6 +22,14 @@ export class RacesService {
     return rows.map((r) => toRace(r.races, r.circuits));
   }
 
+  async findAllCircuits(db: Db) {
+    const rows = await db
+      .select()
+      .from(circuits)
+      .orderBy(asc(circuits.name));
+    return rows.map((r) => toCircuit(r));
+  }
+
   async findCircuitDetails(db: Db, circuitKey: string, limit = 10): Promise<CircuitDetailResponse | null> {
     const circuitRows = await db
       .select()

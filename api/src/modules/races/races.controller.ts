@@ -16,6 +16,11 @@ export const RacesController = {
     return c.json({ data, error: null });
   },
 
+  getAllCircuits: async (c: Context<{ Bindings: Bindings }>) => {
+    const data = await service.findAllCircuits(createDb(c.env.DATABASE_URL));
+    return c.json({ data, error: null });
+  },
+
   getCircuitDetails: async (c: Context<{ Bindings: Bindings }>) => {
     const circuitKey = c.req.param('circuitKey') ?? '';
     const data = await service.findCircuitDetails(createDb(c.env.DATABASE_URL), circuitKey);

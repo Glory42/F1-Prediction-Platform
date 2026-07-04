@@ -31,6 +31,7 @@ export const api = {
   },
   getRaceById: (id: number) => get<RaceDetailResponse>(`/api/races/${id}`),
   getCircuitDetails: (circuitKey: string) => get<CircuitDetailResponse>(`/api/races/circuit/${circuitKey}`),
+  getCircuits: () => get<Circuit[]>('/api/races/circuits'),
 
   // Drivers
   getDrivers: (year: number) => get<Driver[]>(`/api/drivers?year=${year}`),

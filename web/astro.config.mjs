@@ -11,6 +11,9 @@ export default defineConfig({
   adapter: cloudflare(),
   integrations: [react()],
   vite: {
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime'],
+    },
     server: {
       fs: {
         // Allow loading files from the monorepo root (e.g. docs/ for content collections)

@@ -1,6 +1,6 @@
 ---
-import { Home, Flag, Users, Building2, Cpu, Search } from 'lucide-react';
-import { GlobalSearch } from './GlobalSearch';
+import { Home, Flag, Users, Building2, MapPin, Cpu, Search } from 'lucide-react';
+import { GlobalSearch } from '@/components/GlobalSearch';
 
 const currentPath = Astro.url.pathname;
 
@@ -9,6 +9,7 @@ const links = [
   { href: '/races',      label: 'races',      icon: Flag       },
   { href: '/drivers',    label: 'drivers',    icon: Users      },
   { href: '/teams',      label: 'teams',      icon: Building2  },
+  { href: '/circuits',   label: 'circuits',   icon: MapPin     },
   { href: '/prediction', label: 'prediction', icon: Cpu        },
 ];
 

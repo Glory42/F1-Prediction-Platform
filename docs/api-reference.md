@@ -76,6 +76,10 @@ The `Race` object includes:
 - `sprintDate` / `sprintQualifyingDate` — ISO strings, null for conventional weekends
 - `sprintWeather`, `sprintSafetyCarLaps`, `sprintVscLaps`, `sprintAirTempAvg`, `sprintTrackTempAvg`, `sprintHumidityAvg` — sprint-specific conditions
 
+### `GET /api/races/circuits`
+
+Returns a list of all circuits in the database, ordered alphabetically by name.
+
 ### `GET /api/races/circuit/:circuitKey`
 
 Returns historical race results at a specific circuit across all years. Each item includes `hasSprint: boolean`.
