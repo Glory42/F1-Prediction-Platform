@@ -168,9 +168,11 @@ web/
 │   │   │       └── [id].astro     # Sprint prediction detail page
 │   │   ├── drivers/
 │   │   │   ├── index.astro        # Driver standings table
+│   │   │   ├── compare.astro      # Driver head-to-head comparison tool
 │   │   │   └── [id].astro         # Driver profile — stats, recent results
 │   │   └── teams/
 │   │       ├── index.astro        # Team standings table
+│   │       ├── compare.astro      # Team head-to-head comparison tool
 │   │       └── [id].astro         # Team profile — stats, driver roster
 │   ├── layouts/
 │   │   ├── BaseLayout.astro       # Shared layout — Navbar, slot, global styles
@@ -191,6 +193,8 @@ web/
 │   │   ├── TeamStatsCard.tsx      # Team season stats card
 │   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
 │   │   ├── CircuitsGrid.tsx       # React component for circuits grid (filters/sorting)
+│   │   ├── DriverCompareTool.tsx  # React component for driver head-to-head stats comparison
+│   │   ├── TeamCompareTool.tsx    # React component for team head-to-head stats comparison
 │   │   └── ui/                    # Shadcn/ui primitives
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
@@ -240,8 +244,10 @@ web/
 | `/circuits` | `GET /api/races/circuits` | Circuits directory list page |
 | `/circuits/[key]` | `GET /api/races/circuit/:circuitKey` | Circuit detail — history, dominance, weather |
 | `/drivers` | `GET /api/drivers/standings?year=N` | Standings table |
+| `/drivers/compare` | `GET /api/drivers?year=N` + details | Driver head-to-head comparison page |
 | `/drivers/[id]` | `GET /api/drivers/:id?year=N` | Profile + career |
 | `/teams` | `GET /api/teams/standings?year=N` | Standings table |
+| `/teams/compare` | `GET /api/teams?year=N` + details | Team head-to-head comparison page |
 | `/teams/[id]` | `GET /api/teams/:id?year=N` | Profile + driver roster |
 
 ### Key Library Files

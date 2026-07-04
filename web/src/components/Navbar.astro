@@ -15,8 +15,24 @@ const links = [
       { href: '/circuits', label: 'circuits' },
     ]
   },
-  { href: '/drivers',    label: 'drivers',    icon: Users      },
-  { href: '/teams',      label: 'teams',      icon: Building2  },
+  {
+    href: '/drivers',
+    label: 'drivers',
+    icon: Users,
+    dropdown: [
+      { href: '/drivers',         label: 'standings' },
+      { href: '/drivers/compare', label: 'comparison' },
+    ]
+  },
+  {
+    href: '/teams',
+    label: 'teams',
+    icon: Building2,
+    dropdown: [
+      { href: '/teams',         label: 'standings' },
+      { href: '/teams/compare', label: 'comparison' },
+    ]
+  },
   { href: '/prediction', label: 'prediction', icon: Cpu        },
 ];
 
