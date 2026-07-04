@@ -64,6 +64,13 @@
       "when": 1749081600001,
       "tag": "0008_sprint_feature_cols",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783181078316,
+      "tag": "0009_add_circuit_image_url",
+      "breakpoints": true
     }
   ]
 }

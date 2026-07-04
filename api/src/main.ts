@@ -15,6 +15,18 @@ import type { Bindings } from './common/types';
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use('*', logger());
+app.use('*', async (c, next) => {
+  if (c.env) {
+    if (typeof process !== 'undefined' && process.env) {
+      for (const [key, value] of Object.entries(c.env as any || {})) {
+        if (typeof value === 'string') {
+          process.env[key] = value;
+        }
+      }
+    }
+  }
+  await next();
+});
 app.use('*', cors({
   origin: ['https://f1.gorkemkaryol.dev', 'http://localhost:4321', 'http://localhost:8787'],
   allowMethods: ['GET', 'OPTIONS'],

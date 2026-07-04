@@ -16,9 +16,7 @@ export default defineConfig({
     optimizeDeps: {
       include: ["react", "react-dom", "react/jsx-runtime"],
     },
-    image: {
-      domains: ["f1.bucket.gorkemkaryol.dev"],
-    },
+
     server: {
       fs: {
         // Allow loading files from the monorepo root (e.g. docs/ for content collections)

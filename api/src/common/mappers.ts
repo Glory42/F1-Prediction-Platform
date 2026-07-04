@@ -13,6 +13,20 @@ export function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferS
 }
 
 export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
+  const r2PublicUrl = (globalThis as any).process?.env?.R2_PUBLIC_URL || '';
+  const cleanBase = r2PublicUrl.replace(/\/$/, '');
+  
+  let imageUrl = circuit.imageUrl ?? null;
+  if (imageUrl) {
+    if (imageUrl.startsWith('/') && cleanBase) {
+      imageUrl = `${cleanBase}${imageUrl}`;
+    }
+  } else if (circuit.circuitKey) {
+    imageUrl = cleanBase 
+      ? `${cleanBase}/circuits/${circuit.circuitKey}.jpg`
+      : `/circuits/${circuit.circuitKey}.jpg`;
+  }
+
   return {
     id: circuit.id, circuitKey: circuit.circuitKey, name: circuit.name,
     country: circuit.country, city: circuit.city, lapCount: circuit.lapCount,
@@ -20,6 +34,7 @@ export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
     numberOfCorners: circuit.numberOfCorners ?? null,
     drsZones: circuit.drsZones ?? null,
     scProbability: circuit.scProbability ?? null,
+    imageUrl,
   };
 }
 

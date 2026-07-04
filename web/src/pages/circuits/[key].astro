@@ -55,14 +55,7 @@ const mixedPct = totalWeather ? Math.round((weatherStats.mixed / totalWeather) *
 const meta = getCircuitMetadata(circuit.circuitKey, Number(circuit.trackLengthKm), circuit.numberOfCorners || 15);
 const { lat, lng } = meta;
 
-const runtimeEnv = (Astro.locals as any).runtime?.env;
-let assetsUrl = runtimeEnv?.PUBLIC_ASSETS_URL || import.meta.env.PUBLIC_ASSETS_URL || '';
-if (assetsUrl && !assetsUrl.startsWith('http://') && !assetsUrl.startsWith('https://')) {
-  assetsUrl = `https://${assetsUrl}`;
-}
-const imageUrl = assetsUrl
-  ? `${assetsUrl.replace(/\/$/, '')}/circuits/${circuit.circuitKey}.jpg`
-  : `/circuits/${circuit.circuitKey}.jpg`;
+const imageUrl = circuit.imageUrl || null;
 
 function formatLapTime(ms: number) {
   const m = Math.floor(ms / 60000);
@@ -109,15 +102,17 @@ function formatLapTime(ms: number) {
               <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
               <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.05),transparent_70%)]" />
 
-              <img
-                id="circuit-img"
-                src={imageUrl}
-                alt={`${circuit.name} track layout`}
-                class="max-h-[92%] max-w-[92%] object-contain p-4 z-10 transition-transform duration-500 group-hover:scale-105"
-                onerror="this.style.display='none'; document.getElementById('circuit-svg-fallback').classList.remove('hidden');"
-              />
+              {imageUrl && (
+                <img
+                  id="circuit-img"
+                  src={imageUrl}
+                  alt={`${circuit.name} track layout`}
+                  class="max-h-[92%] max-w-[92%] object-contain p-4 z-10 transition-transform duration-500 group-hover:scale-105"
+                  onerror="this.style.display='none'; document.getElementById('circuit-svg-fallback').classList.remove('hidden');"
+                />
+              )}
 
-              <div id="circuit-svg-fallback" class="absolute inset-0 z-10 flex items-center justify-center p-8 select-none">
+              <div id="circuit-svg-fallback" class:list={["absolute inset-0 z-10 flex items-center justify-center p-8 select-none", { "hidden": !!imageUrl }]}>
                 <svg class="w-20 h-20 opacity-20 animate-pulse" viewBox="0 0 100 100" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M 20,50 C 20,30 40,20 60,30 C 80,40 90,60 70,80 C 50,100 30,80 20,50 Z" />
                   <path d="M 30,50 C 30,40 45,35 60,40 C 70,45 75,55 65,65 C 55,75 40,65 30,50 Z" stroke-dasharray="2 2" opacity="0.5" />

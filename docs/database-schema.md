@@ -75,6 +75,7 @@ Static track data, seeded once. Not season-scoped.
 | `number_of_corners` | integer | null for pre-DRS-era circuits |
 | `drs_zones` | integer | null for pre-DRS-era circuits |
 | `sc_probability` | numeric(4,3) | Historical SC deployment rate (completed races); null for circuits with no completed races |
+| `image_url` | varchar(512) | Public R2 URL or custom path for track layout image |
 
 ---
 

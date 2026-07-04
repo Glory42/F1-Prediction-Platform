@@ -7,6 +7,7 @@ export type ModelInfo = {
 
 export type Bindings = {
   DATABASE_URL: string;
+  R2_PUBLIC_URL?: string;
 };
 
 export type ApiSuccess<T> = { data: T; error: null };
@@ -25,6 +26,7 @@ export type Circuit = {
   numberOfCorners: number | null;
   drsZones: number | null;
   scProbability: string | null;
+  imageUrl: string | null;
 };
 
 export type Team = {
