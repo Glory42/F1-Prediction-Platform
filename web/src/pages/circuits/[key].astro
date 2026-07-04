@@ -24,7 +24,7 @@ try {
         const futureRaces = races
           .filter(r => r.status !== 'completed')
           .sort((a, b) => new Date(a.raceDate).getTime() - new Date(b.raceDate).getTime());
-        
+
         if (futureRaces.length > 0) {
           isUpcomingCircuit = futureRaces[0].circuit.circuitKey === details.circuit.circuitKey;
         } else {
@@ -60,7 +60,7 @@ let assetsUrl = runtimeEnv?.PUBLIC_ASSETS_URL || import.meta.env.PUBLIC_ASSETS_U
 if (assetsUrl && !assetsUrl.startsWith('http://') && !assetsUrl.startsWith('https://')) {
   assetsUrl = `https://${assetsUrl}`;
 }
-const imageUrl = assetsUrl 
+const imageUrl = assetsUrl
   ? `${assetsUrl.replace(/\/$/, '')}/circuits/${circuit.circuitKey}.jpg`
   : `/circuits/${circuit.circuitKey}.jpg`;
 
@@ -97,13 +97,13 @@ function formatLapTime(ms: number) {
       </div>
     ) : (
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         <!-- Left Column: Stats & Model Info -->
         <div class="space-y-6 lg:col-span-2">
-          
+
           {/* Nested Grid for Track Image & Key Stats */}
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Track Layout Card (Bigger and Left Aligned) */}
             <div class="relative w-full aspect-square bg-black border border-white/[0.06] overflow-hidden flex items-center justify-center group">
               <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
@@ -117,7 +117,7 @@ function formatLapTime(ms: number) {
                 onerror="this.style.display='none'; document.getElementById('circuit-svg-fallback').classList.remove('hidden');"
               />
 
-              <div id="circuit-svg-fallback" class="hidden absolute inset-0 z-10 flex items-center justify-center p-8 select-none">
+              <div id="circuit-svg-fallback" class="absolute inset-0 z-10 flex items-center justify-center p-8 select-none">
                 <svg class="w-20 h-20 opacity-20 animate-pulse" viewBox="0 0 100 100" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M 20,50 C 20,30 40,20 60,30 C 80,40 90,60 70,80 C 50,100 30,80 20,50 Z" />
                   <path d="M 30,50 C 30,40 45,35 60,40 C 70,45 75,55 65,65 C 55,75 40,65 30,50 Z" stroke-dasharray="2 2" opacity="0.5" />
@@ -194,7 +194,7 @@ function formatLapTime(ms: number) {
                     <span class="font-mono text-[10px] text-muted-foreground w-8">{race.year}</span>
                     {race.winner ? (
                       <div class="flex items-center gap-3">
-                        <div 
+                        <div
                           class="w-10 h-10 shrink-0 border-b-2 overflow-hidden bg-white/[0.02] flex items-end justify-center"
                           style={`border-color: ${getTeamColor(race.winner.team.teamKey)}`}
                         >
@@ -353,7 +353,7 @@ function formatLapTime(ms: number) {
                 <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h3>
                 <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-purple-400/60 bg-purple-500/[0.03] px-1.5 py-0.5 border border-purple-500/10">Era Filter</span>
               </div>
-              
+
               <!-- Era selector tabs -->
               <div class="flex border-b border-white/[0.06] mb-4 pb-1 gap-1 overflow-x-auto select-none">
                 {[

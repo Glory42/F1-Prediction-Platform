@@ -1,28 +1,33 @@
-import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
-import react from '@astrojs/react';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { defineConfig } from "astro/config";
+import cloudflare from "@astrojs/cloudflare";
+import react from "@astrojs/react";
+import { fileURLToPath } from "url";
+import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  output: 'server',
-  adapter: cloudflare(),
+  output: "server",
+  adapter: cloudflare({
+    imageService: "cloudflare",
+  }),
   integrations: [react()],
   vite: {
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react/jsx-runtime'],
+      include: ["react", "react-dom", "react/jsx-runtime"],
+    },
+    image: {
+      domains: ["f1.bucket.gorkemkaryol.dev"],
     },
     server: {
       fs: {
         // Allow loading files from the monorepo root (e.g. docs/ for content collections)
-        allow: ['..'],
+        allow: [".."],
       },
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, 'src'),
+        "@": path.resolve(__dirname, "src"),
       },
     },
   },
