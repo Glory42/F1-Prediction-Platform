@@ -14,7 +14,7 @@ export type Driver = {
 };
 export type Race = {
   id: number; seasonId: number; roundNumber: number; name: string;
-  raceDate: string;
+  raceDate: string; raceDateUtc: string | null;
   status: 'scheduled' | 'sprint_qualifying_done' | 'sprint_done' | 'qualifying_done' | 'completed';
   eventFormat: string;
   qualifyingDate: string | null;

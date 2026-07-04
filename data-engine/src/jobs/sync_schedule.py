@@ -134,10 +134,11 @@ def run(year: int) -> None:
             qualifying_date = _to_utc_iso(event.get("Session4DateUtc"))
             sprint_date = _to_utc_iso(event.get("Session3DateUtc")) if is_sprint else None
             sprint_qualifying_date = _to_utc_iso(event.get("Session2DateUtc")) if is_sprint else None
+            race_date_utc = _to_utc_iso(event.get("Session5DateUtc"))
 
             print(
                 f"  Round {int(event['RoundNumber'])}: {event['EventName']} | "
-                f"format={event_format} | quali={qualifying_date} | sprint={sprint_date}"
+                f"format={event_format} | quali={qualifying_date} | sprint={sprint_date} | race_utc={race_date_utc}"
             )
 
             rows_to_upsert.append({
@@ -146,6 +147,7 @@ def run(year: int) -> None:
                 "round_number": int(event["RoundNumber"]),
                 "name": str(event["EventName"]),
                 "race_date": race_date,
+                "race_date_utc": race_date_utc,
                 "event_format": event_format,
                 "qualifying_date": qualifying_date,
                 "sprint_date": sprint_date,

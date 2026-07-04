@@ -95,7 +95,7 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
             </div>
 
             <!-- Countdown -->
-            <div class="flex items-center gap-3" id="countdown" data-race-date={heroRace.raceDate}>
+            <div class="flex items-center gap-3" id="countdown" data-race-date={heroRace.raceDateUtc || heroRace.raceDate}>
               {(['Days','Hrs','Min','Sec'] as const).map((unit, i) => (
                 <div class="text-center">
                   <div class="w-[60px] h-[60px] border border-white/[0.08] flex items-center justify-center bg-white/[0.02]">

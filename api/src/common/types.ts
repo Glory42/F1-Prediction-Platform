@@ -57,6 +57,7 @@ export type Race = {
   roundNumber: number;
   name: string;
   raceDate: string;
+  raceDateUtc: string | null;
   status: 'scheduled' | 'sprint_qualifying_done' | 'sprint_done' | 'qualifying_done' | 'completed';
   eventFormat: string;
   qualifyingDate: string | null;

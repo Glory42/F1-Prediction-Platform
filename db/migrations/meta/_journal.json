@@ -71,6 +71,13 @@
       "when": 1783181078316,
       "tag": "0009_add_circuit_image_url",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783185296681,
+      "tag": "0010_breezy_shape",
+      "breakpoints": true
     }
   ]
 }

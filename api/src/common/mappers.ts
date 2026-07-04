@@ -41,7 +41,9 @@ export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
 export function toRace(race: typeof races.$inferSelect, circuit: typeof circuits.$inferSelect): Race {
   return {
     id: race.id, seasonId: race.seasonId, roundNumber: race.roundNumber,
-    name: race.name, raceDate: race.raceDate, status: race.status,
+    name: race.name, raceDate: race.raceDate,
+    raceDateUtc: race.raceDateUtc?.toISOString() ?? null,
+    status: race.status,
     eventFormat: race.eventFormat,
     qualifyingDate: race.qualifyingDate?.toISOString() ?? null,
     sprintDate: race.sprintDate?.toISOString() ?? null,

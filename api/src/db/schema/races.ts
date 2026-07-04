@@ -17,6 +17,7 @@ export const races = pgTable('races', {
   roundNumber: integer('round_number').notNull(),
   name: varchar('name', { length: 100 }).notNull(),
   raceDate: date('race_date').notNull(),
+  raceDateUtc: timestamp('race_date_utc', { withTimezone: true }),
   status: raceStatusEnum('status').notNull().default('scheduled'),
   eventFormat: varchar('event_format', { length: 30 }).notNull().default('conventional'),
   qualifyingDate: timestamp('qualifying_date', { withTimezone: true }),

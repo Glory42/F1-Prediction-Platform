@@ -1,0 +1,1 @@
+ALTER TABLE "races" ADD COLUMN "race_date_utc" timestamp with time zone;
