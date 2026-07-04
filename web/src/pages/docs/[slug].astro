@@ -3,6 +3,15 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 import { BookOpen } from 'lucide-react';
 
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const allDocs = await getCollection('docs');
+  return allDocs.map((doc) => ({
+    params: { slug: doc.id },
+  }));
+}
+
 const { slug } = Astro.params;
 
 const allDocs = (await getCollection('docs')).sort(

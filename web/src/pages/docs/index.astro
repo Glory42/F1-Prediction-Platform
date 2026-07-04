@@ -3,6 +3,8 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
 import { BookOpen } from 'lucide-react';
 
+export const prerender = true;
+
 const docs = (await getCollection('docs')).sort(
   (a, b) => (a.data.order ?? 99) - (b.data.order ?? 99)
 );
