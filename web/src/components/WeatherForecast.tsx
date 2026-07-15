@@ -28,23 +28,24 @@ export function WeatherForecast({ lat, lng, cityName }: WeatherForecastProps) {
 
     const fetchWeather = async () => {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=auto`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=auto&forecast_days=16`;
         const res = await fetch(url);
         if (!res.ok) throw new Error();
         const data = await res.json();
-        
-        // Grab next 3 days
+
+        // Only surface the upcoming Fri/Sat/Sun (FP, quali, race) — skip any other days
         const days: ForecastDay[] = [];
-        for (let i = 0; i < 3; i++) {
-          if (data.daily.time[i]) {
-            days.push({
-              date: data.daily.time[i],
-              tempMax: Math.round(data.daily.temperature_2m_max[i]),
-              tempMin: Math.round(data.daily.temperature_2m_min[i]),
-              rainProb: Math.round(data.daily.precipitation_probability_max[i] ?? 0),
-              weatherCode: data.daily.weathercode[i],
-            });
-          }
+        for (let i = 0; i < data.daily.time.length; i++) {
+          const weekday = new Date(data.daily.time[i]).getDay();
+          if (weekday !== 5 && weekday !== 6 && weekday !== 0) continue;
+          days.push({
+            date: data.daily.time[i],
+            tempMax: Math.round(data.daily.temperature_2m_max[i]),
+            tempMin: Math.round(data.daily.temperature_2m_min[i]),
+            rainProb: Math.round(data.daily.precipitation_probability_max[i] ?? 0),
+            weatherCode: data.daily.weathercode[i],
+          });
+          if (days.length === 3) break;
         }
         setForecast(days);
       } catch (err) {
