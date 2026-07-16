@@ -295,11 +295,16 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
         {/* ── TAB BAR ──────────────────────────────────────────────── */}
         {tabs.length > 0 && (
           <div>
-            <div class="flex items-center gap-1.5 mb-6" id="sprint-tab-bar">
+            <div class="flex items-center gap-1.5 mb-6" id="sprint-tab-bar" role="tablist">
               {tabs.map((t) => (
                 <button
                   type="button"
                   data-tab={t.id}
+                  id={`sprint-tab-${t.id}`}
+                  role="tab"
+                  aria-selected={t.id === defaultTab ? 'true' : 'false'}
+                  aria-controls={`sprint-panel-${t.id}`}
+                  tabindex={t.id === defaultTab ? 0 : -1}
                   class={`sprint-tab-btn font-mono text-[9px] tracking-[0.12em] uppercase px-3 py-1.5 border transition-colors duration-150 ${
                     t.id === defaultTab
                       ? 'border-orange-500/50 text-orange-400 bg-orange-500/[0.08]'
@@ -313,7 +318,7 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
 
             {/* Results */}
             {isSprintDone && hasResults && (
-              <div id="sprint-panel-results" class={`sprint-tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
+              <div id="sprint-panel-results" role="tabpanel" aria-labelledby="sprint-tab-results" class={`sprint-tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <RaceResultsTable results={results as unknown as RaceResult[]} year={raceYear} laps={laps} flColor="#fb923c" />
                 </div>
@@ -323,7 +328,7 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
 
             {/* Sprint Qualifying (SQ times) */}
             {hasGrid && (
-              <div id="sprint-panel-qualifying" class={`sprint-tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
+              <div id="sprint-panel-qualifying" role="tabpanel" aria-labelledby="sprint-tab-qualifying" class={`sprint-tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <QualifyingGrid qualifying={sqGrid} year={raceYear} labelPrefix="SQ" />
                 </div>
@@ -332,7 +337,7 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
 
             {/* Sprint Lap Chart */}
             {isSprintDone && hasLaps && (
-              <div id="sprint-panel-laps" class={`sprint-tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
+              <div id="sprint-panel-laps" role="tabpanel" aria-labelledby="sprint-tab-laps" class={`sprint-tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <LapChart laps={laps} />
                 </div>
@@ -340,7 +345,7 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
             )}
 
             {/* Circuit */}
-            <div id="sprint-panel-circuit" class={`sprint-tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
+            <div id="sprint-panel-circuit" role="tabpanel" aria-labelledby="sprint-tab-circuit" class={`sprint-tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
                 {sprintStats.map(({ Icon, label, val }) => (
                   <div class="bg-black p-5">
@@ -399,6 +404,8 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
   function activateTab(target: string) {
     document.querySelectorAll<HTMLButtonElement>('.sprint-tab-btn').forEach((b) => {
       const active = b.dataset.tab === target;
+      b.setAttribute('aria-selected', String(active));
+      b.tabIndex = active ? 0 : -1;
       b.style.borderColor = active ? 'rgba(249,115,22,0.5)' : '';
       b.style.color       = active ? '#fb923c' : '';
       b.style.background  = active ? 'rgba(249,115,22,0.08)' : '';
@@ -411,8 +418,16 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
   }
 
   function initTabs() {
-    document.querySelectorAll<HTMLButtonElement>('.sprint-tab-btn').forEach((btn) => {
+    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('.sprint-tab-btn'));
+    btns.forEach((btn, i) => {
       btn.addEventListener('click', () => activateTab(btn.dataset.tab!));
+      btn.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const next = btns[e.key === 'ArrowRight' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length];
+        next.focus();
+        activateTab(next.dataset.tab!);
+      });
     });
     // "full →" in prediction panel jumps to the Prediction tab
     document.getElementById('goto-prediction')?.addEventListener('click', () => activateTab('prediction'));

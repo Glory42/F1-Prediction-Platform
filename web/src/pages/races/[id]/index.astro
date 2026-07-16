@@ -284,11 +284,16 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
         {/* ── TAB BAR ───────────────────────────────────────────────── */}
         {tabs.length > 0 && (
           <div>
-            <div class="flex items-center gap-1.5 mb-6" id="tab-bar">
+            <div class="flex items-center gap-1.5 mb-6" id="tab-bar" role="tablist">
               {tabs.map((t) => (
                 <button
                   type="button"
                   data-tab={t.id}
+                  id={`tab-${t.id}`}
+                  role="tab"
+                  aria-selected={t.id === defaultTab ? 'true' : 'false'}
+                  aria-controls={`panel-${t.id}`}
+                  tabindex={t.id === defaultTab ? 0 : -1}
                   class={`tab-btn font-mono text-[9px] tracking-[0.12em] uppercase px-3 py-1.5 border transition-colors duration-150 ${
                     t.id === defaultTab
                       ? 'border-[rgba(168,85,247,0.5)] text-[#a855f7] bg-[rgba(168,85,247,0.08)]'
@@ -304,7 +309,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
 
             {/* Results */}
             {hasResults && (
-              <div id="panel-results" class={`tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
+              <div id="panel-results" role="tabpanel" aria-labelledby="tab-results" class={`tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <RaceResultsTable results={raceData.results} year={raceYear} laps={raceData.laps} />
                 </div>
@@ -313,7 +318,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
 
             {/* Qualifying */}
             {hasQualifying && (
-              <div id="panel-qualifying" class={`tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
+              <div id="panel-qualifying" role="tabpanel" aria-labelledby="tab-qualifying" class={`tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <QualifyingGrid qualifying={raceData.qualifying} year={raceYear} />
                 </div>
@@ -322,7 +327,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
 
             {/* Lap Chart */}
             {hasLaps && (
-              <div id="panel-laps" class={`tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
+              <div id="panel-laps" role="tabpanel" aria-labelledby="tab-laps" class={`tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <LapChart laps={raceData.laps} />
                 </div>
@@ -330,7 +335,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
             )}
 
             {/* Circuit */}
-            <div id="panel-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
+            <div id="panel-circuit" role="tabpanel" aria-labelledby="tab-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
                 {circuitStats.map(({ Icon, label, val }) => (
                   <div class="bg-black p-5">
@@ -380,23 +385,35 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
 
   // ── Tabs ──
   function initTabs() {
-    const btns = document.querySelectorAll<HTMLButtonElement>('.tab-btn');
+    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('.tab-btn'));
     const panels = document.querySelectorAll<HTMLElement>('.tab-panel');
-    btns.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.tab!;
-        btns.forEach((b) => {
-          const active = b.dataset.tab === target;
-          b.style.borderColor = active ? 'rgba(168,85,247,0.5)' : '';
-          b.style.color = active ? '#a855f7' : '';
-          b.style.background = active ? 'rgba(168,85,247,0.08)' : '';
-          if (!active) {
-            b.classList.remove('border-[rgba(168,85,247,0.5)]', 'text-[#a855f7]', 'bg-[rgba(168,85,247,0.08)]');
-          }
-        });
-        panels.forEach((p) => {
-          p.classList.toggle('hidden', p.id !== `panel-${target}`);
-        });
+
+    function activate(btn: HTMLButtonElement) {
+      const target = btn.dataset.tab!;
+      btns.forEach((b) => {
+        const active = b.dataset.tab === target;
+        b.setAttribute('aria-selected', String(active));
+        b.tabIndex = active ? 0 : -1;
+        b.style.borderColor = active ? 'rgba(168,85,247,0.5)' : '';
+        b.style.color = active ? '#a855f7' : '';
+        b.style.background = active ? 'rgba(168,85,247,0.08)' : '';
+        if (!active) {
+          b.classList.remove('border-[rgba(168,85,247,0.5)]', 'text-[#a855f7]', 'bg-[rgba(168,85,247,0.08)]');
+        }
+      });
+      panels.forEach((p) => {
+        p.classList.toggle('hidden', p.id !== `panel-${target}`);
+      });
+    }
+
+    btns.forEach((btn, i) => {
+      btn.addEventListener('click', () => activate(btn));
+      btn.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const next = btns[e.key === 'ArrowRight' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length];
+        next.focus();
+        activate(next);
       });
     });
   }
