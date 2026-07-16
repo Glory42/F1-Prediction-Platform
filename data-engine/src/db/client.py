@@ -32,6 +32,25 @@ class _PooledConnection:
         return getattr(self._conn, name)
 
 
+def _is_alive(conn: Any) -> bool:
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        return True
+    except psycopg2.OperationalError:
+        return False
+
+
 def get_conn() -> Any:
+    """Neon closes idle connections during the worker's 15-minute sleep
+    between auto_runner cycles, which leaves stale connections sitting in
+    the pool. Validate before handing one out and discard+replace it if
+    the far end already dropped it, instead of surfacing an SSL error on
+    the caller's first query."""
     pool = _get_pool()
-    return _PooledConnection(pool, pool.getconn())
+    for _ in range(pool.maxconn):
+        conn = pool.getconn()
+        if _is_alive(conn):
+            return _PooledConnection(pool, conn)
+        pool.putconn(conn, close=True)
+    raise psycopg2.OperationalError("Could not obtain a live database connection")
