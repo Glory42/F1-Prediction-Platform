@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from psycopg2.extras import execute_batch
 from src.db.client import get_conn
 from src.utils.math_utils import softmax
 
@@ -31,13 +32,17 @@ def run(race_id: int) -> None:
         predicted_winner_id = driver_ids[sorted_indices[0]]
 
         with conn.cursor() as cur:
-            for i, driver_id in enumerate(driver_ids):
-                cur.execute(
-                    "UPDATE driver_prediction_features "
-                    "SET win_probability = %s, predicted_position = %s "
-                    "WHERE race_id = %s AND driver_id = %s",
-                    (round(probabilities[i], 5), position_map[driver_id], race_id, driver_id),
-                )
+            update_rows = [
+                (round(probabilities[i], 5), position_map[driver_id], race_id, driver_id)
+                for i, driver_id in enumerate(driver_ids)
+            ]
+            execute_batch(
+                cur,
+                "UPDATE driver_prediction_features "
+                "SET win_probability = %s, predicted_position = %s "
+                "WHERE race_id = %s AND driver_id = %s",
+                update_rows,
+            )
 
             cur.execute(
                 """

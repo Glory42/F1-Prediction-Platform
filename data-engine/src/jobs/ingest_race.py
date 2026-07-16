@@ -1,3 +1,4 @@
+from psycopg2.extras import execute_batch
 from src.db.client import get_conn
 from src.utils.fastf1_helpers import (
     get_session, session_to_race_results, session_to_lap_times,
@@ -51,11 +52,11 @@ def run(year: int, round_num: int) -> None:
 
         if headshot_updates:
             with conn.cursor() as cur:
-                for driver_id, url in headshot_updates.items():
-                    cur.execute(
-                        "UPDATE drivers SET headshot_url = %s WHERE id = %s AND headshot_url IS NULL",
-                        (url, driver_id),
-                    )
+                execute_batch(
+                    cur,
+                    "UPDATE drivers SET headshot_url = %s WHERE id = %s AND headshot_url IS NULL",
+                    [(url, driver_id) for driver_id, url in headshot_updates.items()],
+                )
             print(f"  Updated {len(headshot_updates)} driver headshot URLs")
 
         results_to_upsert = []
