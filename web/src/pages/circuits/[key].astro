@@ -159,9 +159,9 @@ function formatLapTime(ms: number) {
 
               <!-- Model Insights & Qualifying Impact -->
               <div class="border border-purple-500/20 bg-purple-500/[0.02] p-5">
-                <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
+                <h2 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-purple-400 mb-4">
                   <Zap size={12} /> Model Insights
-                </h3>
+                </h2>
                 <div class="space-y-4">
                   <div class="flex items-baseline justify-between border-b border-white/[0.04] pb-1.5">
                     <span class="font-mono text-[9px] text-muted-foreground uppercase">Overtake Rate</span>
@@ -187,7 +187,7 @@ function formatLapTime(ms: number) {
 
           <!-- History Table -->
           <div>
-            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">Recent Winners</h3>
+            <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">Recent Winners</h2>
             <div class="border border-white/[0.06]">
               {history.length > 0 ? history.map((race, i) => (
                 <a href={`/races/${race.raceId}`} class={`flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
@@ -229,7 +229,7 @@ function formatLapTime(ms: number) {
         <div class="space-y-6">
           <!-- Telemetry & Track Bias -->
           <div class="border border-white/[0.06] bg-black p-5">
-            <h3 class="font-mono text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-4">Telemetry & Bias</h3>
+            <h2 class="font-mono text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-4">Telemetry & Bias</h2>
             <div class="space-y-4">
               <div class="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
                 <span class="font-mono text-[9px] tracking-wider text-muted-foreground uppercase">Longest Straight</span>
@@ -287,7 +287,7 @@ function formatLapTime(ms: number) {
 
           <!-- Fastest Lap -->
           <div class="border border-white/[0.06] bg-black p-5">
-            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Fastest Lap Record</h3>
+            <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Fastest Lap Record</h2>
             {fastestLap ? (
               <div>
                 <span class="text-3xl font-bold font-mono tracking-tight text-white mb-1 block">
@@ -308,9 +308,9 @@ function formatLapTime(ms: number) {
 
           <!-- Safety Car Stats -->
           <div class="border border-white/[0.06] bg-black p-5">
-            <h3 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">
+            <h2 class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">
               <AlertTriangle size={11} className="text-yellow-500/70" /> Safety Car Stats
-            </h3>
+            </h2>
             <div class="grid grid-cols-2 gap-4">
               <div class="bg-white/[0.01] p-3 border border-white/[0.03]">
                 <span class="block font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Avg SC Laps</span>
@@ -328,7 +328,7 @@ function formatLapTime(ms: number) {
 
           <!-- Weather Split -->
           <div class="border border-white/[0.06] bg-black p-5">
-            <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Historical Weather</h3>
+            <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-4">Historical Weather</h2>
             {totalWeather > 0 ? (
               <>
                 <div class="h-2 w-full flex rounded-full overflow-hidden mb-3">
@@ -351,7 +351,7 @@ function formatLapTime(ms: number) {
           <div class="border border-white/[0.06] bg-black p-5 space-y-6">
             <div>
               <div class="flex items-center justify-between mb-2">
-                <h3 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h3>
+                <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h2>
                 <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-purple-400/60 bg-purple-500/[0.03] px-1.5 py-0.5 border border-purple-500/10">Era Filter</span>
               </div>
 
@@ -375,7 +375,7 @@ function formatLapTime(ms: number) {
 
             <!-- Constructor Dominance Lists -->
             <div>
-              <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h4>
+              <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h3>
               <div class="constructor-dominance-container">
                 {['all', 'modern', 'legacy', 'nineties'].map((era) => (
                   <div class={`era-constructor-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
@@ -411,7 +411,7 @@ function formatLapTime(ms: number) {
 
             <!-- Driver Dominance Lists -->
             <div>
-              <h4 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h4>
+              <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h3>
               <div class="driver-dominance-container">
                 {['all', 'modern', 'legacy', 'nineties'].map((era) => (
                   <div class={`era-driver-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
