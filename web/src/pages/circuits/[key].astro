@@ -11,35 +11,41 @@ import { WeatherForecast } from '@/components/WeatherForecast';
 const { key } = Astro.params;
 if (!key) return Astro.redirect('/races');
 
-let details;
+const currentYear = new Date().getFullYear();
+const [detailsResult, racesResult] = await Promise.allSettled([
+  api.getCircuitDetails(key),
+  api.getRaces(currentYear),
+]);
+
+const details = detailsResult.status === 'fulfilled' ? detailsResult.value : undefined;
 let error: string | null = null;
 let isUpcomingCircuit = false;
-try {
-  details = await api.getCircuitDetails(key);
-  if (details) {
-    try {
-      const currentYear = new Date().getFullYear();
-      const races = await api.getRaces(currentYear);
-      if (races && races.length > 0) {
-        const futureRaces = races
-          .filter(r => r.status !== 'completed')
-          .sort((a, b) => new Date(a.raceDate).getTime() - new Date(b.raceDate).getTime());
 
-        if (futureRaces.length > 0) {
-          isUpcomingCircuit = futureRaces[0].circuit.circuitKey === details.circuit.circuitKey;
-        } else {
-          const sorted = [...races].sort((a, b) => new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime());
-          if (sorted.length > 0) {
-            isUpcomingCircuit = sorted[0].circuit.circuitKey === details.circuit.circuitKey;
-          }
+if (detailsResult.status === 'rejected') {
+  const e = detailsResult.reason;
+  error = e instanceof Error ? e.message : 'Failed to load circuit';
+}
+
+if (details) {
+  if (racesResult.status === 'fulfilled') {
+    const races = racesResult.value;
+    if (races && races.length > 0) {
+      const futureRaces = races
+        .filter(r => r.status !== 'completed')
+        .sort((a, b) => new Date(a.raceDate).getTime() - new Date(b.raceDate).getTime());
+
+      if (futureRaces.length > 0) {
+        isUpcomingCircuit = futureRaces[0].circuit.circuitKey === details.circuit.circuitKey;
+      } else {
+        const sorted = [...races].sort((a, b) => new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime());
+        if (sorted.length > 0) {
+          isUpcomingCircuit = sorted[0].circuit.circuitKey === details.circuit.circuitKey;
         }
       }
-    } catch (e) {
-      console.error("Failed to check upcoming calendar race for weather forecast", e);
     }
+  } else {
+    console.error("Failed to check upcoming calendar race for weather forecast", racesResult.reason);
   }
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load circuit';
 }
 
 if (!details) {

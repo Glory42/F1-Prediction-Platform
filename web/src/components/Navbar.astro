@@ -217,7 +217,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
 <!-- Backdrop overlay -->
 <div id="mobile-sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-45 hidden sm:hidden transition-opacity duration-300 opacity-0" />
 
-<GlobalSearch client:load />
+<GlobalSearch client:idle />
 
 <script>
   function initMobileMenu() {
