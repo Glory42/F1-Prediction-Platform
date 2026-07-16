@@ -289,6 +289,15 @@ const WEIGHTS: Record<string, number> = {
     ['Weather',            'weatherImpact'],
   ];
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function initCompare() {
     const drivers = driversJson;
     const barsEl = document.getElementById('compare-bars');
@@ -372,12 +381,12 @@ const WEIGHTS: Record<string, number> = {
       barsEl.innerHTML += `
         <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
           <div style="text-align:center">
-            <div style="font-family:monospace;font-size:8px;color:rgba(168,85,247,0.6);text-transform:uppercase;letter-spacing:0.15em">${dA.driver.code}</div>
+            <div style="font-family:monospace;font-size:8px;color:rgba(168,85,247,0.6);text-transform:uppercase;letter-spacing:0.15em">${escapeHtml(dA.driver.code)}</div>
             <div style="font-size:24px;font-weight:bold;color:#a855f7">${pA}%</div>
           </div>
           <div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3)">win prob</div>
           <div style="text-align:center">
-            <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${dB.driver.code}</div>
+            <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${escapeHtml(dB.driver.code)}</div>
             <div style="font-size:24px;font-weight:bold;color:#60a5fa">${pB}%</div>
           </div>
         </div>
