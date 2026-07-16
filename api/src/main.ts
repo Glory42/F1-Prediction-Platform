@@ -27,8 +27,14 @@ app.use('*', async (c, next) => {
   }
   await next();
 });
+const PROD_ORIGINS = ['https://f1.gorkemkaryol.dev'];
+const DEV_ORIGINS = ['http://localhost:4321', 'http://localhost:8787'];
+
 app.use('*', cors({
-  origin: ['https://f1.gorkemkaryol.dev', 'http://localhost:4321', 'http://localhost:8787'],
+  origin: (origin, c) => {
+    const allowed = c.env.ENVIRONMENT === 'production' ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS];
+    return allowed.includes(origin) ? origin : null;
+  },
   allowMethods: ['GET', 'OPTIONS'],
   allowHeaders: ['Content-Type'],
 }));

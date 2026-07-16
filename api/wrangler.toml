@@ -7,3 +7,8 @@ keep_vars = true
 # DATABASE_URL is set via the Cloudflare dashboard (Variables and Secrets)
 # keep_vars = true prevents deploys from erasing dashboard-set variables
 # Never put secrets in this file
+
+[vars]
+# Gates which CORS origins are allowed — see main.ts. Local dev overrides
+# this to "development" via .dev.vars so localhost origins keep working.
+ENVIRONMENT = "production"

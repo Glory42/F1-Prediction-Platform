@@ -55,11 +55,7 @@ Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
 
 ## CORS
 
-The API allows requests only from:
-
-- `https://f1.gorkemkaryol.dev` (production)
-- `http://localhost:4321` (Astro dev)
-- `http://localhost:8787` (Wrangler dev)
+The API allows requests only from `https://f1.gorkemkaryol.dev` in production. `http://localhost:4321` and `http://localhost:8787` are only allowed when the `ENVIRONMENT` var is not `"production"` — `wrangler.toml` sets `ENVIRONMENT = "production"` for the deployed Worker, and `.dev.vars` overrides it to `"development"` for local `wrangler dev`.
 
 Configured in `api/src/main.ts`. Only `GET` and `OPTIONS` methods are allowed.
 
