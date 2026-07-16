@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, numeric, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { seasons } from './seasons';
 import { drivers } from './drivers';
 
@@ -33,4 +33,5 @@ export const driverSeasonStats = pgTable('driver_season_stats', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('driver_season_stats_season_driver_idx').on(t.seasonId, t.driverId),
+  index('driver_season_stats_driver_idx').on(t.driverId),
 ]);

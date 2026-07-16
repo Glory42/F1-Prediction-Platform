@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, varchar, boolean, bigint, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, numeric, varchar, boolean, bigint, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { races } from './races';
 import { drivers } from './drivers';
 
@@ -15,4 +15,5 @@ export const raceResults = pgTable('race_results', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('race_results_race_driver_idx').on(t.raceId, t.driverId),
+  index('race_results_driver_idx').on(t.driverId),
 ]);

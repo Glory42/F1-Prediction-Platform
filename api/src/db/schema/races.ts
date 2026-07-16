@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, numeric, date, timestamp, uniqueIndex, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, varchar, numeric, date, timestamp, uniqueIndex, index, pgEnum } from 'drizzle-orm/pg-core';
 import { seasons } from './seasons';
 import { circuits } from './circuits';
 
@@ -38,4 +38,6 @@ export const races = pgTable('races', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   uniqueIndex('races_season_round_idx').on(t.seasonId, t.roundNumber),
+  index('races_circuit_status_idx').on(t.circuitId, t.status),
+  index('races_status_date_idx').on(t.status, t.raceDate),
 ]);
