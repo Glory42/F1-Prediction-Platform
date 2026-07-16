@@ -183,7 +183,7 @@ export class PredictionsService {
     if (!seasonRows[0]) return [];
 
     const raceIdsRows = await db
-      .selectDistinct({ id: races.id })
+      .select({ id: races.id })
       .from(races)
       .innerJoin(racePredictions, eq(racePredictions.raceId, races.id))
       .where(eq(races.seasonId, seasonRows[0].id));

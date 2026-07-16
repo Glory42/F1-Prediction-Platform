@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, isNotNull, sql, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, gte, lte, isNotNull, sql, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams, seasons } from '../../db/schema';
 import type { CircuitHistoryItem } from '../../common/types';
@@ -8,14 +8,16 @@ import { toDriver, toRace, toCircuit } from '../../common/mappers';
 
 export class RacesService {
   async findAll(db: Db, year: number, status?: string): Promise<Race[]> {
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
     const rows = await db
       .select()
       .from(races)
       .innerJoin(circuits, eq(races.circuitId, circuits.id))
       .where(
         status
-          ? and(eq(sql`extract(year from ${races.raceDate}::date)`, year), eq(races.status, status as any))
-          : eq(sql`extract(year from ${races.raceDate}::date)`, year)
+          ? and(gte(races.raceDate, yearStart), lte(races.raceDate, yearEnd), eq(races.status, status as any))
+          : and(gte(races.raceDate, yearStart), lte(races.raceDate, yearEnd))
       )
       .orderBy(asc(races.raceDate));
 
