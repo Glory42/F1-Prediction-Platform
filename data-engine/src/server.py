@@ -1,4 +1,6 @@
+import base64
 import os
+import secrets
 import time
 import threading
 import json
@@ -6,6 +8,9 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from src.auto_runner import run as auto_runner_run
+
+DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "admin")
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 STATE = {
     "status": "Starting up...",
@@ -26,11 +31,32 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
+    def _is_authorized(self):
+        if not DASHBOARD_PASSWORD:
+            return False
+        auth_header = self.headers.get("Authorization", "")
+        if not auth_header.startswith("Basic "):
+            return False
+        try:
+            decoded = base64.b64decode(auth_header[len("Basic "):]).decode("utf-8")
+            user, _, password = decoded.partition(":")
+        except Exception:
+            return False
+        return secrets.compare_digest(user, DASHBOARD_USER) and secrets.compare_digest(password, DASHBOARD_PASSWORD)
+
     def do_GET(self):
+        if not self._is_authorized():
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="F1 Data Engine"')
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Unauthorized")
+            return
+
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        
+
         logs_html = "".join([f"<li><span class='time local-time' data-iso='{l['time']}'>[{l['time']}]</span> {l['msg']}</li>" for l in reversed(STATE['logs'])])
         
         html = f"""

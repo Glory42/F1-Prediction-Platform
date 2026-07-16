@@ -46,6 +46,10 @@ Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
 | Variable | How to set |
 |----------|-----------|
 | `DATABASE_URL` | Render → Service → Environment → Environment Variables |
+| `DASHBOARD_PASSWORD` | Render → Service → Environment → Environment Variables |
+| `DASHBOARD_USER` | Render → Service → Environment → Environment Variables (optional, defaults to `admin`) |
+
+`DASHBOARD_PASSWORD` gates the live activity dashboard with HTTP Basic Auth. Without it set, the dashboard route returns 401 for everyone — the `HEAD` health-check endpoint used by UptimeRobot stays open regardless.
 
 ---
 
@@ -98,11 +102,11 @@ python src/main.py --job sync_season   --year 2025 --round 1
 ### 4. Data Engine (Render)
 
 1. Create a new Render service from the `data-engine/` directory.
-2. Add `DATABASE_URL` as an environment variable.
+2. Add `DATABASE_URL` and `DASHBOARD_PASSWORD` as environment variables.
 3. Configure as a **Web Service** (not a cron job) to utilize the free tier.
 4. Set the Build Command: `pip install -r requirements.txt`
 5. Set the Start Command: `python -m src.server`
-6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data every hour automatically. Note that navigating to this URL in a browser will display a live HTML dashboard of the engine's activities and logs.
+6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data every hour automatically. The root URL only responds to `HEAD` for the uptime ping — navigating to it in a browser prompts for the `DASHBOARD_USER`/`DASHBOARD_PASSWORD` credentials before showing the live HTML dashboard of the engine's activities and logs.
 
 ---
 

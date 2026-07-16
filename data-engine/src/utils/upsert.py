@@ -1,4 +1,5 @@
 from typing import Any
+from psycopg2 import sql
 from psycopg2.extras import execute_batch
 
 
@@ -20,18 +21,20 @@ def upsert(
 
     skip_on_update = set(conflict_cols) | set(exclude_update or [])
     cols = list(rows[0].keys())
-    col_list = ", ".join(cols)
-    placeholders = ", ".join(["%s"] * len(cols))
-    update_set = ", ".join(
-        f"{c} = EXCLUDED.{c}" for c in cols if c not in skip_on_update
-    )
-    conflict = ", ".join(conflict_cols)
+    update_cols = [c for c in cols if c not in skip_on_update]
 
-    query = f"""
-        INSERT INTO {table} ({col_list})
-        VALUES ({placeholders})
-        ON CONFLICT ({conflict}) DO UPDATE SET {update_set}
-    """
+    query = sql.SQL(
+        "INSERT INTO {table} ({cols}) VALUES ({placeholders}) "
+        "ON CONFLICT ({conflict}) DO UPDATE SET {update_set}"
+    ).format(
+        table=sql.Identifier(table),
+        cols=sql.SQL(", ").join(sql.Identifier(c) for c in cols),
+        placeholders=sql.SQL(", ").join(sql.Placeholder() * len(cols)),
+        conflict=sql.SQL(", ").join(sql.Identifier(c) for c in conflict_cols),
+        update_set=sql.SQL(", ").join(
+            sql.SQL("{c} = EXCLUDED.{c}").format(c=sql.Identifier(c)) for c in update_cols
+        ),
+    )
 
     with conn.cursor() as cur:
         param_list = [[row[c] for c in cols] for row in rows]

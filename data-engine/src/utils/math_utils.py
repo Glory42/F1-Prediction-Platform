@@ -11,7 +11,8 @@ def normalize_minmax(values: list[float], default: float = 0.5) -> list[float]:
 
 def softmax(scores: list[float], temperature: float = 0.3) -> list[float]:
     arr = np.array(scores, dtype=float)
-    exp_s = np.exp(arr / temperature)
+    shifted = arr - arr.max()
+    exp_s = np.exp(shifted / temperature)
     return (exp_s / exp_s.sum()).tolist()
 
 
