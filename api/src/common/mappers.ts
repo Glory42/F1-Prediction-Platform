@@ -1,6 +1,10 @@
 import type { drivers, teams, races, circuits } from '../db/schema';
-import type { Driver, Race, Circuit } from './types';
+import type { Driver, Team, Race, Circuit } from './types';
 import { SPRINT_FORMATS } from './constants';
+
+export function toTeam(t: typeof teams.$inferSelect): Team {
+  return { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality };
+}
 
 export function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferSelect): Driver {
   return {
@@ -8,7 +12,7 @@ export function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferS
     code: d.code, firstName: d.firstName, lastName: d.lastName,
     fullName: `${d.firstName} ${d.lastName}`, nationality: d.nationality,
     headshotUrl: d.headshotUrl ?? null,
-    team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
+    team: toTeam(t),
   };
 }
 

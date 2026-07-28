@@ -10,6 +10,7 @@ import type {
   PredictionHistoryItem, IntelStandingRow, ModelInfo,
 } from '../../common/types';
 import { toDriver, toRace, toCircuit } from '../../common/mappers';
+import { toKeyedMap } from '../../common/collections';
 
 function toFeatures(f: typeof driverPredictionFeatures.$inferSelect) {
   return {
@@ -306,7 +307,7 @@ export class PredictionsService {
             eq(driverSeasonStats.seasonId, seasonRows[0].id),
           ))
       : [];
-    const sprintMap = new Map(sprintStatsRows.map((s) => [s.driverId, s]));
+    const sprintMap = toKeyedMap(sprintStatsRows, (s) => s.driverId);
 
     return results.map((r) => {
       const sprint = sprintMap.get(r.driver.id);

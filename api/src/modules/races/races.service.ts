@@ -5,6 +5,7 @@ import type { CircuitHistoryItem } from '../../common/types';
 import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse, Team, Driver } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';
 import { toDriver, toRace, toCircuit } from '../../common/mappers';
+import { toKeyedMap } from '../../common/collections';
 
 export class RacesService {
   async findAll(db: Db, year: number, status?: string): Promise<Race[]> {
@@ -80,7 +81,7 @@ export class RacesService {
         .where(and(inArray(raceResults.raceId, raceIds), eq(raceResults.finishPosition, 1)));
 
       const winnerMap = new Map<number, typeof winnerRows[0]>();
-      const raceMap = new Map(raceRows.map(r => [r.id, r]));
+      const raceMap = toKeyedMap(raceRows, (r) => r.id);
 
       const teamWinsByEra: Record<string, Map<string, { team: typeof teams.$inferSelect; wins: number; bestIdx: number }>> = {
         all: new Map(),
@@ -341,7 +342,7 @@ export class RacesService {
         .groupBy(lapTimes.driverId),
     ]);
 
-    const driverMap = new Map(resultsRows.map((r) => [r.drivers.id, toDriver(r.drivers, r.teams)]));
+    const driverMap = toKeyedMap(resultsRows, (r) => r.drivers.id, (r) => toDriver(r.drivers, r.teams));
 
     const results: RaceResult[] = resultsRows.map((r) => ({
       id: r.race_results.id,

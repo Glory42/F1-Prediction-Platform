@@ -2,16 +2,8 @@ import { eq, and, desc, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import { drivers, teams, seasons, driverSeasonStats, raceResults, races } from '../../db/schema';
 import type { Driver, DriverDetailResponse, DriverStanding, DriverYearStats } from '../../common/types';
-
-function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferSelect): Driver {
-  return {
-    id: d.id, seasonId: d.seasonId, teamId: d.teamId, driverNumber: d.driverNumber,
-    code: d.code, firstName: d.firstName, lastName: d.lastName,
-    fullName: `${d.firstName} ${d.lastName}`, nationality: d.nationality,
-    headshotUrl: d.headshotUrl ?? null,
-    team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
-  };
-}
+import { toDriver } from '../../common/mappers';
+import { toKeyedMap } from '../../common/collections';
 
 function toDriverStats(s: typeof driverSeasonStats.$inferSelect) {
   return {
@@ -73,7 +65,7 @@ export class DriversService {
         inArray(driverSeasonStats.driverId, driverIds),
       ));
 
-    const statsById = new Map(statsRows.map((s) => [s.driverId, s]));
+    const statsById = toKeyedMap(statsRows, (s) => s.driverId);
 
     const result: DriverStanding[] = rows.map((r) => {
       const s = statsById.get(r.drivers.id);
@@ -118,7 +110,7 @@ export class DriversService {
       .from(driverSeasonStats)
       .where(inArray(driverSeasonStats.driverId, allIds));
 
-    const statsById = new Map(statsRows.map((s) => [s.driverId, s]));
+    const statsById = toKeyedMap(statsRows, (s) => s.driverId);
 
     return allEntries.map((e) => {
       const s = statsById.get(e.drivers.id);

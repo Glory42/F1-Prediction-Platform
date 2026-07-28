@@ -2,6 +2,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import { drivers, teams, circuits, seasons } from '../../db/schema';
 import type { Driver } from '../../common/types';
+import { toDriver, toTeam } from '../../common/mappers';
 
 export class SearchService {
   async getGlobalSearchData(db: Db) {
@@ -23,25 +24,13 @@ export class SearchService {
         .orderBy(fullNameExpr, desc(seasons.year))
     );
 
-    const mappedDrivers: Driver[] = uniqueDrivers.map(({ driver: d, team: t }) => ({
-      id: d.id,
-      seasonId: d.seasonId,
-      teamId: d.teamId,
-      driverNumber: d.driverNumber,
-      code: d.code,
-      firstName: d.firstName,
-      lastName: d.lastName,
-      fullName: `${d.firstName} ${d.lastName}`,
-      nationality: d.nationality,
-      headshotUrl: d.headshotUrl ?? null,
-      team: { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality },
-    }));
+    const mappedDrivers: Driver[] = uniqueDrivers.map(({ driver: d, team: t }) => toDriver(d, t));
 
     const allCircuits = await db.select().from(circuits);
 
     return {
       drivers: mappedDrivers,
-      teams: uniqueTeams.map(t => ({ id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality })),
+      teams: uniqueTeams.map(toTeam),
       circuits: allCircuits,
     };
   }
