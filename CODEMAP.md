@@ -379,3 +379,7 @@ data-engine/
 | `commit/` | Conventional commit format, domain scopes, and workflow. Always read before committing. |
 | `build/` | Build verification runbook |
 | `backfill/` | Historical backfill runbook and checklist |
+| `performance-check/` | Audits N+1 queries, sequential awaits, per-row ETL loops, missing indexes |
+| `codebase-audit/` | Health check against CLAUDE.md critical constraints, schema drift, `any` types |
+| `refactor-hunt/` | Finds duplication, especially GP/sprint pipeline drift |
+| `codebase-cleanup/` | Removes dead code, unused imports, orphaned migrations |
