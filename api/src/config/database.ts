@@ -1,8 +1,8 @@
 import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle, type NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import * as schema from '../db/schema';
 
-const dbCache = new Map<string, any>();
+const dbCache = new Map<string, NeonHttpDatabase<typeof schema>>();
 
 export function createDb(url: string) {
   if (!dbCache.has(url)) {

@@ -1,8 +1,8 @@
 import { eq, and, asc, desc, gte, lte, isNotNull, sql, inArray } from 'drizzle-orm';
 import type { Db } from '../../config/database';
-import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams, seasons } from '../../db/schema';
+import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams, seasons, raceStatusEnum } from '../../db/schema';
 import type { CircuitHistoryItem } from '../../common/types';
-import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse } from '../../common/types';
+import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse, Team, Driver } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';
 import { toDriver, toRace, toCircuit } from '../../common/mappers';
 
@@ -10,13 +10,16 @@ export class RacesService {
   async findAll(db: Db, year: number, status?: string): Promise<Race[]> {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
+    const validStatus = status && (raceStatusEnum.enumValues as readonly string[]).includes(status)
+      ? (status as (typeof raceStatusEnum.enumValues)[number])
+      : undefined;
     const rows = await db
       .select()
       .from(races)
       .innerJoin(circuits, eq(races.circuitId, circuits.id))
       .where(
-        status
-          ? and(gte(races.raceDate, yearStart), lte(races.raceDate, yearEnd), eq(races.status, status as any))
+        validStatus
+          ? and(gte(races.raceDate, yearStart), lte(races.raceDate, yearEnd), eq(races.status, validStatus))
           : and(gte(races.raceDate, yearStart), lte(races.raceDate, yearEnd))
       )
       .orderBy(asc(races.raceDate));
@@ -50,8 +53,8 @@ export class RacesService {
 
     const raceIds = raceRows.map((r) => r.id);
     let history: CircuitHistoryItem[] = [];
-    let constructorDominance: { team: any; wins: number }[] = [];
-    let driverDominance: { driver: any; wins: number }[] = [];
+    let constructorDominance: { team: Team; wins: number }[] = [];
+    let driverDominance: { driver: Driver; wins: number }[] = [];
     let weatherStats = { dry: 0, wet: 0, mixed: 0, unknown: 0 };
     let fastestLapResult: CircuitDetailResponse['fastestLap'] = null;
     let dominance: CircuitDetailResponse['dominance'] = {
@@ -79,13 +82,13 @@ export class RacesService {
       const winnerMap = new Map<number, typeof winnerRows[0]>();
       const raceMap = new Map(raceRows.map(r => [r.id, r]));
 
-      const teamWinsByEra: Record<string, Map<string, { team: any; wins: number; bestIdx: number }>> = {
+      const teamWinsByEra: Record<string, Map<string, { team: typeof teams.$inferSelect; wins: number; bestIdx: number }>> = {
         all: new Map(),
         modern: new Map(),
         legacy: new Map(),
         nineties: new Map(),
       };
-      const driverWinsByEra: Record<string, Map<string, { driver: any; team: any; wins: number; bestIdx: number }>> = {
+      const driverWinsByEra: Record<string, Map<string, { driver: typeof drivers.$inferSelect; team: typeof teams.$inferSelect; wins: number; bestIdx: number }>> = {
         all: new Map(),
         modern: new Map(),
         legacy: new Map(),

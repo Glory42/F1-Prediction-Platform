@@ -13,7 +13,7 @@ export function toDriver(d: typeof drivers.$inferSelect, t: typeof teams.$inferS
 }
 
 export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
-  const r2PublicUrl = (globalThis as any).process?.env?.R2_PUBLIC_URL || '';
+  const r2PublicUrl = globalThis.process?.env?.R2_PUBLIC_URL || '';
   const cleanBase = r2PublicUrl.replace(/\/$/, '');
   
   let imageUrl = circuit.imageUrl ?? null;

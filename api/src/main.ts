@@ -18,7 +18,7 @@ app.use('*', logger());
 app.use('*', async (c, next) => {
   if (c.env) {
     if (typeof process !== 'undefined' && process.env) {
-      for (const [key, value] of Object.entries(c.env as any || {})) {
+      for (const [key, value] of Object.entries(c.env)) {
         if (typeof value === 'string') {
           process.env[key] = value;
         }
