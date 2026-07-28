@@ -1,11 +1,11 @@
-import { eq, asc, desc, inArray, and, gte, sql } from 'drizzle-orm';
+import { eq, asc, inArray, and, gte, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import {
   races, circuits, sprintPredictions, driverSprintFeatures,
   sprintResults, sprintLapTimes, drivers, teams,
 } from '../../db/schema';
 import type {
-  Driver, SprintPredictionResponse, DriverSprintPrediction,
+  SprintPredictionResponse, DriverSprintPrediction,
   SprintResult, SprintDetailResponse, SprintFeatureScores, LapSummary,
 } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';

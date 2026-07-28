@@ -1,7 +1,7 @@
 import type {
   PredictionResponse, RaceDetailResponse, DriverDetailResponse, TeamDetailResponse,
   Race, Driver, Team, DriverStanding, TeamStanding, Circuit,
-  PredictionHistoryItem, IntelStandingRow, CircuitHistoryItem, CircuitDetailResponse,
+  PredictionHistoryItem, IntelStandingRow, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
 } from '@/types';

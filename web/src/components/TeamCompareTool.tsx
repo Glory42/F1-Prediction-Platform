@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import type { Team, TeamDetailResponse, TeamYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
-import { Shield, Trophy, Activity, Zap } from 'lucide-react';
+import { Shield, Zap } from 'lucide-react';
 
 interface Props {
   allSeasons: SeasonSummary[];

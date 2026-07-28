@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import type { Driver, DriverDetailResponse, DriverYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getCountryFlag } from '@/lib/countryFlags';
-import { User, Shield, Trophy, Activity, Zap } from 'lucide-react';
+import { User, Zap } from 'lucide-react';
 
 interface Props {
   allSeasons: SeasonSummary[];
