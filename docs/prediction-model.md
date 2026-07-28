@@ -59,7 +59,7 @@ Some inputs never change and are seeded once into the database or hardcoded in P
 | Circuit SC probability | `circuits.sc_probability` | Never — seeded once per track |
 | Model weights | `compute_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
 | Sprint model weights | `compute_sprint_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
-| Softmax temperature T=0.3 | `compute_predictions.py`, `compute_sprint_predictions.py` | Only when model is intentionally updated |
+| Softmax temperature T=0.3 | `prediction_runner.py` (shared by `compute_predictions.py` and `compute_sprint_predictions.py`) | Only when model is intentionally updated |
 
 ---
 

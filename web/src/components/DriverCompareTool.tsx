@@ -1,9 +1,12 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { api } from '@/lib/api';
 import type { Driver, DriverDetailResponse, DriverYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
-import { getCountryFlag } from '@/lib/countryFlags';
+import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
 import { User, Zap } from 'lucide-react';
+import { useCompareController } from '@/lib/useCompareController';
+import { SearchSelect } from './SearchSelect';
+import { ComparisonRow } from './ComparisonRow';
 
 interface Props {
   allSeasons: SeasonSummary[];
@@ -11,236 +14,30 @@ interface Props {
   allDrivers: Driver[];
 }
 
-function SearchSelect({
-  items,
-  selectedId,
-  onSelect,
-  placeholder = "Search driver..."
-}: {
-  items: Driver[];
-  selectedId: number;
-  onSelect: (id: number) => void;
-  placeholder?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  
-  const selectedItem = items.find(item => item.id === selectedId);
-
-  const filtered = useMemo(() => {
-    if (!query) return items;
-    const q = query.toLowerCase();
-    return items.filter(item => 
-      item.fullName.toLowerCase().includes(q) || 
-      (item.team?.name || '').toLowerCase().includes(q)
-    );
-  }, [items, query]);
-
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen && selectedItem) {
-      setQuery('');
-    }
-  }, [isOpen, selectedItem]);
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <div className="relative">
-        <input
-          type="text"
-          value={isOpen ? query : (selectedItem ? `${selectedItem.fullName} (${selectedItem.team?.name || 'No Team'})` : '')}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40 w-full pr-8 cursor-text"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none text-[8px] font-mono select-none">
-          {isOpen ? '▲' : '▼'}
-        </span>
-      </div>
-
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-y-auto border border-white/[0.08] bg-black shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-          {filtered.length > 0 ? (
-            filtered.map((item) => {
-              const active = item.id === selectedId;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onSelect(item.id);
-                    setIsOpen(false);
-                    setQuery('');
-                  }}
-                  className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
-                    active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
-                  }`}
-                >
-                  {item.fullName} <span className="text-[8px] text-muted-foreground/60 ml-1">({item.team?.name || 'No Team'})</span>
-                </button>
-              );
-            })
-          ) : (
-            <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
-              No drivers found
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
   const defaultYear = years[0] || 2026;
 
-  // State
-  const [year, setYear] = useState<number>(defaultYear);
-  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-  const [driverAId, setDriverAId] = useState<number>(initialDrivers[0]?.id || 0);
-  const [driverBId, setDriverBId] = useState<number>(initialDrivers[1]?.id || initialDrivers[0]?.id || 0);
-  const [isCareer, setIsCareer] = useState<boolean>(false);
-
-  // Detail data
-  const [driverAData, setDriverAData] = useState<DriverDetailResponse | null>(null);
-  const [driverBData, setDriverBData] = useState<DriverDetailResponse | null>(null);
-  const [driverACareer, setDriverACareer] = useState<DriverYearStats[] | null>(null);
-  const [driverBCareer, setDriverBCareer] = useState<DriverYearStats[] | null>(null);
-
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Parse URL parameters on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paramYear = params.get('year');
-    const paramA = params.get('a');
-    const paramB = params.get('b');
-    const paramCareer = params.get('career');
-
-    const isCareerMode = paramCareer === 'true';
-    if (paramYear) setYear(parseInt(paramYear));
-    if (isCareerMode) setIsCareer(true);
-
-    if (isCareerMode) {
-      setDrivers(allDrivers);
-      if (paramA) setDriverAId(parseInt(paramA));
-      if (paramB) setDriverBId(parseInt(paramB));
-    } else if (paramYear && parseInt(paramYear) !== defaultYear) {
-      const targetYear = parseInt(paramYear);
-      api.getDrivers(targetYear)
-        .then((driversList) => {
-          setDrivers(driversList);
-          if (paramA) setDriverAId(parseInt(paramA));
-          else if (driversList[0]) setDriverAId(driversList[0].id);
-
-          if (paramB) setDriverBId(parseInt(paramB));
-          else if (driversList[1]) setDriverBId(driversList[1].id);
-        })
-        .catch(err => console.error('Failed to load drivers for url year', err));
-    } else {
-      if (paramA) setDriverAId(parseInt(paramA));
-      if (paramB) setDriverBId(parseInt(paramB));
-    }
-  }, []);
-
-  // Update drivers list if year or mode changes
-  useEffect(() => {
-    if (isCareer) {
-      setDrivers(allDrivers);
-      return;
-    }
-
-    let active = true;
-    if (year === defaultYear) {
-      setDrivers(initialDrivers);
-      if (initialDrivers.length > 0) {
-        if (!initialDrivers.some(d => d.id === driverAId)) setDriverAId(initialDrivers[0].id);
-        if (!initialDrivers.some(d => d.id === driverBId)) setDriverBId(initialDrivers[1]?.id || initialDrivers[0].id);
-      }
-      return;
-    }
-    api.getDrivers(year)
-      .then((data) => {
-        if (!active) return;
-        setDrivers(data);
-        if (data.length > 0) {
-          if (!data.some(d => d.id === driverAId)) setDriverAId(data[0].id);
-          if (!data.some(d => d.id === driverBId)) setDriverBId(data[1]?.id || data[0].id);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load drivers for year', year, err);
-      });
-
-    return () => { active = false; };
-  }, [isCareer, year, initialDrivers, allDrivers, defaultYear]);
-
-  // Sync state to URL parameters
-  useEffect(() => {
-    const params = new URLSearchParams();
-    params.set('year', year.toString());
-    params.set('a', driverAId.toString());
-    params.set('b', driverBId.toString());
-    if (isCareer) params.set('career', 'true');
-
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  }, [year, driverAId, driverBId, isCareer]);
-
-  // Fetch detail stats when selected drivers or modes change
-  useEffect(() => {
-    if (!driverAId || !driverBId) return;
-
-    let active = true;
-    setLoading(true);
-    setError(null);
-
-    const promises = isCareer
-      ? [api.getDriverCareer(driverAId), api.getDriverCareer(driverBId)]
-      : [api.getDriverById(driverAId, year), api.getDriverById(driverBId, year)];
-
-    Promise.all(promises)
-      .then(([resA, resB]) => {
-        if (!active) return;
-        if (isCareer) {
-          setDriverACareer(resA as DriverYearStats[]);
-          setDriverBCareer(resB as DriverYearStats[]);
-          setDriverAData(null);
-          setDriverBData(null);
-        } else {
-          setDriverAData(resA as DriverDetailResponse);
-          setDriverBData(resB as DriverDetailResponse);
-          setDriverACareer(null);
-          setDriverBCareer(null);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : 'Failed to fetch details');
-        setLoading(false);
-      });
-
-    return () => { active = false; };
-  }, [driverAId, driverBId, year, isCareer]);
-
-  const driverA = useMemo(() => drivers.find(d => d.id === driverAId), [drivers, driverAId]);
-  const driverB = useMemo(() => drivers.find(d => d.id === driverBId), [drivers, driverBId]);
+  const {
+    year, setYear,
+    items: drivers,
+    aId: driverAId, setAId: setDriverAId,
+    bId: driverBId, setBId: setDriverBId,
+    isCareer, setIsCareer,
+    itemA: driverA, itemB: driverB,
+    aData: driverAData, bData: driverBData,
+    aCareer: driverACareer, bCareer: driverBCareer,
+    loading, error,
+  } = useCompareController<Driver, DriverDetailResponse, DriverYearStats>({
+    years,
+    defaultYear,
+    initialItems: initialDrivers,
+    allItems: allDrivers,
+    entityLabel: 'drivers',
+    fetchItemsForYear: (y) => api.getDrivers(y),
+    fetchDetail: (id, y) => api.getDriverById(id, y),
+    fetchCareer: (id) => api.getDriverCareer(id),
+  });
 
   const colorA = useMemo(() => {
     if (isCareer && driverACareer && driverACareer.length > 0) {
@@ -293,60 +90,14 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
     }, { entries: 0, wins: 0, podiums: 0, poles: 0, points: 0, dnfs: 0, bestFin: null as number | null });
   }, [driverBCareer]);
 
-  // Comparison Row builder
-  function ComparisonRow({
-    label,
-    valA,
-    valB,
-    format,
-    lowerBetter = false
-  }: {
-    label: string;
-    valA: number;
-    valB: number;
-    format?: (v: number) => string;
-    lowerBetter?: boolean;
-  }) {
-    const total = valA + valB;
-    const pctA = total > 0 ? (lowerBetter ? (valB / total) * 100 : (valA / total) * 100) : 50;
-    const pctB = total > 0 ? (lowerBetter ? (valA / total) * 100 : (valB / total) * 100) : 50;
-
-    const isWinnerA = lowerBetter ? valA < valB : valA > valB;
-    const isWinnerB = lowerBetter ? valB < valA : valB > valA;
-    const isTie = valA === valB;
-
-    return (
-      <div className="space-y-1.5 py-3 border-b border-white/[0.04] last:border-b-0">
-        <div className="flex justify-between items-baseline font-mono text-[9px] tracking-wider uppercase text-muted-foreground">
-          <span className={isWinnerA ? 'text-white font-bold' : ''}>
-            {format ? format(valA) : valA.toFixed(0)}
-          </span>
-          <span className="text-white/60">{label}</span>
-          <span className={isWinnerB ? 'text-white font-bold' : ''}>
-            {format ? format(valB) : valB.toFixed(0)}
-          </span>
-        </div>
-        <div className="flex h-1.5 w-full bg-white/[0.03] overflow-hidden">
-          <div
-            className="h-full transition-all duration-300"
-            style={{
-              width: `${pctA}%`,
-              backgroundColor: isWinnerA ? colorA : (isTie ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.15)'),
-              opacity: isWinnerA ? 1 : 0.6
-            }}
-          />
-          <div
-            className="h-full transition-all duration-300"
-            style={{
-              width: `${pctB}%`,
-              backgroundColor: isWinnerB ? colorB : (isTie ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.15)'),
-              opacity: isWinnerB ? 1 : 0.6
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
+  const driverMatches = (d: Driver, q: string) =>
+    d.fullName.toLowerCase().includes(q) || (d.team?.name || '').toLowerCase().includes(q);
+  const driverInputLabel = (d: Driver) => `${d.fullName} (${d.team?.name || 'No Team'})`;
+  const driverOption = (d: Driver) => (
+    <>
+      {d.fullName} <span className="text-[8px] text-muted-foreground/60 ml-1">({d.team?.name || 'No Team'})</span>
+    </>
+  );
 
   return (
     <div className="space-y-6">
@@ -354,11 +105,15 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between border-b border-white/[0.06] pb-5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-3xl">
           <div className="flex-1 min-w-[200px]">
-            <SearchSelect
+            <SearchSelect<Driver>
               items={drivers}
               selectedId={driverAId}
               onSelect={setDriverAId}
               placeholder="Search Driver A..."
+              getInputLabel={driverInputLabel}
+              renderOption={driverOption}
+              matches={driverMatches}
+              noResultsLabel="No drivers found"
             />
           </div>
 
@@ -367,11 +122,15 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <SearchSelect
+            <SearchSelect<Driver>
               items={drivers}
               selectedId={driverBId}
               onSelect={setDriverBId}
               placeholder="Search Driver B..."
+              getInputLabel={driverInputLabel}
+              renderOption={driverOption}
+              matches={driverMatches}
+              noResultsLabel="No drivers found"
             />
           </div>
         </div>
@@ -454,8 +213,8 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     </div>
                   </div>
                 </div>
-                <span className="text-3xl shrink-0 select-none opacity-80" title={driverA.country}>
-                  {getCountryFlag(driverA.country)}
+                <span className="text-3xl shrink-0 select-none opacity-80" title={driverA.nationality ?? undefined}>
+                  {driverA.nationality ? getNationalityFlag(driverA.nationality) : getDriverFlagByCode(driverA.code)}
                 </span>
               </a>
             )}
@@ -484,8 +243,8 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     </div>
                   </div>
                 </div>
-                <span className="text-3xl shrink-0 select-none opacity-80" title={driverB.country}>
-                  {getCountryFlag(driverB.country)}
+                <span className="text-3xl shrink-0 select-none opacity-80" title={driverB.nationality ?? undefined}>
+                  {driverB.nationality ? getNationalityFlag(driverB.nationality) : getDriverFlagByCode(driverB.code)}
                 </span>
               </a>
             )}
@@ -506,21 +265,25 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     valA={parseFloat(driverAData.seasonStats.totalPoints)}
                     valB={parseFloat(driverBData.seasonStats.totalPoints)}
                     format={(v) => v.toString()}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Grand Prix Wins"
                     valA={driverAData.seasonStats.wins}
                     valB={driverBData.seasonStats.wins}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Podium Finishes"
                     valA={driverAData.seasonStats.podiums}
                     valB={driverBData.seasonStats.podiums}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Poles Secured"
                     valA={driverAData.seasonStats.poles}
                     valB={driverBData.seasonStats.poles}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Avg Finish Position"
@@ -528,17 +291,20 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     valB={parseFloat(driverBData.seasonStats.avgFinishPosition || '20')}
                     format={(v) => `P${v.toFixed(1)}`}
                     lowerBetter={true}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Races Entered"
                     valA={driverAData.seasonStats.racesEntered}
                     valB={driverBData.seasonStats.racesEntered}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Total DNFs"
                     valA={driverAData.seasonStats.dnfCount}
                     valB={driverBData.seasonStats.dnfCount}
                     lowerBetter={true}
+                    colorA={colorA} colorB={colorB}
                   />
                   {/* Sector Times */}
                   {(driverAData.seasonStats.avgSector1Ms || driverBData.seasonStats.avgSector1Ms) && (
@@ -548,6 +314,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                       valB={driverBData.seasonStats.avgSector1Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
+                      colorA={colorA} colorB={colorB}
                     />
                   )}
                   {(driverAData.seasonStats.avgSector2Ms || driverBData.seasonStats.avgSector2Ms) && (
@@ -557,6 +324,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                       valB={driverBData.seasonStats.avgSector2Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
+                      colorA={colorA} colorB={colorB}
                     />
                   )}
                   {(driverAData.seasonStats.avgSector3Ms || driverBData.seasonStats.avgSector3Ms) && (
@@ -566,6 +334,7 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                       valB={driverBData.seasonStats.avgSector3Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
+                      colorA={colorA} colorB={colorB}
                     />
                   )}
                 </>
@@ -578,38 +347,45 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
                     valB={careerB.bestFin || 20}
                     format={(v) => v === 20 ? '—' : `P${v}`}
                     lowerBetter={true}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Total Points"
                     valA={careerA.points}
                     valB={careerB.points}
                     format={(v) => v.toFixed(1)}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Career Wins"
                     valA={careerA.wins}
                     valB={careerB.wins}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Career Podiums"
                     valA={careerA.podiums}
                     valB={careerB.podiums}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Career Poles"
                     valA={careerA.poles}
                     valB={careerB.poles}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Career Entries"
                     valA={careerA.entries}
                     valB={careerB.entries}
+                    colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Total DNFs"
                     valA={careerA.dnfs}
                     valB={careerB.dnfs}
                     lowerBetter={true}
+                    colorA={colorA} colorB={colorB}
                   />
                 </>
               ) : (

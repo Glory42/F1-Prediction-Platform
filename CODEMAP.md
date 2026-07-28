@@ -42,7 +42,8 @@ api/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
-│   ├── common/mappers.ts          # toDriver(), toRace(), toCircuit() — canonical mappers used by all services
+│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit() — canonical mappers used by all services
+│   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)
@@ -194,8 +195,10 @@ web/
 │   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
 │   │   ├── CircuitsGrid.tsx       # React component for circuits grid (filters/sorting)
 │   │   ├── WeatherForecast.tsx    # React weather forecast widget (Open-Meteo API)
-│   │   ├── DriverCompareTool.tsx  # React component for driver head-to-head stats comparison
-│   │   ├── TeamCompareTool.tsx    # React component for team head-to-head stats comparison
+│   │   ├── DriverCompareTool.tsx  # Driver head-to-head comparison — entity-specific config over shared compare pieces
+│   │   ├── TeamCompareTool.tsx    # Team head-to-head comparison — entity-specific config over shared compare pieces
+│   │   ├── SearchSelect.tsx       # Generic autocomplete combobox; shared by Driver/TeamCompareTool
+│   │   ├── ComparisonRow.tsx      # Generic stat comparison bar; shared by Driver/TeamCompareTool
 │   │   └── ui/                    # Shadcn/ui primitives
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
@@ -207,6 +210,7 @@ web/
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   ├── countryFlags.ts        # country → emoji flag helper
 │   │   ├── circuitMetadata.ts     # Track coordinate and telemetry configuration
+│   │   ├── useCompareController.ts # Generic compare-tool state hook (URL sync, year/career switching, detail fetch)
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,
@@ -260,6 +264,7 @@ web/
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
+| `lib/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, season/career toggle, URL param sync, detail/career fetch. |
 
 ---
 
@@ -320,7 +325,9 @@ data-engine/
 │       │                          # session_to_quali_results(), session_to_lap_times(),
 │       │                          # get_weather(), get_weather_details(), get_sc_vsc_laps()
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp()
-│       └── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
+│       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
+│       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
+│       └── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
 ├── backfill_all_predictions.py    # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
 ├── backfill_fp2.py                # Backfill FP2 long-run data for 2018+ completed races
 ├── backfill_full.py               # Full historical backfill: sync + ingest + sprint + predictions
