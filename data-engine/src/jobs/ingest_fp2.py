@@ -2,6 +2,7 @@ import pandas as pd
 from src.db.client import get_conn
 from src.utils.fastf1_helpers import get_session, ms_to_int
 from src.utils.upsert import upsert
+from src.utils.driver_map import build_driver_code_map
 
 # Normalise all compounds to a MEDIUM baseline (ms to add to raw lap time)
 # Soft is ~0.5s faster than Medium, Hard is ~0.4s slower
@@ -31,9 +32,7 @@ def run(year: int, round_num: int) -> None:
         race_id = race_row["id"]
         season_id = race_row["season_id"]
 
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
-            driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
+        driver_map = build_driver_code_map(conn, season_id)
 
         try:
             session = get_session(year, round_num, "FP2")

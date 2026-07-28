@@ -2,6 +2,7 @@ import datetime
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 from src.utils.fastf1_helpers import get_session, session_to_quali_results
+from src.utils.driver_map import build_driver_code_map
 
 SPRINT_FORMATS = {"sprint", "sprint_qualifying", "sprint_shootout"}
 
@@ -45,9 +46,7 @@ def run(year: int, round_num: int) -> None:
         sq_type = "SS" if event_format == "sprint_shootout" else "SQ"
         print(f"  event_format={event_format} — ingesting {sq_type} session")
 
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
-            driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
+        driver_map = build_driver_code_map(conn, season_id)
 
         session = get_session(year, round_num, sq_type, messages=True)
         quali_rows = session_to_quali_results(session)

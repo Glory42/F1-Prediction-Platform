@@ -5,6 +5,7 @@ from src.utils.fastf1_helpers import (
     get_weather, get_weather_details, get_sc_vsc_laps, validate_session_data
 )
 from src.utils.upsert import upsert
+from src.utils.driver_map import build_driver_code_map
 
 SPRINT_FORMATS = {"sprint", "sprint_qualifying", "sprint_shootout"}
 
@@ -36,9 +37,7 @@ def run(year: int, round_num: int) -> None:
         season_id = race_row["season_id"]
         print(f"  event_format={event_format} — ingesting Session3 (sprint race)")
 
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
-            driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
+        driver_map = build_driver_code_map(conn, season_id)
 
         session = get_session(year, round_num, "S")
 

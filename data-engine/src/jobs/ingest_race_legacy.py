@@ -8,6 +8,7 @@ from typing import Any
 from src.db.client import get_conn
 from src.utils.upsert import upsert
 from src.utils.fastf1_helpers import ms_to_int as _ms
+from src.utils.driver_map import build_driver_code_map
 
 
 def _get_session(year: int, round_num: int) -> Any:
@@ -37,9 +38,7 @@ def run(year: int, round_num: int) -> None:
         race_id = race_row["id"]
         season_id = race_row["season_id"]
 
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, code FROM drivers WHERE season_id = %s", (season_id,))
-            driver_map: dict[str, int] = {row["code"]: row["id"] for row in cur.fetchall()}
+        driver_map = build_driver_code_map(conn, season_id)
 
         session = _get_session(year, round_num)
 
