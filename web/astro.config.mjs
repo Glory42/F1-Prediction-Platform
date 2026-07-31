@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import sitemap from "@astrojs/sitemap";
 import { fileURLToPath } from "url";
 import path from "path";
 
@@ -12,7 +13,7 @@ export default defineConfig({
   adapter: cloudflare({
     imageService: "passthrough",
   }),
-  integrations: [react()],
+  integrations: [react(), sitemap()],
   vite: {
     optimizeDeps: {
       include: ["react", "react-dom", "react/jsx-runtime"],
