@@ -48,9 +48,8 @@ export class SprintService {
 
     if (!(SPRINT_FORMATS as readonly string[]).includes(race.eventFormat)) return null;
 
-    const prediction = await this.buildPredictionResponse(db, raceId);
-
-    const [resultRows, lapRows] = await Promise.all([
+    const [prediction, resultRows, lapRows] = await Promise.all([
+      this.buildPredictionResponse(db, raceId),
       db
         .select()
         .from(sprintResults)

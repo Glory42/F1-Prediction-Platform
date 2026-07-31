@@ -73,12 +73,23 @@ export class RacesService {
     let scRaceRate = 0;
 
     if (raceIds.length > 0) {
-      const winnerRows = await db
-        .select()
-        .from(raceResults)
-        .innerJoin(drivers, eq(raceResults.driverId, drivers.id))
-        .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .where(and(inArray(raceResults.raceId, raceIds), eq(raceResults.finishPosition, 1)));
+      const [winnerRows, lapRows] = await Promise.all([
+        db
+          .select()
+          .from(raceResults)
+          .innerJoin(drivers, eq(raceResults.driverId, drivers.id))
+          .innerJoin(teams, eq(drivers.teamId, teams.id))
+          .where(and(inArray(raceResults.raceId, raceIds), eq(raceResults.finishPosition, 1))),
+        db
+          .select()
+          .from(lapTimes)
+          .innerJoin(drivers, eq(lapTimes.driverId, drivers.id))
+          .innerJoin(teams, eq(drivers.teamId, teams.id))
+          .innerJoin(races, eq(lapTimes.raceId, races.id))
+          .where(and(inArray(lapTimes.raceId, raceIds), isNotNull(lapTimes.lapTimeMs), eq(lapTimes.isPitLap, false)))
+          .orderBy(asc(lapTimes.lapTimeMs))
+          .limit(1),
+      ]);
 
       const winnerMap = new Map<number, typeof winnerRows[0]>();
       const raceMap = toKeyedMap(raceRows, (r) => r.id);
@@ -262,16 +273,6 @@ export class RacesService {
 
       avgScLaps = completedRacesWithScData > 0 ? (totalScLaps / completedRacesWithScData) : 0;
       scRaceRate = completedRacesWithScData > 0 ? (racesWithSc / completedRacesWithScData) : 0;
-
-      const lapRows = await db
-        .select()
-        .from(lapTimes)
-        .innerJoin(drivers, eq(lapTimes.driverId, drivers.id))
-        .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .innerJoin(races, eq(lapTimes.raceId, races.id))
-        .where(and(inArray(lapTimes.raceId, raceIds), isNotNull(lapTimes.lapTimeMs), eq(lapTimes.isPitLap, false)))
-        .orderBy(asc(lapTimes.lapTimeMs))
-        .limit(1);
 
       if (lapRows.length > 0) {
         const row = lapRows[0];
