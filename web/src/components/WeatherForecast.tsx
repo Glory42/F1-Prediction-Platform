@@ -1,63 +1,14 @@
-import { useEffect, useState } from 'react';
 import { Sun, Cloud, CloudRain, CloudLightning, Thermometer, CloudFog } from 'lucide-react';
+import type { ForecastDay } from '@/lib/weather';
 
 interface WeatherForecastProps {
   lat: number;
   lng: number;
   cityName: string;
+  forecast: ForecastDay[] | null;
 }
 
-interface ForecastDay {
-  date: string;
-  tempMax: number;
-  tempMin: number;
-  rainProb: number;
-  weatherCode: number;
-}
-
-export function WeatherForecast({ lat, lng, cityName }: WeatherForecastProps) {
-  const [forecast, setForecast] = useState<ForecastDay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (lat === 0 && lng === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchWeather = async () => {
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=auto&forecast_days=16`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-
-        // Only surface the upcoming Fri/Sat/Sun (FP, quali, race) — skip any other days
-        const days: ForecastDay[] = [];
-        for (let i = 0; i < data.daily.time.length; i++) {
-          const weekday = new Date(data.daily.time[i]).getDay();
-          if (weekday !== 5 && weekday !== 6 && weekday !== 0) continue;
-          days.push({
-            date: data.daily.time[i],
-            tempMax: Math.round(data.daily.temperature_2m_max[i]),
-            tempMin: Math.round(data.daily.temperature_2m_min[i]),
-            rainProb: Math.round(data.daily.precipitation_probability_max[i] ?? 0),
-            weatherCode: data.daily.weathercode[i],
-          });
-          if (days.length === 3) break;
-        }
-        setForecast(days);
-      } catch (err) {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchWeather();
-  }, [lat, lng]);
-
+export function WeatherForecast({ lat, lng, cityName, forecast }: WeatherForecastProps) {
   function getWeatherIcon(code: number) {
     if (code === 0) return <Sun size={14} className="text-yellow-400" />;
     if ([1, 2, 3].includes(code)) return <Cloud size={14} className="text-muted-foreground" />;
@@ -71,7 +22,7 @@ export function WeatherForecast({ lat, lng, cityName }: WeatherForecastProps) {
     const date = new Date(dateStr);
     const options: Intl.DateTimeFormatOptions = { weekday: 'short' };
     const dayName = date.toLocaleDateString('en-US', options);
-    
+
     // Label as FP (Friday), QUALI (Saturday), RACE (Sunday) if index matches typical weekend
     if (index === 0) return `${dayName} // FP`;
     if (index === 1) return `${dayName} // QUALI`;
@@ -97,18 +48,12 @@ export function WeatherForecast({ lat, lng, cityName }: WeatherForecastProps) {
         <Sun size={11} /> Live Weekend Forecast
       </h3>
 
-      {loading ? (
-        <div key="loading" className="fade-swap py-4 text-center">
-          <span className="font-mono text-[9px] text-muted-foreground tracking-widest uppercase animate-pulse">
-            Connecting weather satellites...
-          </span>
-        </div>
-      ) : error || forecast.length === 0 ? (
-        <p key="error" className="fade-swap text-[10px] text-muted-foreground">
+      {!forecast || forecast.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground">
           Failed to fetch live weather data. Using historical weather model predictions.
         </p>
       ) : (
-        <div key="content" className="fade-swap space-y-3">
+        <div className="space-y-3">
           {forecast.map((day, idx) => (
             <div key={day.date} className="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04]">
               <div className="flex items-center gap-3">
