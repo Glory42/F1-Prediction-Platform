@@ -2,6 +2,12 @@ from collections import defaultdict
 from src.db.client import get_conn
 from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp
 from src.utils.upsert import upsert
+from src.utils.feature_helpers import (
+    compute_weather_score,
+    compute_luck_score,
+    circuit_adj_start_pos as calc_circuit_adj_start_pos,
+    compute_rolling_teammate_delta,
+)
 
 
 WEIGHTS = {
@@ -85,11 +91,16 @@ def run(race_id: int) -> None:
 
         team_perf = {tid: v["car_perf"] for tid, v in team_data.items()}
 
-        luck_map        = _compute_luck(conn, driver_ids, race_id, team_perf, stats_rows)
-        weather_map     = _compute_weather(conn, driver_ids, weather)
+        luck_map        = compute_luck_score(conn, driver_ids, race_id, team_perf, stats_rows)
+        weather_map     = compute_weather_score(conn, driver_ids, weather)
         long_run_map    = _compute_long_run_pace(conn, driver_ids, race_id, race["circuit_id"])
         reliability_map = _compute_reliability(driver_ids, stats_rows, team_data)
-        quali_delta_map = _compute_qualifying_delta(conn, driver_ids, race_id)
+        quali_delta_map = compute_rolling_teammate_delta(
+            conn, driver_ids, race_id,
+            table="qualifying_results",
+            time_cols=("q1_time_ms", "q2_time_ms", "q3_time_ms"),
+            status_filter=("qualifying_done", "completed"),
+        )
         sector_map      = _compute_sector_strength(conn, driver_ids, race_id)
         tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, race["circuit_id"])
 
@@ -114,10 +125,8 @@ def run(race_id: int) -> None:
             start_pos = (21 - grid) / 20.0
             position_gain = clamp((avg_gain + 15.0) / 30.0)
 
-            # Circuit-context multipliers:
-            # Starting position matters more at low-overtake tracks (Monaco) and less at high (Monza).
-            # SC probability reduces grid advantage further — high-SC circuits bunch the field.
-            circuit_adj_start_pos = clamp(start_pos * (1 + (1 - overtake_rate)) * (1 - 0.3 * sc_probability))
+            # Circuit-context multiplier — shared with the sprint model, see feature_helpers.
+            circuit_adj_start_pos = calc_circuit_adj_start_pos(start_pos, overtake_rate, sc_probability)
             # Position gain potential is only meaningful where overtaking is physically possible.
             circuit_adj_position_gain = clamp(position_gain * overtake_rate)
 
@@ -305,73 +314,6 @@ def _compute_reliability(driver_ids, stats_rows, team_data):
     return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}
 
 
-def _compute_qualifying_delta(conn, driver_ids: list[int], race_id: int) -> dict[int, float]:
-    """
-    Rolling weighted mean of teammate qualifying delta across the last 5 races
-    (cross-season via driver.code). Weight: most recent = 5, oldest = 1.
-    Positive = driver was faster than teammate.
-    """
-    with conn.cursor() as cur:
-        cur.execute("SELECT race_date FROM races WHERE id = %s", (race_id,))
-        race_info = cur.fetchone()
-    if not race_info:
-        return {d: 0.5 for d in driver_ids}
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT sub.driver_id, sub.team_id, sub.best_ms, sub.race_date,
-                   ROW_NUMBER() OVER (PARTITION BY sub.driver_id ORDER BY sub.race_date DESC) AS rn
-            FROM (
-                SELECT d_cur.id AS driver_id, d_hist.team_id,
-                       LEAST(NULLIF(qr.q3_time_ms,0), NULLIF(qr.q2_time_ms,0), NULLIF(qr.q1_time_ms,0)) AS best_ms,
-                       r.race_date
-                FROM drivers d_cur
-                JOIN drivers d_hist ON d_hist.code = d_cur.code
-                JOIN qualifying_results qr ON qr.driver_id = d_hist.id
-                JOIN races r ON qr.race_id = r.id
-                WHERE d_cur.id = ANY(%s)
-                  AND r.race_date <= %s
-                  AND r.status IN ('qualifying_done', 'completed')
-            ) sub
-            WHERE sub.best_ms IS NOT NULL
-            """,
-            (driver_ids, race_info["race_date"]),
-        )
-        all_rows = cur.fetchall()
-
-    recent_by_driver: dict[int, list] = defaultdict(list)
-    for row in all_rows:
-        if row["rn"] <= 5:
-            recent_by_driver[row["driver_id"]].append(row)
-
-    session_team: dict[tuple, list] = defaultdict(list)
-    for driver_id, rows in recent_by_driver.items():
-        for row in rows:
-            key = (str(row["race_date"]), row["team_id"])
-            session_team[key].append((driver_id, float(row["best_ms"])))
-
-    weighted_deltas: dict[int, float] = {}
-    for driver_id, rows in recent_by_driver.items():
-        sorted_rows = sorted(rows, key=lambda r: r["race_date"], reverse=True)
-        sum_w, sum_wd = 0.0, 0.0
-        for idx, row in enumerate(sorted_rows):
-            weight = 5 - idx
-            key = (str(row["race_date"]), row["team_id"])
-            teammates = [(did, t) for did, t in session_team[key] if did != driver_id]
-            if not teammates:
-                continue
-            best_teammate_ms = min(t for _, t in teammates)
-            delta = (best_teammate_ms - float(row["best_ms"])) / best_teammate_ms
-            sum_wd += delta * weight
-            sum_w += weight
-        weighted_deltas[driver_id] = sum_wd / sum_w if sum_w > 0 else 0.0
-
-    vals = [weighted_deltas.get(d, 0.0) for d in driver_ids]
-    normalized = normalize_minmax(vals) if len(set(vals)) > 1 else vals
-    return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}
-
-
 def _compute_sector_strength(conn, driver_ids, race_id):
     with conn.cursor() as cur:
         cur.execute(
@@ -402,88 +344,3 @@ def _compute_sector_strength(conn, driver_ids, race_id):
     return combined
 
 
-def _compute_luck(conn, driver_ids, race_id, team_perf, stats_rows):
-    with conn.cursor() as cur:
-        cur.execute("SELECT race_date FROM races WHERE id = %s", (race_id,))
-        race_info = cur.fetchone()
-    if not race_info:
-        return {d: 0.5 for d in driver_ids}
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT driver_id, grid_position, finish_position FROM (
-                SELECT d_cur.id AS driver_id, rr.grid_position, rr.finish_position,
-                       ROW_NUMBER() OVER (PARTITION BY d_cur.id ORDER BY r.race_date DESC) AS rn
-                FROM drivers d_cur
-                JOIN drivers d_hist ON d_hist.code = d_cur.code
-                JOIN race_results rr ON rr.driver_id = d_hist.id
-                JOIN races r ON rr.race_id = r.id
-                WHERE d_cur.id = ANY(%s)
-                  AND r.status = 'completed'
-                  AND r.race_date < %s
-                  AND rr.finish_position IS NOT NULL
-            ) t WHERE rn <= 5
-            """,
-            (driver_ids, race_info["race_date"]),
-        )
-        driver_results: dict[int, list] = defaultdict(list)
-        for row in cur.fetchall():
-            driver_results[row["driver_id"]].append(row)
-
-    deltas = {}
-    for driver_id in driver_ids:
-        team_id = stats_rows.get(driver_id, {}).get("team_id")
-        car_rank = _car_rank(team_id, team_perf)
-        recent = driver_results[driver_id]
-        if not recent:
-            deltas[driver_id] = 0.0
-            continue
-        driver_deltas = [(rr["grid_position"] + car_rank) / 2.0 - rr["finish_position"] for rr in recent]
-        deltas[driver_id] = sum(driver_deltas) / len(driver_deltas)
-
-    vals = list(deltas.values())
-    normalized = normalize_minmax(vals)
-    return {driver_id: normalized[i] for i, driver_id in enumerate(deltas.keys())}
-
-
-def _car_rank(team_id, team_perf):
-    if not team_id:
-        return 10.0
-    return 20.0 - (team_perf.get(team_id, 0.5) * 19.0)
-
-
-def _compute_weather(conn, driver_ids, weather):
-    if weather == "dry":
-        return {d: 0.5 for d in driver_ids}
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT d_cur.id AS driver_id,
-                   AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS wet_avg,
-                   COUNT(*) AS wet_races
-            FROM drivers d_cur
-            JOIN drivers d_hist ON d_hist.code = d_cur.code
-            JOIN race_results rr ON rr.driver_id = d_hist.id
-            JOIN races r ON rr.race_id = r.id
-            WHERE r.weather IN ('wet', 'mixed') AND d_cur.id = ANY(%s)
-            GROUP BY d_cur.id
-            """,
-            (driver_ids,),
-        )
-        wet_rows = {r["driver_id"]: r for r in cur.fetchall()}
-
-    raw = []
-    for d in driver_ids:
-        row = wet_rows.get(d)
-        if row and row["wet_races"] and int(row["wet_races"]) >= 1:
-            raw.append(21.0 - float(row["wet_avg"]))
-        else:
-            raw.append(None)
-
-    valid = [s for s in raw if s is not None]
-    field_avg = sum(valid) / len(valid) if valid else 10.5
-    filled = [s if s is not None else field_avg for s in raw]
-    normalized = normalize_minmax(filled)
-    return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}
