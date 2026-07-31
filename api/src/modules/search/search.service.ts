@@ -2,7 +2,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import { drivers, teams, circuits, seasons } from '../../db/schema';
 import type { Driver } from '../../common/types';
-import { toDriver, toTeam } from '../../common/mappers';
+import { toDriver, toTeam, toCircuit } from '../../common/mappers';
 
 export class SearchService {
   async getGlobalSearchData(db: Db) {
@@ -29,7 +29,7 @@ export class SearchService {
     return {
       drivers: mappedDrivers,
       teams: uniqueTeams.map(toTeam),
-      circuits: allCircuits,
+      circuits: allCircuits.map(toCircuit),
     };
   }
 }

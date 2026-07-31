@@ -24,6 +24,9 @@ export const RacesController = {
   getCircuitDetails: async (c: Context<{ Bindings: Bindings }>) => {
     const circuitKey = c.req.param('circuitKey') ?? '';
     const data = await service.findCircuitDetails(createDb(c.env.DATABASE_URL), circuitKey);
+    if (!data) {
+      return c.json({ data: null, error: { code: 'NOT_FOUND', message: `Circuit ${circuitKey} not found` } }, 404);
+    }
     return c.json({ data, error: null });
   },
 

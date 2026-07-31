@@ -33,7 +33,7 @@ export const TeamsController = {
     if (isNaN(id)) {
       return c.json({ data: null, error: { code: 'INVALID_ID', message: 'id must be a number' } }, 400);
     }
-    const data = await service.findById(createDb(c.env.DATABASE_URL), id, year);
+    const data = await service.findById(createDb(c.env.DATABASE_URL), id);
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `Team ${id} not found for year ${year}` } }, 404);
     }

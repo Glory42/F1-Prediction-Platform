@@ -4,7 +4,7 @@ import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, tea
 import type { CircuitHistoryItem } from '../../common/types';
 import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse, Team, Driver } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';
-import { toDriver, toRace, toCircuit } from '../../common/mappers';
+import { toDriver, toRace, toCircuit, toTeam } from '../../common/mappers';
 import { toKeyedMap } from '../../common/collections';
 
 export class RacesService {
@@ -91,7 +91,7 @@ export class RacesService {
           .limit(1),
       ]);
 
-      const winnerMap = new Map<number, typeof winnerRows[0]>();
+      const winnerMap = toKeyedMap(winnerRows, (w) => w.race_results.raceId);
       const raceMap = toKeyedMap(raceRows, (r) => r.id);
 
       const teamWinsByEra: Record<string, Map<string, { team: typeof teams.$inferSelect; wins: number; bestIdx: number }>> = {
@@ -110,7 +110,6 @@ export class RacesService {
       const raceOrder = new Map(raceIds.map((id, idx) => [id, idx]));
 
       for (const w of winnerRows) {
-        winnerMap.set(w.race_results.raceId, w);
         const currentIdx = raceOrder.get(w.race_results.raceId) ?? 999;
         const race = raceMap.get(w.race_results.raceId);
         const year = race ? new Date(race.raceDate).getFullYear() : 2000;
@@ -215,7 +214,11 @@ export class RacesService {
         const driverWinsMap = driverWinsByEra[era];
         
         const constructors = Array.from(teamWins.values())
-          .sort((a, b) => b.wins - a.wins);
+          .sort((a, b) => b.wins - a.wins)
+          .map((c) => ({
+            team: toTeam(c.team),
+            wins: c.wins,
+          }));
         const drivers = Array.from(driverWinsMap.values())
           .sort((a, b) => b.wins - a.wins)
           .map((d) => ({

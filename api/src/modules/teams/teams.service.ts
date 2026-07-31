@@ -95,7 +95,8 @@ export class TeamsService {
     });
   }
 
-  async findById(db: Db, teamId: number, year: number): Promise<TeamDetailResponse | null> {
+  // `teams` rows are season-scoped, so teamId alone already pins the season — no `year` param needed.
+  async findById(db: Db, teamId: number): Promise<TeamDetailResponse | null> {
     const teamRows = await db
       .select()
       .from(teams)
