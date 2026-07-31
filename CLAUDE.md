@@ -50,6 +50,15 @@ Never define schema inline in route files.
 All data fetching happens in Astro frontmatter (`---` blocks), never in `client:*` islands.
 No React, Vue, or client-side JS for data fetching.
 
+**Deliberate exception — on-demand/combinatorial UI that can't be pre-fetched:**
+`GlobalSearch.tsx`, `DriverCompareTool.tsx`, and `TeamCompareTool.tsx` fetch client-side
+(`client:idle`/`client:load`) because their data depends on arbitrary user input at view time
+(a live search query; an arbitrary driver/team pair × year selected on demand) — the combinatorial
+space can't be pre-rendered into frontmatter for every possible interaction. This is the only
+sanctioned exception to this rule. Any *new* client-side fetch must fit this same shape (data that
+genuinely can't be known until the user interacts) — if the data is knowable at request time
+(e.g. a single circuit's coordinates, a fixed list), it belongs in frontmatter, passed down as a prop.
+
 ### 4. Python writes directly to Neon — never through the API
 The Python ETL engine connects directly to Neon via psycopg2.
 The Hono API is read-only from Neon's perspective.
@@ -170,7 +179,8 @@ All queries use Drizzle joins. Never fetch a list then loop-query for each item.
 - No heavy animation libraries
 - Tailwind for all styling
 - `.astro` components for display; `.tsx` for interactive Shadcn islands
-- `client:load` only when interactivity is strictly needed (currently: none)
+- `client:load`/`client:idle` only when interactivity is strictly needed — currently: `GlobalSearch`,
+  `DriverCompareTool`, `TeamCompareTool` (see the client-fetch exception under Critical Constraints §3)
 
 ---
 
