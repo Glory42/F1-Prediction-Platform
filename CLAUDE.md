@@ -115,7 +115,9 @@ api/src/
 │   ├── drivers/{controller,service,module}.ts
 │   ├── teams/{controller,service,module}.ts
 │   ├── predictions/{controller,service,module}.ts
-│   └── sprint/{controller,service,module}.ts
+│   ├── sprint/{controller,service,module}.ts
+│   ├── seasons/{controller,service,module}.ts
+│   └── search/{controller,service,module}.ts
 └── main.ts                            # Entry point, route registration
 ```
 
@@ -138,17 +140,35 @@ All endpoints return:
 ### Route structure
 ```
 GET /api/health
+
 GET /api/races?year=N&status=S
+GET /api/races/circuits
+GET /api/races/circuit/:circuitKey
 GET /api/races/:id
-GET /api/drivers?year=N
+
+GET /api/drivers?year=N&team_id=N
+GET /api/drivers/standings?year=N
+GET /api/drivers/:id/career
 GET /api/drivers/:id?year=N
+
 GET /api/teams?year=N
+GET /api/teams/standings?year=N
+GET /api/teams/:id/career
 GET /api/teams/:id?year=N
+
+GET /api/predictions/model-info
 GET /api/predictions/upcoming
-GET /api/predictions/race/:race_id
 GET /api/predictions/history?year=N
+GET /api/predictions/standings?year=N
+GET /api/predictions/race/:race_id
+
 GET /api/sprint/upcoming
 GET /api/sprint/race/:race_id
+GET /api/sprint/race/:race_id/detail
+
+GET /api/seasons
+
+GET /api/search
 ```
 
 No authentication. No write endpoints (ETL writes directly to DB).
