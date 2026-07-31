@@ -3,6 +3,7 @@ import sys
 from datetime import date
 
 import src.config as _config  # triggers FastF1 cache setup
+from src.utils.logging_utils import log_job_failure
 
 
 def auto_detect_race(year: int | None, conn) -> tuple[int, int]:
@@ -97,29 +98,7 @@ def auto_detect_sprint(year: int | None) -> tuple[int, int]:
     return int(row["year"]), int(row["round_number"])
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="F1 Intelligence Data Engine")
-    parser.add_argument("--job", required=True, choices=[
-        "sync_schedule",
-        "sync_season",
-        "ingest_qualifying",
-        "ingest_fp2",
-        "ingest_sprint_qualifying",
-        "ingest_sprint",
-        "ingest_race",
-        "compute_season_stats",
-        "compute_sprint_features",
-        "compute_sprint_predictions",
-        "compute_features",
-        "compute_predictions",
-    ])
-    parser.add_argument("--year", type=int, help="Season year (e.g. 2025)")
-    parser.add_argument("--round", type=int, dest="round_num", help="Race round number")
-    parser.add_argument("--race_id", type=int, help="Race DB id (for feature/prediction jobs)")
-    args = parser.parse_args()
-
-    job = args.job
-
+def _dispatch(job: str, args) -> None:
     if job == "sync_schedule":
         if not args.year:
             print("--year required for sync_schedule", file=sys.stderr)
@@ -208,6 +187,36 @@ def main() -> None:
             sys.exit(1)
         from src.jobs.compute_predictions import run
         run(args.race_id)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="F1 Intelligence Data Engine")
+    parser.add_argument("--job", required=True, choices=[
+        "sync_schedule",
+        "sync_season",
+        "ingest_qualifying",
+        "ingest_fp2",
+        "ingest_sprint_qualifying",
+        "ingest_sprint",
+        "ingest_race",
+        "compute_season_stats",
+        "compute_sprint_features",
+        "compute_sprint_predictions",
+        "compute_features",
+        "compute_predictions",
+    ])
+    parser.add_argument("--year", type=int, help="Season year (e.g. 2025)")
+    parser.add_argument("--round", type=int, dest="round_num", help="Race round number")
+    parser.add_argument("--race_id", type=int, help="Race DB id (for feature/prediction jobs)")
+    args = parser.parse_args()
+
+    try:
+        _dispatch(args.job, args)
+    except SystemExit:
+        raise
+    except Exception as e:
+        log_job_failure(args.job, e, year=args.year, round=args.round_num, race_id=args.race_id)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

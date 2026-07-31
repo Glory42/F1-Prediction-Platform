@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from src.auto_runner import run as auto_runner_run
+from src.utils.logging_utils import log_job_failure
 
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "admin")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
@@ -132,6 +133,7 @@ def start_worker():
             STATE["last_error"] = None
         except Exception as e:
             log_update(f"[worker] Worker caught error from auto_runner: {e}")
+            log_job_failure("auto_runner", e)
             STATE["status"] = "Error"
             STATE["last_error"] = str(e)
             

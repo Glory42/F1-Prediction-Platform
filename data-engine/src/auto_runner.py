@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 import fastf1
 from fastf1.core import DataNotLoadedError, InvalidSessionError, NoLapDataError
 from src.db.client import get_conn
+from src.utils.logging_utils import log_job_failure
 
 # Import jobs
 from src.jobs import (
@@ -83,6 +84,7 @@ def run(log_func=print):
                     log_func("[auto_runner] Sprint Qualifying ingestion completed successfully.")
                 except Exception as e:
                     log_func(f"[auto_runner] Error during Sprint Qualifying sequence: {e}. Reverting status.")
+                    log_job_failure("ingest_sprint_qualifying", e, race_id=race_id, year=year, round=round_number)
                     conn = get_conn()
                     try:
                         with conn.cursor() as cur:
@@ -104,6 +106,7 @@ def run(log_func=print):
                     log_func("[auto_runner] Sprint Race ingestion completed successfully.")
                 except Exception as e:
                     log_func(f"[auto_runner] Error during Sprint Race sequence: {e}. Reverting status.")
+                    log_job_failure("ingest_sprint", e, race_id=race_id, year=year, round=round_number)
                     conn = get_conn()
                     try:
                         with conn.cursor() as cur:
@@ -127,6 +130,7 @@ def run(log_func=print):
                     log_func("[auto_runner] Main Qualifying ingestion completed successfully.")
                 except Exception as e:
                     log_func(f"[auto_runner] Error during Main Qualifying sequence: {e}. Reverting status.")
+                    log_job_failure("ingest_qualifying", e, race_id=race_id, year=year, round=round_number)
                     conn = get_conn()
                     try:
                         with conn.cursor() as cur:
@@ -148,6 +152,7 @@ def run(log_func=print):
                     log_func("[auto_runner] Main Race ingestion completed successfully.")
                 except Exception as e:
                     log_func(f"[auto_runner] Error during Main Race sequence: {e}. Reverting status.")
+                    log_job_failure("ingest_race", e, race_id=race_id, year=year, round=round_number)
                     conn = get_conn()
                     try:
                         with conn.cursor() as cur:
@@ -168,6 +173,7 @@ def run(log_func=print):
     except Exception as e:
         # For unexpected errors, we want to fail so it shows up in Render logs
         log_func(f"[auto_runner] Unexpected error during execution: {e}")
+        log_job_failure("auto_runner", e, race_id=race_id, year=year, round=round_number)
         raise
 
 if __name__ == "__main__":
