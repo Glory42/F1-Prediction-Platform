@@ -201,7 +201,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
 
               {/* Countdown for upcoming */}
               {!isCompleted && (
-                <div class="flex items-center gap-3" id="race-countdown" data-race-date={race.raceDate}>
+                <div class="flex items-center gap-3" id="race-countdown" data-race-date={race.raceDateUtc || race.raceDate}>
                   {(['Days','Hrs','Min','Sec'] as const).map((unit, i) => (
                     <div class="text-center">
                       <div class="w-[54px] h-[54px] border border-white/[0.08] flex items-center justify-center bg-white/[0.02]">
