@@ -271,23 +271,23 @@ function isActive(href: string, dropdown?: { href: string }[]) {
     }
 
     function openMenu() {
-      sidebar.classList.remove('-translate-x-full');
-      backdrop.classList.remove('hidden');
+      sidebar!.classList.remove('-translate-x-full');
+      backdrop!.classList.remove('hidden');
       toggleBtn!.setAttribute('aria-expanded', 'true');
       setTimeout(() => {
-        backdrop.classList.add('opacity-100');
+        backdrop!.classList.add('opacity-100');
       }, 10);
       document.addEventListener('keydown', trapFocus);
-      (getFocusable()[0] ?? sidebar).focus();
+      (getFocusable()[0] ?? sidebar!).focus();
     }
 
     function closeMenu() {
-      sidebar.classList.add('-translate-x-full');
-      backdrop.classList.remove('opacity-100');
+      sidebar!.classList.add('-translate-x-full');
+      backdrop!.classList.remove('opacity-100');
       toggleBtn!.setAttribute('aria-expanded', 'false');
       document.removeEventListener('keydown', trapFocus);
       setTimeout(() => {
-        backdrop.classList.add('hidden');
+        backdrop!.classList.add('hidden');
       }, 300);
       toggleBtn!.focus();
     }
