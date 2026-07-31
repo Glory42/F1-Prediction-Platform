@@ -1,7 +1,7 @@
 ---
 import Navbar from '@/components/Navbar.astro';
 import Footer from '@/components/Footer.astro';
-import { ClientRouter } from 'astro:transitions';
+import { ClientRouter, fade } from 'astro:transitions';
 
 interface Props {
   title: string;
@@ -48,13 +48,16 @@ const ogImageURL = new URL(image, Astro.site);
   <body class="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col">
 
 
-    <Navbar />
+    <Navbar transition:persist />
 
-    <main class="flex-1 mx-auto w-full max-w-[1400px] px-[max(24px,4vw)] pt-[48px] pb-24 sm:pb-16">
+    <main
+      class="flex-1 mx-auto w-full max-w-[1400px] px-[max(24px,4vw)] pt-[48px] pb-24 sm:pb-16"
+      transition:animate={fade({ duration: '0.2s' })}
+    >
       <slot />
     </main>
 
-    <Footer />
+    <Footer transition:persist />
 
   </body>
 </html>

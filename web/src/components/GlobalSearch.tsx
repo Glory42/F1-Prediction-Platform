@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
 import { Search, Building2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -8,21 +8,37 @@ import { getCountryFlag } from "@/lib/countryFlags";
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [circuits, setCircuits] = useState<Circuit[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'drivers' | 'teams' | 'circuits'>('all');
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  // Retrace the entrance animation on the way out instead of snapping shut
+  function close() {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 160);
+  }
 
   // Toggle the menu when ctrl + K is pressed or close when Escape is pressed
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
-      } else if (e.key === "Escape") {
-        setOpen(false);
+        if (openRef.current) {
+          close();
+        } else {
+          setOpen(true);
+        }
+      } else if (e.key === "Escape" && openRef.current) {
+        close();
       }
     };
 
@@ -65,20 +81,20 @@ export function GlobalSearch() {
     setTimeout(() => setOpen(false), 100);
   };
 
-  if (!open) return null;
+  if (!open && !closing) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] sm:pt-[25vh]">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity z-0"
+        className={`search-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm z-0 ${closing ? 'closing' : ''}`}
         aria-hidden="true"
-        onClick={() => setOpen(false)}
+        onClick={close}
       />
 
-      <div className="relative z-10 w-[90vw] max-w-[500px]">
+      <div className={`search-panel relative z-10 w-[90vw] max-w-[500px] ${closing ? 'closing' : ''}`}>
         <Command
           label="Global Command Menu"
-          className="flex w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-black/95 shadow-2xl backdrop-blur-md"
+          className="glass-heavy flex w-full flex-col overflow-hidden rounded-xl border border-white/10 shadow-2xl"
         >
         {/* Search input header */}
         <div className="flex items-center border-b border-white/10 px-3">

@@ -100,7 +100,7 @@ function champPos(pos: number | null, i: number) { return pos ?? i + 1; }
                 {s.stats.carPerformanceScore ? (
                   <div class="flex items-center justify-end gap-2">
                     <div class="w-16 h-1 bg-white/[0.06]">
-                      <div class="h-full bg-[#a855f7]" style={`width:${Math.round(Number(s.stats.carPerformanceScore)*100)}%`} />
+                      <div class="h-full bg-[#a855f7] bar-fill" style={`width:${Math.round(Number(s.stats.carPerformanceScore)*100)}%`} />
                     </div>
                     <span class="font-mono text-[9px] text-muted-foreground">{Math.round(Number(s.stats.carPerformanceScore)*100)}</span>
                   </div>

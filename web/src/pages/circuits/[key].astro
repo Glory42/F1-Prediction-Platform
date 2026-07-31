@@ -263,7 +263,7 @@ function formatLapTime(ms: number) {
                       <span>{meta.powerWeight}%</span>
                     </div>
                     <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                      <div class="h-full bg-purple-500" style={`width: ${meta.powerWeight}%`} />
+                      <div class="h-full bg-purple-500 bar-fill" style={`width: ${meta.powerWeight}%`} />
                     </div>
                   </div>
                   <div>
@@ -272,7 +272,7 @@ function formatLapTime(ms: number) {
                       <span>{meta.downforceWeight}%</span>
                     </div>
                     <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                      <div class="h-full bg-purple-500" style={`width: ${meta.downforceWeight}%`} />
+                      <div class="h-full bg-purple-500 bar-fill" style={`width: ${meta.downforceWeight}%`} />
                     </div>
                   </div>
                 </div>
@@ -332,9 +332,9 @@ function formatLapTime(ms: number) {
             {totalWeather > 0 ? (
               <>
                 <div class="h-2 w-full flex rounded-full overflow-hidden mb-3">
-                  {dryPct > 0 && <div class="bg-yellow-500/80" style={`width: ${dryPct}%`} />}
-                  {mixedPct > 0 && <div class="bg-blue-400/80" style={`width: ${mixedPct}%`} />}
-                  {wetPct > 0 && <div class="bg-blue-600/80" style={`width: ${wetPct}%`} />}
+                  {dryPct > 0 && <div class="bg-yellow-500/80 bar-fill" style={`width: ${dryPct}%`} />}
+                  {mixedPct > 0 && <div class="bg-blue-400/80 bar-fill" style={`width: ${mixedPct}%`} />}
+                  {wetPct > 0 && <div class="bg-blue-600/80 bar-fill" style={`width: ${wetPct}%`} />}
                 </div>
                 <div class="flex justify-between font-mono text-[9px] tracking-widest uppercase text-muted-foreground">
                   <span class={dryPct > 0 ? "text-yellow-500/80" : "hidden"}>Dry {dryPct}%</span>

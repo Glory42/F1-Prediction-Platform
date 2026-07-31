@@ -259,7 +259,7 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
                           <span class="font-mono text-[8px] text-muted-foreground w-4 shrink-0">P{i+1}</span>
                           <span class="font-mono text-[9px] font-bold w-7 shrink-0">{d.driver.code}</span>
                           <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                            <div class="h-full bg-[#a855f7] absolute inset-y-0 left-0" style={`width:${pct}%`} />
+                            <div class="h-full bg-[#a855f7] bar-fill absolute inset-y-0 left-0" style={`width:${pct}%`} />
                           </div>
                           <span class="font-mono text-[8px] text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
                         </div>

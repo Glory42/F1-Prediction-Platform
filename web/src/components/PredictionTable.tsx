@@ -19,7 +19,7 @@ function FeatureBar({ score }: { score: string | null }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-primary/70 bar-fill" style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-muted-foreground">{pct}</span>
     </div>
@@ -79,7 +79,7 @@ export function PredictionTable({ drivers, predictedWinnerId }: Props) {
               <TableCell>
                 <div className="h-2 w-full max-w-32 overflow-hidden rounded-full bg-muted">
                   <div
-                    className={`h-full rounded-full ${isWinner ? 'bg-primary' : 'bg-primary/50'}`}
+                    className={`h-full rounded-full bar-fill ${isWinner ? 'bg-primary' : 'bg-primary/50'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -88,10 +88,10 @@ export function PredictionTable({ drivers, predictedWinnerId }: Props) {
               {/* Feature breakdown using native details/summary */}
               <td colSpan={6} className="px-0 pb-0 pt-0">
                 <details className="group">
-                  <summary className="cursor-pointer select-none px-4 py-1 text-xs text-muted-foreground hover:text-foreground">
+                  <summary className="cursor-pointer select-none px-4 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
                     ↳ Feature breakdown
                   </summary>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 px-4 pb-3 pt-1 sm:grid-cols-4">
+                  <div className="details-panel grid grid-cols-2 gap-x-8 gap-y-1.5 px-4 pb-3 pt-1 sm:grid-cols-4">
                     {Object.entries(dp.features).map(([key, val]) => (
                       <div key={key} className="space-y-0.5">
                         <p className="text-[10px] text-muted-foreground">{FEATURE_LABELS[key]}</p>

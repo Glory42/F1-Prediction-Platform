@@ -68,34 +68,38 @@ export function SearchSelect<T extends { id: number }>({
         </span>
       </div>
 
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-y-auto border border-white/[0.08] bg-black shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-          {filtered.length > 0 ? (
-            filtered.map((item) => {
-              const active = item.id === selectedId;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onSelect(item.id);
-                    setIsOpen(false);
-                    setQuery('');
-                  }}
-                  className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
-                    active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
-                  }`}
-                >
-                  {renderOption(item)}
-                </button>
-              );
-            })
-          ) : (
-            <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
-              {noResultsLabel}
-            </div>
-          )}
-        </div>
-      )}
+      <div
+        aria-hidden={!isOpen}
+        className={`absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-y-auto border border-white/[0.08] bg-black shadow-[0_4px_12px_rgba(0,0,0,0.8)] origin-top transition-[opacity,transform] duration-150 ease-spring ${
+          isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
+        }`}
+      >
+        {filtered.length > 0 ? (
+          filtered.map((item) => {
+            const active = item.id === selectedId;
+            return (
+              <button
+                key={item.id}
+                tabIndex={isOpen ? 0 : -1}
+                onClick={() => {
+                  onSelect(item.id);
+                  setIsOpen(false);
+                  setQuery('');
+                }}
+                className={`w-full text-left px-3 py-2 font-mono text-[10px] tracking-wider uppercase border-b border-white/[0.03] last:border-b-0 hover:bg-white/[0.04] transition-colors duration-100 ${
+                  active ? 'text-[#a855f7] bg-white/[0.02]' : 'text-muted-foreground'
+                }`}
+              >
+                {renderOption(item)}
+              </button>
+            );
+          })
+        ) : (
+          <div className="px-3 py-2 font-mono text-[9px] text-muted-foreground uppercase tracking-widest text-center">
+            {noResultsLabel}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

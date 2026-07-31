@@ -54,6 +54,13 @@ export default {
         'pulse-glow':     'pulse-glow 2s ease-in-out infinite',
         telemetry:        'telemetry 4s linear infinite alternate',
       },
+      // Apple "Designing Fluid Interfaces" curves — opt-in via `ease-spring`/`ease-spring-bounce`
+      // for entrances/exits (drawers, dropdowns, modals). Left Tailwind's DEFAULT alone so plain
+      // hover/color transitions keep a neutral ease instead of a directional entrance curve.
+      transitionTimingFunction: {
+        spring: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'spring-bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

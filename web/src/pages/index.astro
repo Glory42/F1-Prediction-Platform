@@ -169,7 +169,7 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
                           <span class="font-mono text-[10px] font-bold" style="color: rgba(168,85,247,0.9)">{pct}%</span>
                         </div>
                         <div class="h-px bg-white/[0.05] overflow-hidden">
-                          <div class="h-full bg-[#a855f7]" style={`width:${pct}%`} />
+                          <div class="h-full bg-[#a855f7] bar-fill" style={`width:${pct}%`} />
                         </div>
                       </div>
                     );

@@ -30,7 +30,7 @@ export function ComparisonRow({ label, valA, valB, format, lowerBetter = false, 
       </div>
       <div className="flex h-1.5 w-full bg-white/[0.03] overflow-hidden">
         <div
-          className="h-full transition-all duration-300"
+          className="h-full bar-fill"
           style={{
             width: `${pctA}%`,
             backgroundColor: isWinnerA ? colorA : (isTie ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.15)'),
@@ -38,7 +38,7 @@ export function ComparisonRow({ label, valA, valB, format, lowerBetter = false, 
           }}
         />
         <div
-          className="h-full transition-all duration-300"
+          className="h-full bar-fill"
           style={{
             width: `${pctB}%`,
             backgroundColor: isWinnerB ? colorB : (isTie ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.15)'),

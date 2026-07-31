@@ -98,17 +98,17 @@ export function WeatherForecast({ lat, lng, cityName }: WeatherForecastProps) {
       </h3>
 
       {loading ? (
-        <div className="py-4 text-center">
+        <div key="loading" className="fade-swap py-4 text-center">
           <span className="font-mono text-[9px] text-muted-foreground tracking-widest uppercase animate-pulse">
             Connecting weather satellites...
           </span>
         </div>
       ) : error || forecast.length === 0 ? (
-        <p className="text-[10px] text-muted-foreground">
+        <p key="error" className="fade-swap text-[10px] text-muted-foreground">
           Failed to fetch live weather data. Using historical weather model predictions.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div key="content" className="fade-swap space-y-3">
           {forecast.map((day, idx) => (
             <div key={day.date} className="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04]">
               <div className="flex items-center gap-3">

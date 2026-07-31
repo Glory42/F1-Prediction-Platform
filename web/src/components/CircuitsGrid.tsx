@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Circuit } from '@/types';
 import { getCountryFlag } from '@/lib/countryFlags';
 import { MapPin, Gauge, CornerDownRight, Wind, Zap } from 'lucide-react';
@@ -53,6 +53,14 @@ export function CircuitsGrid({ initialCircuits }: Props) {
 
     return result;
   }, [initialCircuits, selectedRegion, sortBy, sortOrder]);
+
+  // Fade the grid on filter/sort change without unmounting/remounting every card
+  const [gridVisible, setGridVisible] = useState(true);
+  useEffect(() => {
+    setGridVisible(false);
+    const id = requestAnimationFrame(() => setGridVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, [selectedRegion, sortBy, sortOrder]);
 
   const regions = ['All', 'Europe', 'Asia-Pacific', 'Americas', 'Middle East'];
 
@@ -120,7 +128,11 @@ export function CircuitsGrid({ initialCircuits }: Props) {
 
       {/* Grid of Circuit Cards */}
       {filteredAndSortedCircuits.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-200 ease-spring ${
+            gridVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           {filteredAndSortedCircuits.map((circuit) => {
             const overtakePct = circuit.overtakeRate ? Math.round(parseFloat(circuit.overtakeRate) * 100) : null;
             const circuitRegion = getRegion(circuit.country);
@@ -185,7 +197,7 @@ export function CircuitsGrid({ initialCircuits }: Props) {
                       </div>
                       <div className="w-full h-1 bg-white/[0.04] overflow-hidden relative">
                         <div
-                          className={`h-full bg-gradient-to-r ${colors.gradient}`}
+                          className={`h-full bg-gradient-to-r ${colors.gradient} bar-fill`}
                           style={{ width: `${overtakePct}%` }}
                         />
                       </div>

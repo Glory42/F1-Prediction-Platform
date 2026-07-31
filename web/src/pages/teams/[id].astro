@@ -132,7 +132,7 @@ const compareRows: CompareRow[] = d1 && d2 ? [
                 </div>
               </div>
               <div class="flex-1 h-1.5 bg-white/[0.06]">
-                <div class="h-full bg-[#a855f7]" style={`width:${Math.round(Number(data.seasonStats.reliabilityScore)*100)}%`} />
+                <div class="h-full bg-[#a855f7] bar-fill" style={`width:${Math.round(Number(data.seasonStats.reliabilityScore)*100)}%`} />
               </div>
               <div class="font-mono text-sm font-bold shrink-0">{Math.round(Number(data.seasonStats.reliabilityScore)*100)}/100</div>
             </div>
@@ -197,13 +197,13 @@ const compareRows: CompareRow[] = d1 && d2 ? [
                       <div class="flex items-center gap-3 px-4 py-3">
                         <span class={`font-mono text-sm font-bold w-10 shrink-0 ${d1Wins ? 'text-white' : 'text-muted-foreground'}`}>{display1}</span>
                         <div class="flex-1 h-1.5 bg-white/[0.06] flex justify-end overflow-hidden">
-                          <div class="h-full" style={`width:${pct1}%; background:${d1Wins ? color : 'rgba(255,255,255,0.12)'}`} />
+                          <div class="h-full bar-fill bar-fill-end" style={`width:${pct1}%; background:${d1Wins ? color : 'rgba(255,255,255,0.12)'}`} />
                         </div>
                       </div>
                       <div class="flex items-center justify-center font-mono text-[8px] text-muted-foreground tracking-widest uppercase border-x border-white/[0.06]">{row.label}</div>
                       <div class="flex items-center gap-3 px-4 py-3">
                         <div class="flex-1 h-1.5 bg-white/[0.06] overflow-hidden">
-                          <div class="h-full" style={`width:${pct2}%; background:${d2Wins ? color : 'rgba(255,255,255,0.12)'}`} />
+                          <div class="h-full bar-fill" style={`width:${pct2}%; background:${d2Wins ? color : 'rgba(255,255,255,0.12)'}`} />
                         </div>
                         <span class={`font-mono text-sm font-bold w-10 shrink-0 text-right ${d2Wins ? 'text-white' : 'text-muted-foreground'}`}>{display2}</span>
                       </div>
@@ -274,7 +274,7 @@ const compareRows: CompareRow[] = d1 && d2 ? [
                     {y.stats?.carPerformanceScore ? (
                       <>
                         <div class="w-12 h-1 bg-white/[0.06]">
-                          <div class="h-full bg-[#a855f7]" style={`width:${Math.round(Number(y.stats.carPerformanceScore)*100)}%`} />
+                          <div class="h-full bg-[#a855f7] bar-fill" style={`width:${Math.round(Number(y.stats.carPerformanceScore)*100)}%`} />
                         </div>
                         <span class="font-mono text-[9px] text-muted-foreground">{Math.round(Number(y.stats.carPerformanceScore)*100)}</span>
                       </>

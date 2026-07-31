@@ -45,7 +45,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
 ---
 
 <!-- Desktop & Mobile Top Bar -->
-<header class="fixed top-0 left-0 right-0 z-50 h-[48px] bg-black border-b border-white/[0.06]">
+<header class="glass fixed top-0 left-0 right-0 z-50 h-[48px] border-b border-white/[0.06]">
 
   <div class="h-full flex items-center justify-between sm:justify-center px-5 sm:px-0 relative">
 
@@ -53,7 +53,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
     <div class="flex items-center gap-3 sm:hidden">
       <button
         id="mobile-menu-toggle"
-        class="sm:hidden text-muted-foreground hover:text-foreground shrink-0 focus:outline-none"
+        class="press sm:hidden text-muted-foreground hover:text-foreground shrink-0 focus:outline-none"
         aria-label="Open menu"
         aria-expanded="false"
         aria-controls="mobile-sidebar"
@@ -81,7 +81,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
 
     <!-- Mobile Search & live status -->
     <div class="sm:hidden flex items-center gap-4">
-      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="text-muted-foreground hover:text-foreground focus:outline-none">
+      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="press text-muted-foreground hover:text-foreground focus:outline-none">
         <Search size={16} />
       </button>
       <div class="flex items-center gap-1.5">
@@ -112,9 +112,9 @@ function isActive(href: string, dropdown?: { href: string }[]) {
                 <span class="text-[7px] ml-0.5 opacity-65 group-hover:rotate-180 transition-transform duration-200">▼</span>
               </a>
 
-              {/* Dropdown panel */}
-              <div class="absolute top-[44px] pt-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 min-w-[120px]">
-                <div class="border border-white/[0.08] bg-black py-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+              {/* Dropdown panel — core nav, checked many times a day: kept to a fast, opacity-only cue */}
+              <div class="absolute top-[44px] pt-1.5 left-1/2 -translate-x-1/2 z-50 min-w-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto">
+                <div class="glass border border-white/[0.08] py-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
                   {dropdown.map((sub: any) => (
                     <a
                       href={sub.href}
@@ -144,7 +144,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
 
     <!-- Desktop Search Button -->
     <div class="hidden sm:flex absolute right-5 items-center h-full">
-      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-150">
+      <button onclick="window.dispatchEvent(new Event('open-global-search'))" class="press flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors duration-150">
         <Search size={12} />
         <span class="font-mono text-[9px] tracking-[0.18em] uppercase">Search</span>
         <kbd class="hidden xl:inline-flex items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
@@ -159,7 +159,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
 <!-- Mobile Sidebar Drawer -->
 <div
   id="mobile-sidebar"
-  class="fixed inset-y-0 left-0 z-50 w-[260px] bg-black/95 backdrop-blur-md border-r border-white/[0.08] transform -translate-x-full transition-transform duration-300 ease-in-out sm:hidden"
+  class="glass-heavy fixed inset-y-0 left-0 z-50 w-[260px] border-r border-white/[0.08] transform -translate-x-full transition-transform duration-300 ease-spring sm:hidden"
   role="dialog"
   aria-modal="true"
   aria-label="Navigation menu"
@@ -175,7 +175,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
         </span>
         <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-[#a855f7]">menu</span>
       </div>
-      <button id="mobile-sidebar-close" class="text-muted-foreground hover:text-foreground focus:outline-none" aria-label="Close menu">
+      <button id="mobile-sidebar-close" class="press text-muted-foreground hover:text-foreground focus:outline-none" aria-label="Close menu">
         <X size={16} />
       </button>
     </div>
@@ -198,15 +198,19 @@ function isActive(href: string, dropdown?: { href: string }[]) {
                 </span>
                 <span class="text-[7px] text-muted-foreground/60 transition-transform duration-200 group-hover:text-white">▼</span>
               </button>
-              <div id={`mobile-dropdown-${label}`} class="hidden pl-4 border-l border-white/[0.06] flex flex-col space-y-3 mt-1">
-                {dropdown.map((sub: any) => (
-                  <a
-                    href={sub.href}
-                    class="block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-white py-0.5 transition-colors"
-                  >
-                    {sub.label}
-                  </a>
-                ))}
+              <div id={`mobile-dropdown-${label}`} class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-spring">
+                <div class="overflow-hidden min-h-0">
+                  <div class="pl-4 border-l border-white/[0.06] flex flex-col space-y-3 mt-1 opacity-0 transition-opacity duration-200 mobile-dropdown-content">
+                    {dropdown.map((sub: any) => (
+                      <a
+                        href={sub.href}
+                        class="block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-white py-0.5 transition-colors"
+                      >
+                        {sub.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -302,14 +306,19 @@ function isActive(href: string, dropdown?: { href: string }[]) {
         const arrow = btn.querySelector('span:last-child');
         
         if (dropdownPanel) {
-          const isHidden = dropdownPanel.classList.contains('hidden');
-          if (isHidden) {
-            dropdownPanel.classList.remove('hidden');
-            dropdownPanel.classList.add('flex');
+          const content = dropdownPanel.querySelector('.mobile-dropdown-content');
+          const isCollapsed = dropdownPanel.classList.contains('grid-rows-[0fr]');
+          if (isCollapsed) {
+            dropdownPanel.classList.remove('grid-rows-[0fr]');
+            dropdownPanel.classList.add('grid-rows-[1fr]');
+            content?.classList.remove('opacity-0');
+            content?.classList.add('opacity-100');
             if (arrow) arrow.classList.add('rotate-180');
           } else {
-            dropdownPanel.classList.remove('flex');
-            dropdownPanel.classList.add('hidden');
+            dropdownPanel.classList.remove('grid-rows-[1fr]');
+            dropdownPanel.classList.add('grid-rows-[0fr]');
+            content?.classList.remove('opacity-100');
+            content?.classList.add('opacity-0');
             if (arrow) arrow.classList.remove('rotate-180');
           }
         }
