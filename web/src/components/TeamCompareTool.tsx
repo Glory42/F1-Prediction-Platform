@@ -3,10 +3,14 @@ import { api } from '@/lib/api';
 import type { Team, TeamDetailResponse, TeamYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
+import { aggregateCareerStats } from '@/lib/compareStats';
 import { Shield, Zap } from 'lucide-react';
 import { useCompareController } from '@/lib/useCompareController';
 import { SearchSelect } from './SearchSelect';
 import { ComparisonRow } from './ComparisonRow';
+import { CompareModeToggle } from './CompareModeToggle';
+import { CompareYearSelect } from './CompareYearSelect';
+import { CompareStatus } from './CompareStatus';
 
 interface Props {
   allSeasons: SeasonSummary[];
@@ -46,37 +50,8 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
   const colorB = useMemo(() => getTeamColor(teamB?.teamKey || ''), [teamB]);
 
   // Compute Career summaries
-  const careerA = useMemo(() => {
-    if (!teamACareer) return null;
-    return teamACareer.reduce((acc, curr) => {
-      if (!curr.stats) return acc;
-      acc.entries += curr.stats.racesCompleted;
-      acc.wins += curr.stats.wins;
-      acc.podiums += curr.stats.podiums;
-      acc.points += parseFloat(curr.stats.totalPoints);
-      acc.dnfs += curr.stats.dnfCount;
-      if (curr.stats.championshipPosition) {
-        acc.bestFin = acc.bestFin ? Math.min(acc.bestFin, curr.stats.championshipPosition) : curr.stats.championshipPosition;
-      }
-      return acc;
-    }, { entries: 0, wins: 0, podiums: 0, points: 0, dnfs: 0, bestFin: null as number | null });
-  }, [teamACareer]);
-
-  const careerB = useMemo(() => {
-    if (!teamBCareer) return null;
-    return teamBCareer.reduce((acc, curr) => {
-      if (!curr.stats) return acc;
-      acc.entries += curr.stats.racesCompleted;
-      acc.wins += curr.stats.wins;
-      acc.podiums += curr.stats.podiums;
-      acc.points += parseFloat(curr.stats.totalPoints);
-      acc.dnfs += curr.stats.dnfCount;
-      if (curr.stats.championshipPosition) {
-        acc.bestFin = acc.bestFin ? Math.min(acc.bestFin, curr.stats.championshipPosition) : curr.stats.championshipPosition;
-      }
-      return acc;
-    }, { entries: 0, wins: 0, podiums: 0, points: 0, dnfs: 0, bestFin: null as number | null });
-  }, [teamBCareer]);
+  const careerA = useMemo(() => aggregateCareerStats(teamACareer, (s) => s.racesCompleted), [teamACareer]);
+  const careerB = useMemo(() => aggregateCareerStats(teamBCareer, (s) => s.racesCompleted), [teamBCareer]);
 
   const teamMatches = (t: Team, q: string) => t.name.toLowerCase().includes(q);
   const teamInputLabel = (t: Team) => t.name;
@@ -119,53 +94,14 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
         </div>
 
         <div className="flex items-center gap-3 justify-end">
-          {!isCareer && (
-            <select
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value))}
-              className="bg-black border border-white/[0.08] text-white text-xs font-mono px-3 py-2 uppercase tracking-wider focus:outline-none focus:border-[#a855f7]/40"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>{y} Season</option>
-              ))}
-            </select>
-          )}
+          {!isCareer && <CompareYearSelect years={years} year={year} setYear={setYear} />}
 
-          <div className="flex items-center border border-white/[0.08] overflow-hidden">
-            <button
-              onClick={() => setIsCareer(false)}
-              className={`font-mono text-[8px] tracking-[0.15em] uppercase px-3 py-2 transition-colors duration-150 ${
-                !isCareer
-                  ? 'bg-[rgba(168,85,247,0.12)] text-[#a855f7]'
-                  : 'text-muted-foreground hover:text-foreground'
-              } border-r border-white/[0.08]`}
-            >
-              Season
-            </button>
-            <button
-              onClick={() => setIsCareer(true)}
-              className={`font-mono text-[8px] tracking-[0.15em] uppercase px-3 py-2 transition-colors duration-150 ${
-                isCareer
-                  ? 'bg-[rgba(168,85,247,0.12)] text-[#a855f7]'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Career
-            </button>
-          </div>
+          <CompareModeToggle isCareer={isCareer} setIsCareer={setIsCareer} />
         </div>
       </div>
 
-      {loading ? (
-        <div key="loading" className="fade-swap py-20 text-center">
-          <div className="inline-block w-6 h-6 border-2 border-[#a855f7] border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase animate-pulse">Analyzing statistics...</p>
-        </div>
-      ) : error ? (
-        <div key="error" className="fade-swap border border-destructive/40 bg-destructive/10 p-8 text-center">
-          <p className="font-mono text-[10px] text-destructive tracking-widest uppercase">Error comparing teams</p>
-          <p className="mt-2 font-mono text-[9px] text-muted-foreground">{error}</p>
-        </div>
+      {loading || error ? (
+        <CompareStatus loading={loading} error={error} entityLabel="teams" />
       ) : (
         <div key="content" className="fade-swap space-y-8">
           {/* Team Profile Cards */}
