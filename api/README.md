@@ -44,7 +44,12 @@ Drizzle table definitions live in `src/db/schema/`. To push schema changes to Ne
 DATABASE_URL=<your-url> bunx drizzle-kit push
 ```
 
-Migrations are generated into `../db/migrations/`.
+Migrations are generated into `drizzle/migrations/`:
+
+```bash
+DATABASE_URL=<your-url> bunx drizzle-kit generate   # after changing src/db/schema/
+DATABASE_URL=<your-url> bunx drizzle-kit migrate    # apply via migration files (prod)
+```
 
 ## Routes
 

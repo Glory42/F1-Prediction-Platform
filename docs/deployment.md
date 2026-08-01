@@ -66,10 +66,10 @@ Configured in `api/src/main.ts`. Only `GET` and `OPTIONS` methods are allowed.
 ### 1. Database
 
 ```bash
-cd db
+cd api
 bun install
 # Set DATABASE_URL in your shell or .env
-bun run drizzle-kit push    # applies schema to Neon
+bun run db:push    # applies schema to Neon
 ```
 
 Then seed circuits and seasons:

@@ -72,7 +72,6 @@ Scopes: `web`, `api`, `db`, `etl`, `navbar`, `prediction`, `races`, `drivers`, `
 
 - [`CLAUDE.md`](CLAUDE.md) — full architecture reference and constraints
 - [`CODEMAP.md`](CODEMAP.md) — full file-level reference map
-- [`api/README.md`](api/README.md) — API setup and routes
+- [`api/README.md`](api/README.md) — API setup, routes, and migration workflow
 - [`web/README.md`](web/README.md) — frontend setup and pages
 - [`data-engine/README.md`](data-engine/README.md) — ETL jobs and cron schedule
-- [`db/README.md`](db/README.md) — migration workflow

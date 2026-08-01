@@ -12,12 +12,11 @@ order: 1
 F1-prediction/
 ├── web/           Astro SSR frontend — Cloudflare Pages
 ├── api/           Hono REST API — Cloudflare Workers
-├── db/            Drizzle migration files only
 └── data-engine/   Python ETL batch jobs — Render
 ```
 
-The schema source of truth lives in `api/src/db/schema/`, not in `db/`.
-The `db/` folder holds only the generated SQL migration files.
+The schema source of truth lives in `api/src/db/schema/`. Generated SQL migration files live in
+`api/drizzle/migrations/` — both are owned by `api/`, not a separate top-level package.
 
 ---
 
@@ -145,4 +144,4 @@ Sunday
 | `web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-deploys |
 | `api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-deploys |
 | `data-engine/` | Render | Web Service (hourly polling) |
-| DB migrations | Neon | Manual: `bun run drizzle-kit push` from `db/` |
+| DB migrations | Neon | Manual: `bun run db:push` from `api/` |

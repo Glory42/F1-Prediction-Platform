@@ -9,7 +9,7 @@ A structured health check across `api/`, `web/`, `data-engine/`, and `db/`. Run 
 
 ## Scope
 
-Default: full `api/src`, `web/src`, `data-engine/src` trees plus `db/migrations`.
+Default: full `api/src`, `web/src`, `data-engine/src` trees plus `api/drizzle/migrations`.
 If the user scopes it ("just the API", "just the data engine"), honour that.
 
 Use the `Explore` agent for the search legwork — it keeps the main context window clean.
@@ -31,12 +31,12 @@ These are hard rules — treat any hit as Critical, not Warning:
 - **Non-idempotent ETL writes**: grep `data-engine/src/jobs/*.py` for raw `INSERT INTO` strings that don't go through `upsert()` (`data-engine/src/utils/upsert.py`) and don't contain `ON CONFLICT`. Every job must be safe to re-run.
 
 ### 2. Schema / migration drift
-Cross-check `api/src/db/schema/*.ts` table definitions against `db/migrations/*.sql`. For each column defined in a schema file, confirm a corresponding `ADD COLUMN` or `CREATE TABLE` exists in some migration. A column present in schema but absent from any migration means `drizzle-kit generate` was skipped after a schema edit.
+Cross-check `api/src/db/schema/*.ts` table definitions against `api/drizzle/migrations/*.sql`. For each column defined in a schema file, confirm a corresponding `ADD COLUMN` or `CREATE TABLE` exists in some migration. A column present in schema but absent from any migration means `drizzle-kit generate` was skipped after a schema edit.
 ```bash
-ls db/migrations/*.sql
-cat db/migrations/meta/_journal.json
+ls api/drizzle/migrations/*.sql
+cat api/drizzle/migrations/meta/_journal.json
 ```
-Also flag any `.sql` file in `db/migrations/` whose tag doesn't appear in `meta/_journal.json` — an untracked migration that won't run.
+Also flag any `.sql` file in `api/drizzle/migrations/` whose tag doesn't appear in `meta/_journal.json` — an untracked migration that won't run.
 
 ### 3. Race status flow consistency
 CLAUDE.md documents two status flows (conventional: `scheduled → qualifying_done → completed`; sprint: `scheduled → sprint_qualifying_done → sprint_done → qualifying_done → completed`). Grep `api/src` and `data-engine/src/jobs` for string literals matching race statuses (`'scheduled'`, `'qualifying_done'`, `'sprint_done'`, etc.) and confirm no code branches on a status string not in either documented flow — a typo'd status silently breaks the ETL cron chain or an API filter.

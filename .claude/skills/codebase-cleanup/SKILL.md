@@ -39,8 +39,8 @@ Remove only if the sole hit is the definition itself. Do **not** remove if:
 
 ### 5. Orphaned migration files
 ```bash
-ls db/migrations/*.sql
-grep '"tag"' db/migrations/meta/_journal.json
+ls api/drizzle/migrations/*.sql
+grep '"tag"' api/drizzle/migrations/meta/_journal.json
 ```
 Flag any `.sql` file whose tag doesn't appear in the journal — it won't run and clutters the directory. Do not delete automatically; confirm with the user, since it might be an in-progress migration.
 
