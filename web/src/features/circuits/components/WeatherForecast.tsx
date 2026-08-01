@@ -1,5 +1,5 @@
 import { Sun, Cloud, CloudRain, CloudLightning, Thermometer, CloudFog } from 'lucide-react';
-import type { ForecastDay } from '@/lib/weather';
+import type { ForecastDay } from '../weather';
 
 interface WeatherForecastProps {
   lat: number;

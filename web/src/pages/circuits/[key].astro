@@ -5,9 +5,9 @@ import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
 import { MapPin, ChevronRight, Zap, User, Shield, AlertTriangle } from 'lucide-react';
 import { getCountryFlag } from '@/lib/countryFlags';
-import { getCircuitMetadata } from '@/lib/circuitMetadata';
-import { WeatherForecast } from '@/components/WeatherForecast';
-import { getWeatherForecast, type ForecastDay } from '@/lib/weather';
+import { getCircuitMetadata } from '@/features/circuits/circuitMetadata';
+import { WeatherForecast } from '@/features/circuits/components/WeatherForecast';
+import { getWeatherForecast, type ForecastDay } from '@/features/circuits/weather';
 
 const { key } = Astro.params;
 if (!key) return Astro.redirect('/races');

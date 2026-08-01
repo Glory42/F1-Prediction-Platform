@@ -178,39 +178,51 @@ web/
 │   ├── layouts/
 │   │   ├── BaseLayout.astro       # Shared layout — Navbar, slot, global styles
 │   │   └── LandingLayout.astro    # Landing-specific layout (no navbar chrome)
-│   ├── components/
-│   │   ├── Navbar.astro           # Top navigation bar
-│   │   ├── Footer.astro           # Shared footer; variant="minimal" (default) | "full" (landing)
-│   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
-│   │   ├── YearSelectLinks.astro  # Year selector using anchor links
-│   │   ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
-│   │   ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
-│   │   ├── ProbabilityBar.astro   # Inline win probability bar
-│   │   ├── PredictionTable.tsx    # Driver prediction table with feature breakdown
-│   │   ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
-│   │   ├── RecentResultsTable.tsx # Compact recent results table
-│   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
-│   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
-│   │   ├── TeamStatsCard.tsx      # Team season stats card
-│   │   ├── GlobalSearch.tsx       # React global search palette (cmdk)
-│   │   ├── CircuitsGrid.tsx       # React component for circuits grid (filters/sorting)
-│   │   ├── WeatherForecast.tsx    # React weather forecast widget (Open-Meteo API)
-│   │   ├── DriverCompareTool.tsx  # Driver head-to-head comparison — entity-specific config over shared compare pieces
-│   │   ├── TeamCompareTool.tsx    # Team head-to-head comparison — entity-specific config over shared compare pieces
-│   │   ├── SearchSelect.tsx       # Generic autocomplete combobox; shared by Driver/TeamCompareTool
-│   │   ├── ComparisonRow.tsx      # Generic stat comparison bar; shared by Driver/TeamCompareTool
-│   │   └── ui/                    # Shadcn/ui primitives
+│   ├── components/                # Generic, cross-feature only — domain UI lives in features/
+│   │   ├── layout/
+│   │   │   ├── Navbar.astro       # Top navigation bar
+│   │   │   └── Footer.astro       # Shared footer; variant="minimal" (default) | "full" (landing)
+│   │   ├── shared/
+│   │   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
+│   │   │   └── YearSelectLinks.astro  # Year selector using anchor links; used by driver/team profile pages
+│   │   └── ui/                    # Shadcn/ui primitives + generic widgets
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
 │   │       ├── card.tsx
-│   │       └── table.tsx
-│   ├── lib/
+│   │       ├── table.tsx
+│   │       └── search-select.tsx  # Generic autocomplete combobox; shared by Driver/TeamCompareTool
+│   ├── features/
+│   │   ├── races/components/
+│   │   │   ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
+│   │   │   ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
+│   │   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
+│   │   │   └── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
+│   │   ├── drivers/components/
+│   │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
+│   │   │   └── RecentResultsTable.tsx # Compact recent results table
+│   │   ├── circuits/
+│   │   │   ├── components/
+│   │   │   │   ├── CircuitsGrid.tsx      # React component for circuits grid (filters/sorting)
+│   │   │   │   └── WeatherForecast.tsx   # React weather forecast widget (Open-Meteo API)
+│   │   │   ├── circuitMetadata.ts     # Track coordinate and telemetry configuration
+│   │   │   └── weather.ts             # Open-Meteo forecast fetch + ForecastDay type
+│   │   ├── compare/
+│   │   │   ├── components/
+│   │   │   │   ├── DriverCompareTool.tsx  # Driver head-to-head comparison — entity-specific config over shared compare pieces
+│   │   │   │   ├── TeamCompareTool.tsx    # Team head-to-head comparison — entity-specific config over shared compare pieces
+│   │   │   │   ├── ComparisonRow.tsx      # Generic stat comparison bar; shared by Driver/TeamCompareTool
+│   │   │   │   ├── CompareModeToggle.tsx  # Season/career mode switch
+│   │   │   │   ├── CompareYearSelect.tsx  # Year selector variant for compare tools
+│   │   │   │   └── CompareStatus.tsx      # Loading/error status display
+│   │   │   ├── compareStats.ts        # aggregateCareerStats() — career stat aggregation
+│   │   │   └── useCompareController.ts # Generic compare-tool state hook (URL sync, year/career switching, detail fetch)
+│   │   └── search/components/
+│   │       └── GlobalSearch.tsx       # React global search palette (cmdk)
+│   ├── lib/                       # Only truly cross-feature helpers
 │   │   ├── api.ts                 # Typed API client — all fetch calls, uses PUBLIC_API_URL
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   ├── countryFlags.ts        # country → emoji flag helper
-│   │   ├── circuitMetadata.ts     # Track coordinate and telemetry configuration
-│   │   ├── useCompareController.ts # Generic compare-tool state hook (URL sync, year/career switching, detail fetch)
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,
@@ -264,7 +276,7 @@ web/
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
-| `lib/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, season/career toggle, URL param sync, detail/career fetch. |
+| `features/compare/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, season/career toggle, URL param sync, detail/career fetch. |
 
 ---
 
