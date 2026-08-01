@@ -40,11 +40,11 @@ python -m src.main --job ingest_race_legacy       --year 2010 --round 5
 
 ```bash
 # Full backfill — sync + all rounds + sprint pipeline + predictions
-python backfill_full.py --start 2018           # recommended: full FastF1 coverage
-python backfill_full.py --start 2000           # 2000–2026, older years skip gracefully
+python scripts/backfill_full.py --start 2018           # recommended: full FastF1 coverage
+python scripts/backfill_full.py --start 2000           # 2000–2026, older years skip gracefully
 
 # Sprint-only backfill — re-run sprint pipeline for specific years
-python backfill_sprint.py --years 2021 2022 2024 2026
+python scripts/backfill_sprint.py --years 2021 2022 2024 2026
 ```
 
 Data coverage:

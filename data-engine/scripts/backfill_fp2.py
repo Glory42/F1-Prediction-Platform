@@ -3,12 +3,14 @@ Backfill FP2 long-run data for all completed races (2018+).
 Failures are logged and skipped — FP2 data availability varies.
 
     source venv/bin/activate
-    python backfill_fp2.py
+    python scripts/backfill_fp2.py
 """
 import sys
 import time
 import psycopg2
 import psycopg2.extras
+
+sys.path.insert(0, ".")
 from src.config import DATABASE_URL
 from src.jobs.ingest_fp2 import run as ingest_fp2
 
