@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary, SprintPredictionResponse, ModelInfo } from '@/types';
 import { Cpu, BarChart2, History, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
-import YearSelect from '@/components/YearSelect.astro';
+import YearSelect from '@/components/shared/YearSelect.astro';
 import { getTeamColor } from '@/lib/teamColors';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());

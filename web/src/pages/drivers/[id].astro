@@ -1,11 +1,11 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { DriverStatsGrid } from '@/components/DriverStatsGrid';
-import { RecentResultsTable } from '@/components/RecentResultsTable';
+import { DriverStatsGrid } from '@/features/drivers/components/DriverStatsGrid';
+import { RecentResultsTable } from '@/features/drivers/components/RecentResultsTable';
 import { api } from '@/lib/api';
 import type { DriverYearStats } from '@/types';
 import { BarChart2, History, ChevronRight, Trophy } from 'lucide-react';
-import YearSelectLinks from '@/components/YearSelectLinks.astro';
+import YearSelectLinks from '@/components/shared/YearSelectLinks.astro';
 import { getTeamColor } from '@/lib/teamColors';
 import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
 
