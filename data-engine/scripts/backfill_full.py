@@ -22,10 +22,10 @@ FastF1 data notes:
   - Older years (2000–2017) will attempt but may fail gracefully on missing sessions.
 
 Usage:
-  python backfill_full.py                        # 2000–2026
-  python backfill_full.py --start 2018           # 2018–2026
-  python backfill_full.py --start 2025 --end 2026
-  python backfill_full.py --start 2026 --end 2026  # current season only
+  python scripts/backfill_full.py                        # 2000–2026
+  python scripts/backfill_full.py --start 2018           # 2018–2026
+  python scripts/backfill_full.py --start 2025 --end 2026
+  python scripts/backfill_full.py --start 2026 --end 2026  # current season only
 """
 
 import argparse

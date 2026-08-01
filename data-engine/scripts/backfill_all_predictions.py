@@ -7,12 +7,14 @@ Covers:
 
 Run from data-engine/:
     source venv/bin/activate
-    python backfill_all_predictions.py
+    python scripts/backfill_all_predictions.py
 """
 import sys
 import time
 import psycopg2
 import psycopg2.extras
+
+sys.path.insert(0, ".")
 from src.config import DATABASE_URL
 from src.jobs import compute_features, compute_predictions
 from src.jobs import compute_sprint_features, compute_sprint_predictions

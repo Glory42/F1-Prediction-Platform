@@ -80,7 +80,7 @@ python src/main.py --job compute_season_stats --year 2025
 Historical backfill (2018+ FastF1, pre-2018 Ergast):
 ```bash
 cd data-engine
-python run_backfill.py 2000 2025
+python scripts/run_backfill.py 2000 2025
 ```
 
 ## Environment Variables

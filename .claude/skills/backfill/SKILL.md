@@ -37,17 +37,17 @@ ROUND_COUNTS = {
 
 ## Full Year Backfill (recommended)
 
-Use `run_backfill.py` for one or more years. It handles sync → ingest → compute automatically:
+Use `scripts/run_backfill.py` for one or more years. It handles sync → ingest → compute automatically:
 
 ```bash
 # Single year
-python run_backfill.py 2022 2022
+python scripts/run_backfill.py 2022 2022
 
 # Range
-python run_backfill.py 2005 2017
+python scripts/run_backfill.py 2005 2017
 
 # Background with log
-python run_backfill.py 2019 2023 > /tmp/backfill_2019_2023.log 2>&1 &
+python scripts/run_backfill.py 2019 2023 > /tmp/backfill_2019_2023.log 2>&1 &
 ```
 
 ## Individual Jobs
@@ -110,6 +110,6 @@ conn.close()
 ## Rules
 
 - Jobs are idempotent — safe to re-run
-- `safe()` wrapper in `run_backfill.py` catches per-round failures and continues
+- `safe()` wrapper in `scripts/run_backfill.py` catches per-round failures and continues
 - Pre-2018 qualifying sessions may return 0 drivers (Ergast coverage is sparse) — this is expected
 - Do NOT deploy to Cloudflare after backfill — DB writes are live immediately

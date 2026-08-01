@@ -9,8 +9,8 @@ For each year this script:
        → ingest_sprint → (compute_season_stats once at the end)
 
 Usage:
-    python backfill_sprint.py [--years 2025 2026]
-    python backfill_sprint.py --years 2026          # single year
+    python scripts/backfill_sprint.py [--years 2025 2026]
+    python scripts/backfill_sprint.py --years 2026          # single year
 """
 import argparse
 import sys

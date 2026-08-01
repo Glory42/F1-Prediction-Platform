@@ -3,7 +3,7 @@
 # FastF1 has reliable lap/sector/qualifying data from 2018 onwards.
 # Run from the data-engine/ directory with the venv active.
 #
-# Usage: bash backfill_historical.sh [start_year] [end_year]
+# Usage: bash scripts/backfill_historical.sh [start_year] [end_year]
 #   Default: 2018 2020
 
 set -e

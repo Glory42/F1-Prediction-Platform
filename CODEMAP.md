@@ -340,10 +340,14 @@ data-engine/
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
 │       └── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
-├── backfill_all_predictions.py    # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
-├── backfill_fp2.py                # Backfill FP2 long-run data for 2018+ completed races
-├── backfill_full.py               # Full historical backfill: sync + ingest + sprint + predictions
-├── backfill_sprint.py             # Sprint-only backfill for specific years
+├── scripts/                       # One-off/operational scripts — not imported by src/
+│   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
+│   ├── backfill_full.py           # Full historical backfill: sync + ingest + sprint + predictions
+│   ├── backfill_sprint.py         # Sprint-only backfill for specific years
+│   ├── backfill_fp2.py            # Backfill FP2 long-run data for 2018+ completed races
+│   ├── backfill_all_predictions.py # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
+│   ├── backfill_historical.sh     # Shell loop over sync_schedule/ingest/compute for a year range
+│   └── populate_all.sh            # One-time population run for 2021–2025
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 └── .env.example                   # DATABASE_URL template

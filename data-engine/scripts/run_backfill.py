@@ -1,11 +1,12 @@
 """
 Full historical backfill runner.
-Usage:  python run_backfill.py 2018 2020
-        python run_backfill.py 2000 2017   (once legacy ingest jobs are ready)
+Usage:  python scripts/run_backfill.py 2018 2020
+        python scripts/run_backfill.py 2000 2017   (once legacy ingest jobs are ready)
 """
 import sys
 import traceback
 
+sys.path.insert(0, ".")
 import src.config  # noqa — triggers FastF1 cache setup
 
 from src.db.client import get_conn

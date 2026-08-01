@@ -147,9 +147,9 @@ python src/main.py --job ingest_race_legacy       --year 2015 --round 5
 
 ## Historical Backfill
 
-Two backfill scripts in `data-engine/`:
+Two backfill scripts in `data-engine/scripts/`:
 
-### Full backfill (`backfill_full.py`)
+### Full backfill (`scripts/backfill_full.py`)
 
 Runs the complete pipeline (sync → ingest → sprint pipeline → season stats → features → predictions) for every round in a year range. Sprint weekends are automatically detected and handled.
 
@@ -157,18 +157,18 @@ Runs the complete pipeline (sync → ingest → sprint pipeline → season stats
 cd data-engine
 source venv/bin/activate
 
-python backfill_full.py                        # 2000–2026 (legacy years skip gracefully)
-python backfill_full.py --start 2018           # 2018–2026 (recommended — full FastF1 coverage)
-python backfill_full.py --start 2025 --end 2025
+python scripts/backfill_full.py                        # 2000–2026 (legacy years skip gracefully)
+python scripts/backfill_full.py --start 2018           # 2018–2026 (recommended — full FastF1 coverage)
+python scripts/backfill_full.py --start 2025 --end 2025
 ```
 
-### Sprint-only backfill (`backfill_sprint.py`)
+### Sprint-only backfill (`scripts/backfill_sprint.py`)
 
 Re-runs just the sprint pipeline for specific years (useful after sprint schema changes).
 
 ```bash
-python backfill_sprint.py --years 2021 2022 2024 2026
-python backfill_sprint.py --years 2026          # single year
+python scripts/backfill_sprint.py --years 2021 2022 2024 2026
+python scripts/backfill_sprint.py --years 2026          # single year
 ```
 
 **Data coverage by era:**
