@@ -19,10 +19,10 @@ F1 race winner prediction using historical and current data via FastF1. A weight
 f1-prediction/
 ├── web/           # Astro SSR (output: 'server', Cloudflare adapter)
 ├── api/           # Hono on Cloudflare Workers (NestJS-style modules)
+│   ├── drizzle/migrations/  # Generated SQL migrations
 │   └── src/
 │       ├── db/schema/   # Drizzle table definitions (source of truth)
 │       └── modules/     # races, drivers, teams, predictions, seasons
-├── db/            # Drizzle migrations only
 ├── data-engine/   # Python ETL polling web service on Render
 │   └── src/jobs/  # sync, ingest, compute jobs
 └── docs/          # Architecture, API reference, schema, pipeline, deployment

@@ -9,7 +9,7 @@ order: 3
 **Provider:** Neon PostgreSQL  
 **ORM:** Drizzle  
 **Schema source:** `api/src/db/schema/`  
-**Migrations:** `db/` (generated SQL files)
+**Migrations:** `api/drizzle/migrations/` (generated SQL files)
 
 ---
 

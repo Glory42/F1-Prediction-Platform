@@ -2,14 +2,14 @@
 
 ## Project Overview
 F1 race winner prediction platform. Uses historical + current F1 data (via FastF1) to
-predict race winners with a weighted feature scoring system. See PLAN.md for full architecture.
+predict race winners with a weighted feature scoring system.
 
 ## Monorepo Layout
 ```
 f1-intelligence/
 ├── web/           # Astro SSR on Cloudflare Pages
 ├── api/           # Hono on Cloudflare Workers (NestJS-style modules)
-├── db/            # Drizzle ORM migrations (schema lives in api/src/db/schema/)
+│                  # Also owns the Drizzle schema (src/db/schema/) and migrations (drizzle/migrations/)
 └── data-engine/   # Python ETL batch jobs on Render
 ```
 
@@ -43,7 +43,9 @@ import { drizzle } from 'drizzle-orm/neon-http';
 ```
 
 ### 2. Drizzle schema is in `api/src/db/schema/`
-The canonical schema lives in `api/src/db/schema/`. The `db/` folder holds only migration SQL files.
+The canonical schema lives in `api/src/db/schema/`. Generated migration SQL files live in
+`api/drizzle/migrations/` — both the schema and its migrations are owned by `api/`, since that's
+also where `drizzle.config.ts` and the `drizzle-kit` CLI scripts live.
 Never define schema inline in route files.
 
 ### 3. Astro data fetching is server-side only
@@ -247,14 +249,14 @@ Use structured logging: `{"job": "ingest_race", "round": 14, "status": "failed",
 
 ---
 
-## Drizzle ORM (`db/`)
+## Drizzle ORM (`api/drizzle/`)
 
 ### Running migrations
 ```bash
-cd db
-bun run drizzle-kit generate   # generate SQL from schema changes
-bun run drizzle-kit push       # apply to Neon (dev)
-bun run drizzle-kit migrate    # apply via migration files (prod)
+cd api
+bun run db:generate   # generate SQL from schema changes -> api/drizzle/migrations/
+bun run db:push       # apply to Neon (dev)
+bun run db:migrate    # apply via migration files (prod)
 ```
 
 ### Schema conventions
@@ -341,12 +343,7 @@ pip install -r requirements.txt
 cp .env.example .env   # fill in DATABASE_URL
 ```
 
-### Database
-```bash
-cd db
-bun install
-bun run drizzle-kit push   # apply schema to Neon
-```
+Applying the DB schema is covered under [Drizzle ORM](#drizzle-orm-apidrizzle) above — it's part of the `api/` setup, not a separate package.
 
 ---
 

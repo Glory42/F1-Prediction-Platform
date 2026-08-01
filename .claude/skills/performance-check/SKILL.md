@@ -39,9 +39,9 @@ CLAUDE.md requires all data fetching happen server-side in Astro frontmatter (`-
 For any new or changed service method returning an array (race lists, driver career stats, prediction history): check whether it's tied to unbounded growth (history across seasons, lap times). CLAUDE.md doesn't mandate pagination everywhere, but flag any new endpoint returning raw `lap_times` or `sprint_lap_times` rows without a `race_id`/`driver_id` filter — these tables grow every race weekend.
 
 ### 5. Missing DB indexes
-For any new or changed table in `api/src/db/schema/`: does every column used in a `.where(eq(...))` / `inArray(...)` filter or join elsewhere in the codebase have an index? Check the corresponding migration in `db/migrations/` for `CREATE INDEX`.
+For any new or changed table in `api/src/db/schema/`: does every column used in a `.where(eq(...))` / `inArray(...)` filter or join elsewhere in the codebase have an index? Check the corresponding migration in `api/drizzle/migrations/` for `CREATE INDEX`.
 - Natural-key uniqueness (`UNIQUE(race_id, driver_id)`) is already required by CLAUDE.md's schema conventions — confirm it's present, not just an index.
-- After adding an index, confirm a migration file exists in `db/migrations/` — schema changes without a matching migration are drift, not just a perf gap (see `codebase-audit` for the drift check itself).
+- After adding an index, confirm a migration file exists in `api/drizzle/migrations/` — schema changes without a matching migration are drift, not just a perf gap (see `codebase-audit` for the drift check itself).
 
 ### 6. Per-row query loops in ETL jobs (data-engine/)
 Grep changed `data-engine/src/jobs/*.py` files for `for ... in ...:` loops containing `cur.execute(...)` inside the loop body — one query per row instead of a single batched fetch or `upsert()` call.
