@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import OnThisPage from '@/components/docs/OnThisPage.astro';
 import { getCollection, render } from 'astro:content';
 import { BookOpen } from 'lucide-react';
 
@@ -21,7 +22,8 @@ const entry = allDocs.find(d => d.id === slug);
 
 if (!entry) return Astro.redirect('/docs');
 
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
+const sections = headings.filter(h => h.depth === 2);
 ---
 
 <BaseLayout title={`${entry.data.title} — Docs`}>
@@ -40,10 +42,10 @@ const { Content } = await render(entry);
       <span class="font-mono text-[9px] text-muted-foreground tracking-[0.2em] uppercase">{slug}</span>
     </div>
 
-    <div class="lg:grid lg:grid-cols-[200px_1fr] lg:gap-12 lg:items-start">
+    <div class="lg:grid lg:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_200px] lg:gap-12 lg:items-start">
 
       <!-- sidebar nav (lg+) -->
-      <nav class="hidden lg:flex flex-col gap-0.5 sticky top-8">
+      <nav class="hidden lg:flex flex-col gap-0.5 sticky top-16">
         <div class="font-mono text-[8px] text-muted-foreground/40 tracking-[0.3em] uppercase mb-3 px-2">
           All docs
         </div>
@@ -65,6 +67,9 @@ const { Content } = await render(entry);
       <article class="doc-prose min-w-0">
         <Content />
       </article>
+
+      <!-- on this page (xl+) -->
+      <OnThisPage sections={sections} />
 
     </div>
 

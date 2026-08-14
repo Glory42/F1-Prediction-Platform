@@ -159,7 +159,7 @@ web/
 │   │   ├── prediction/[id].astro  # Historical GP prediction by race
 │   │   ├── docs/
 │   │   │   ├── index.astro        # Docs index — card grid of all docs
-│   │   │   └── [slug].astro       # Individual doc page with sidebar nav
+│   │   │   └── [slug].astro       # Individual doc page — all-docs sidebar, content, on-this-page rail
 │   │   ├── circuits/
 │   │   │   ├── index.astro        # Circuits directory index (filters/sorting)
 │   │   │   └── [key].astro        # Circuit detail — history, dominance, weather
@@ -186,6 +186,8 @@ web/
 │   │   ├── layout/
 │   │   │   ├── Navbar.astro       # Top navigation bar
 │   │   │   └── Footer.astro       # Shared footer; variant="minimal" (default) | "full" (landing)
+│   │   ├── docs/
+│   │   │   └── OnThisPage.astro   # Sticky right-rail TOC of a doc's h2 sections; scrollspy via IntersectionObserver
 │   │   ├── shared/
 │   │   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
 │   │   │   └── YearSelectLinks.astro  # Year selector using anchor links; used by driver/team profile pages
@@ -256,7 +258,7 @@ web/
 | Route | Data source | Notes |
 |-------|-------------|-------|
 | `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
-| `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav |
+| `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav + on-this-page rail |
 | `/` | Static | Landing — no API call |
 | `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` | GP + sprint upcoming; history merged |
 | `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction |
