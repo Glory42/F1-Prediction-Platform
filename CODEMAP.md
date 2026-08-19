@@ -324,7 +324,8 @@ data-engine/
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
-│       └── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
+│       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
+│       └── ingest_runner.py       # run_ingest_job(...) — shared headshot/results/lap-time/conditions logic for ingest_race + ingest_sprint
 ├── scripts/                       # One-off/operational scripts — not imported by src/
 │   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
 │   ├── backfill_full.py           # Full historical backfill: sync + ingest + sprint + predictions
