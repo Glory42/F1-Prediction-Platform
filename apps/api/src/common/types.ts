@@ -269,14 +269,6 @@ export type CircuitDetailResponse = {
       drivers: { driver: Driver; wins: number }[];
     };
   };
-  constructorDominance: {
-    team: Team;
-    wins: number;
-  }[];
-  driverDominance: {
-    driver: Driver;
-    wins: number;
-  }[];
   weatherStats: {
     dry: number;
     wet: number;
