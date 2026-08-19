@@ -8,6 +8,14 @@ interface Props {
   colorB: string;
 }
 
+export interface StatRowConfig<T> {
+  label: string;
+  value: (data: T) => number;
+  format?: (v: number) => string;
+  lowerBetter?: boolean;
+  show?: (dataA: T, dataB: T) => boolean;
+}
+
 export function ComparisonRow({ label, valA, valB, format, lowerBetter = false, colorA, colorB }: Props) {
   const total = valA + valB;
   const pctA = total > 0 ? (lowerBetter ? (valB / total) * 100 : (valA / total) * 100) : 50;

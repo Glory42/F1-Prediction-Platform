@@ -1,16 +1,17 @@
 import { useMemo } from 'react';
 import { api } from '@/lib/api';
-import type { Driver, DriverDetailResponse, DriverYearStats, SeasonSummary } from '@/types';
+import type { Driver, DriverDetailResponse, DriverSeasonStats, DriverYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
-import { aggregateCareerStats } from '../compareStats';
-import { User, Zap } from 'lucide-react';
+import { aggregateCareerStats, DEFAULT_COMPARE_YEAR, type CareerTotals } from '../compareStats';
+import { Zap } from 'lucide-react';
 import { useCompareController } from '../useCompareController';
 import { SearchSelect } from '@/components/ui/search-select';
-import { ComparisonRow } from './ComparisonRow';
+import { ComparisonRow, type StatRowConfig } from './ComparisonRow';
 import { CompareModeToggle } from './CompareModeToggle';
 import { CompareYearSelect } from './CompareYearSelect';
 import { CompareStatus } from './CompareStatus';
+import { CompareEntityCard } from './CompareEntityCard';
 
 interface Props {
   allSeasons: SeasonSummary[];
@@ -18,9 +19,64 @@ interface Props {
   allDrivers: Driver[];
 }
 
+const seasonStatConfig: StatRowConfig<DriverSeasonStats>[] = [
+  {
+    label: 'Championship Points',
+    value: (s) => parseFloat(s.totalPoints),
+    format: (v) => v.toString(),
+  },
+  { label: 'Grand Prix Wins', value: (s) => s.wins },
+  { label: 'Podium Finishes', value: (s) => s.podiums },
+  { label: 'Poles Secured', value: (s) => s.poles },
+  {
+    label: 'Avg Finish Position',
+    value: (s) => parseFloat(s.avgFinishPosition || '20'),
+    format: (v) => `P${v.toFixed(1)}`,
+    lowerBetter: true,
+  },
+  { label: 'Races Entered', value: (s) => s.racesEntered },
+  { label: 'Total DNFs', value: (s) => s.dnfCount, lowerBetter: true },
+  {
+    label: 'Avg Sector 1',
+    value: (s) => s.avgSector1Ms || 99999,
+    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
+    lowerBetter: true,
+    show: (a, b) => !!(a.avgSector1Ms || b.avgSector1Ms),
+  },
+  {
+    label: 'Avg Sector 2',
+    value: (s) => s.avgSector2Ms || 99999,
+    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
+    lowerBetter: true,
+    show: (a, b) => !!(a.avgSector2Ms || b.avgSector2Ms),
+  },
+  {
+    label: 'Avg Sector 3',
+    value: (s) => s.avgSector3Ms || 99999,
+    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
+    lowerBetter: true,
+    show: (a, b) => !!(a.avgSector3Ms || b.avgSector3Ms),
+  },
+];
+
+const careerStatConfig: StatRowConfig<CareerTotals>[] = [
+  {
+    label: 'Best Championship Finish',
+    value: (c) => c.bestFin || 20,
+    format: (v) => (v === 20 ? '—' : `P${v}`),
+    lowerBetter: true,
+  },
+  { label: 'Total Points', value: (c) => c.points, format: (v) => v.toFixed(1) },
+  { label: 'Career Wins', value: (c) => c.wins },
+  { label: 'Career Podiums', value: (c) => c.podiums },
+  { label: 'Career Poles', value: (c) => c.poles },
+  { label: 'Career Entries', value: (c) => c.entries },
+  { label: 'Total DNFs', value: (c) => c.dnfs, lowerBetter: true },
+];
+
 export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
-  const defaultYear = years[0] || 2026;
+  const defaultYear = years[0] || DEFAULT_COMPARE_YEAR;
 
   const {
     year,
@@ -83,6 +139,20 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
     </>
   );
 
+  const driverSubtitle = (d: Driver) => (
+    <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-wider uppercase mt-1">
+      <span className="text-[#a855f7] font-bold">#{d.driverNumber || '—'}</span>
+      <span>•</span>
+      <span>{d.team?.name || 'No Team'}</span>
+    </div>
+  );
+
+  const driverFlag = (d: Driver) => (
+    <span className="text-3xl shrink-0 select-none opacity-80" title={d.nationality ?? undefined}>
+      {d.nationality ? getNationalityFlag(d.nationality) : getDriverFlagByCode(d.code)}
+    </span>
+  );
+
   return (
     <div className="space-y-6">
       {/* Controls: Autocomplete Selectors and Toggle */}
@@ -133,64 +203,30 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
         <div key="content" className="fade-swap space-y-8">
           {/* Driver Profiles Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Driver A Card */}
             {driverA && (
-              <a
+              <CompareEntityCard
+                entityType="driver"
                 href={`/drivers/${driverA.id}${isCareer ? '' : `?year=${year}`}`}
-                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
-                style={{ borderLeft: `3px solid ${colorA}` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 border border-white/[0.08] bg-white/[0.01] flex items-end justify-center shrink-0 overflow-hidden">
-                    {driverA.headshotUrl ? (
-                      <img src={driverA.headshotUrl} alt={driverA.fullName} className="w-full h-full object-cover object-top" />
-                    ) : (
-                      <User size={32} className="text-white/20 mb-1" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{driverA.fullName}</h3>
-                    <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-wider uppercase mt-1">
-                      <span className="text-[#a855f7] font-bold">#{driverA.driverNumber || '—'}</span>
-                      <span>•</span>
-                      <span>{driverA.team?.name || 'No Team'}</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-3xl shrink-0 select-none opacity-80" title={driverA.nationality ?? undefined}>
-                  {driverA.nationality ? getNationalityFlag(driverA.nationality) : getDriverFlagByCode(driverA.code)}
-                </span>
-              </a>
+                imageUrl={driverA.headshotUrl}
+                imageAlt={driverA.fullName}
+                borderColor={colorA}
+                name={driverA.fullName}
+                subtitle={driverSubtitle(driverA)}
+                flag={driverFlag(driverA)}
+              />
             )}
 
-            {/* Driver B Card */}
             {driverB && (
-              <a
+              <CompareEntityCard
+                entityType="driver"
                 href={`/drivers/${driverB.id}${isCareer ? '' : `?year=${year}`}`}
-                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
-                style={{ borderLeft: `3px solid ${colorB}` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 border border-white/[0.08] bg-white/[0.01] flex items-end justify-center shrink-0 overflow-hidden">
-                    {driverB.headshotUrl ? (
-                      <img src={driverB.headshotUrl} alt={driverB.fullName} className="w-full h-full object-cover object-top" />
-                    ) : (
-                      <User size={32} className="text-white/20 mb-1" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{driverB.fullName}</h3>
-                    <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-wider uppercase mt-1">
-                      <span className="text-[#a855f7] font-bold">#{driverB.driverNumber || '—'}</span>
-                      <span>•</span>
-                      <span>{driverB.team?.name || 'No Team'}</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-3xl shrink-0 select-none opacity-80" title={driverB.nationality ?? undefined}>
-                  {driverB.nationality ? getNationalityFlag(driverB.nationality) : getDriverFlagByCode(driverB.code)}
-                </span>
-              </a>
+                imageUrl={driverB.headshotUrl}
+                imageAlt={driverB.fullName}
+                borderColor={colorB}
+                name={driverB.fullName}
+                subtitle={driverSubtitle(driverB)}
+                flag={driverFlag(driverB)}
+              />
             )}
           </div>
 
@@ -203,137 +239,39 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
             <div className="space-y-4">
               {comparison?.mode === 'season' ? (
                 <>
-                  <ComparisonRow
-                    label="Championship Points"
-                    valA={parseFloat(comparison.a.seasonStats.totalPoints)}
-                    valB={parseFloat(comparison.b.seasonStats.totalPoints)}
-                    format={(v) => v.toString()}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Grand Prix Wins"
-                    valA={comparison.a.seasonStats.wins}
-                    valB={comparison.b.seasonStats.wins}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Podium Finishes"
-                    valA={comparison.a.seasonStats.podiums}
-                    valB={comparison.b.seasonStats.podiums}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Poles Secured"
-                    valA={comparison.a.seasonStats.poles}
-                    valB={comparison.b.seasonStats.poles}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Avg Finish Position"
-                    valA={parseFloat(comparison.a.seasonStats.avgFinishPosition || '20')}
-                    valB={parseFloat(comparison.b.seasonStats.avgFinishPosition || '20')}
-                    format={(v) => `P${v.toFixed(1)}`}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Races Entered"
-                    valA={comparison.a.seasonStats.racesEntered}
-                    valB={comparison.b.seasonStats.racesEntered}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Total DNFs"
-                    valA={comparison.a.seasonStats.dnfCount}
-                    valB={comparison.b.seasonStats.dnfCount}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  {(comparison.a.seasonStats.avgSector1Ms || comparison.b.seasonStats.avgSector1Ms) && (
-                    <ComparisonRow
-                      label="Avg Sector 1"
-                      valA={comparison.a.seasonStats.avgSector1Ms || 99999}
-                      valB={comparison.b.seasonStats.avgSector1Ms || 99999}
-                      format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
-                      lowerBetter={true}
-                      colorA={colorA} colorB={colorB}
-                    />
-                  )}
-                  {(comparison.a.seasonStats.avgSector2Ms || comparison.b.seasonStats.avgSector2Ms) && (
-                    <ComparisonRow
-                      label="Avg Sector 2"
-                      valA={comparison.a.seasonStats.avgSector2Ms || 99999}
-                      valB={comparison.b.seasonStats.avgSector2Ms || 99999}
-                      format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
-                      lowerBetter={true}
-                      colorA={colorA} colorB={colorB}
-                    />
-                  )}
-                  {(comparison.a.seasonStats.avgSector3Ms || comparison.b.seasonStats.avgSector3Ms) && (
-                    <ComparisonRow
-                      label="Avg Sector 3"
-                      valA={comparison.a.seasonStats.avgSector3Ms || 99999}
-                      valB={comparison.b.seasonStats.avgSector3Ms || 99999}
-                      format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
-                      lowerBetter={true}
-                      colorA={colorA} colorB={colorB}
-                    />
-                  )}
+                  {seasonStatConfig.map((row) => {
+                    const statsA = comparison.a.seasonStats;
+                    const statsB = comparison.b.seasonStats;
+                    if (row.show && !row.show(statsA, statsB)) return null;
+                    return (
+                      <ComparisonRow
+                        key={row.label}
+                        label={row.label}
+                        valA={row.value(statsA)}
+                        valB={row.value(statsB)}
+                        format={row.format}
+                        lowerBetter={row.lowerBetter}
+                        colorA={colorA} colorB={colorB}
+                      />
+                    );
+                  })}
                 </>
               ) : comparison?.mode === 'career' && careerA && careerB ? (
                 <>
-                  {/* Career Stats comparisons */}
-                  <ComparisonRow
-                    label="Best Championship Finish"
-                    valA={careerA.bestFin || 20}
-                    valB={careerB.bestFin || 20}
-                    format={(v) => v === 20 ? '—' : `P${v}`}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Total Points"
-                    valA={careerA.points}
-                    valB={careerB.points}
-                    format={(v) => v.toFixed(1)}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Wins"
-                    valA={careerA.wins}
-                    valB={careerB.wins}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Podiums"
-                    valA={careerA.podiums}
-                    valB={careerB.podiums}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Poles"
-                    valA={careerA.poles}
-                    valB={careerB.poles}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Entries"
-                    valA={careerA.entries}
-                    valB={careerB.entries}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Total DNFs"
-                    valA={careerA.dnfs}
-                    valB={careerB.dnfs}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
+                  {careerStatConfig.map((row) => (
+                    <ComparisonRow
+                      key={row.label}
+                      label={row.label}
+                      valA={row.value(careerA)}
+                      valB={row.value(careerB)}
+                      format={row.format}
+                      lowerBetter={row.lowerBetter}
+                      colorA={colorA} colorB={colorB}
+                    />
+                  ))}
                 </>
               ) : (
-                <div className="py-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
-                  No stats available for these drivers
-                </div>
+                <CompareStatus loading={false} error={null} entityLabel="drivers" />
               )}
             </div>
           </div>
