@@ -1,5 +1,10 @@
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
+from enum import Enum
+from typing import Callable, Optional
+
+import pandas as pd
 import fastf1
 from fastf1.core import DataNotLoadedError, InvalidSessionError, NoLapDataError
 from src.db.client import get_conn
@@ -19,7 +24,103 @@ from src.jobs import (
     ingest_race,
 )
 
-def run(log_func=print):
+
+class ActionKind(str, Enum):
+    SPRINT_QUALIFYING = "sprint_qualifying"
+    SPRINT_RACE = "sprint_race"
+    MAIN_QUALIFYING = "main_qualifying"
+    MAIN_RACE = "main_race"
+
+
+@dataclass(frozen=True)
+class Action:
+    kind: ActionKind
+    ready: bool
+    label: str
+    job_name: str
+
+
+def _is_ready(session_date_utc: Optional[pd.Timestamp], delay_hours: float, now: datetime) -> bool:
+    if pd.isna(session_date_utc):
+        return False
+    # FastF1 returns timezone-naive pandas Timestamps in UTC, convert to timezone-aware UTC datetime
+    session_time = session_date_utc.to_pydatetime().replace(tzinfo=timezone.utc)
+    return now >= session_time + timedelta(hours=delay_hours)
+
+
+def decide_next_action(status: str, is_sprint: bool, event: pd.Series, now: datetime) -> Optional[Action]:
+    """Pure decision: given the current race status and schedule row, what should run next.
+
+    Does no I/O — takes already-fetched schedule/status data so it can be tested with
+    fake inputs, without mocking FastF1 or a live DB connection.
+    """
+    if is_sprint and status == "scheduled":
+        return Action(
+            kind=ActionKind.SPRINT_QUALIFYING,
+            ready=_is_ready(event["Session2DateUtc"], delay_hours=1.5, now=now),
+            label="Sprint Qualifying",
+            job_name="ingest_sprint_qualifying",
+        )
+
+    if is_sprint and status == "sprint_qualifying_done":
+        return Action(
+            kind=ActionKind.SPRINT_RACE,
+            ready=_is_ready(event["Session3DateUtc"], delay_hours=1.5, now=now),
+            label="Sprint Race",
+            job_name="ingest_sprint",
+        )
+
+    if (not is_sprint and status == "scheduled") or (is_sprint and status == "sprint_done"):
+        return Action(
+            kind=ActionKind.MAIN_QUALIFYING,
+            ready=_is_ready(event["Session4DateUtc"], delay_hours=2.0, now=now),
+            label="Main Qualifying",
+            job_name="ingest_qualifying",
+        )
+
+    if status == "qualifying_done":
+        return Action(
+            kind=ActionKind.MAIN_RACE,
+            ready=_is_ready(event["Session5DateUtc"], delay_hours=3.0, now=now),
+            label="Main Race",
+            job_name="ingest_race",
+        )
+
+    return None
+
+
+def revert_race_status(race_id: int, status: str, error: Exception, job_name: str, year: int, round_number: int) -> None:
+    """Shared failure handler for a job sequence: log the structured failure, then revert
+    the race back to its prior status so the next auto_runner cycle retries it."""
+    log_job_failure(job_name, error, race_id=race_id, year=year, round=round_number)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE races SET status = %s WHERE id = %s", (status, race_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _run_action(action: Action, race_id: int, year: int, round_number: int) -> None:
+    if action.kind == ActionKind.SPRINT_QUALIFYING:
+        ingest_sprint_qualifying.run(year, round_number)
+        compute_sprint_features.run(race_id)
+        compute_sprint_predictions.run(race_id)
+    elif action.kind == ActionKind.SPRINT_RACE:
+        ingest_sprint.run(year, round_number)
+        compute_season_stats.run(year)
+    elif action.kind == ActionKind.MAIN_QUALIFYING:
+        ingest_qualifying.run(year, round_number)
+        ingest_fp2.run(year, round_number)
+        compute_features.run(race_id)
+        compute_predictions.run(race_id)
+    elif action.kind == ActionKind.MAIN_RACE:
+        ingest_race.run(year, round_number)
+        compute_season_stats.run(year)
+
+
+def run(log_func: Callable[[str], None] = print) -> None:
     log_func("[auto_runner] Waking up to check for pending F1 sessions...")
     conn = get_conn()
     try:
@@ -61,111 +162,22 @@ def run(log_func=print):
 
     now_utc = datetime.now(timezone.utc)
 
-    # Helper function to check if enough time has passed since a session
-    def is_ready(session_date_utc, delay_hours):
-        if pd.isna(session_date_utc):
-            return False
-        # FastF1 returns timezone-naive pandas Timestamps in UTC, convert to timezone-aware UTC datetime
-        session_time = session_date_utc.to_pydatetime().replace(tzinfo=timezone.utc)
-        return now_utc >= session_time + timedelta(hours=delay_hours)
-
-    import pandas as pd
-
     try:
-        # State machine based on current status
-        if is_sprint and status == 'scheduled':
-            # Waiting for Sprint Qualifying (Session 2)
-            if is_ready(event["Session2DateUtc"], delay_hours=1.5):
-                log_func("[auto_runner] Sprint Qualifying time passed. Attempting ingestion...")
-                try:
-                    ingest_sprint_qualifying.run(year, round_number)
-                    compute_sprint_features.run(race_id)
-                    compute_sprint_predictions.run(race_id)
-                    log_func("[auto_runner] Sprint Qualifying ingestion completed successfully.")
-                except Exception as e:
-                    log_func(f"[auto_runner] Error during Sprint Qualifying sequence: {e}. Reverting status.")
-                    log_job_failure("ingest_sprint_qualifying", e, race_id=race_id, year=year, round=round_number)
-                    conn = get_conn()
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute("UPDATE races SET status = %s WHERE id = %s", (status, race_id))
-                        conn.commit()
-                    finally:
-                        conn.close()
-                    raise
-            else:
-                log_func("[auto_runner] Sprint Qualifying not finished yet or hasn't reached delay threshold. Exiting.")
+        action = decide_next_action(status=status, is_sprint=is_sprint, event=event, now=now_utc)
 
-        elif is_sprint and status == 'sprint_qualifying_done':
-            # Waiting for Sprint Race (Session 3)
-            if is_ready(event["Session3DateUtc"], delay_hours=1.5):
-                log_func("[auto_runner] Sprint Race time passed. Attempting ingestion...")
-                try:
-                    ingest_sprint.run(year, round_number)
-                    compute_season_stats.run(year)
-                    log_func("[auto_runner] Sprint Race ingestion completed successfully.")
-                except Exception as e:
-                    log_func(f"[auto_runner] Error during Sprint Race sequence: {e}. Reverting status.")
-                    log_job_failure("ingest_sprint", e, race_id=race_id, year=year, round=round_number)
-                    conn = get_conn()
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute("UPDATE races SET status = %s WHERE id = %s", (status, race_id))
-                        conn.commit()
-                    finally:
-                        conn.close()
-                    raise
-            else:
-                log_func("[auto_runner] Sprint Race not finished yet or hasn't reached delay threshold. Exiting.")
-
-        elif (not is_sprint and status == 'scheduled') or (is_sprint and status == 'sprint_done'):
-            # Waiting for Main Qualifying (Session 4)
-            if is_ready(event["Session4DateUtc"], delay_hours=2.0):
-                log_func("[auto_runner] Main Qualifying time passed. Attempting ingestion...")
-                try:
-                    ingest_qualifying.run(year, round_number)
-                    ingest_fp2.run(year, round_number)
-                    compute_features.run(race_id)
-                    compute_predictions.run(race_id)
-                    log_func("[auto_runner] Main Qualifying ingestion completed successfully.")
-                except Exception as e:
-                    log_func(f"[auto_runner] Error during Main Qualifying sequence: {e}. Reverting status.")
-                    log_job_failure("ingest_qualifying", e, race_id=race_id, year=year, round=round_number)
-                    conn = get_conn()
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute("UPDATE races SET status = %s WHERE id = %s", (status, race_id))
-                        conn.commit()
-                    finally:
-                        conn.close()
-                    raise
-            else:
-                log_func("[auto_runner] Main Qualifying not finished yet or hasn't reached delay threshold. Exiting.")
-
-        elif status == 'qualifying_done':
-            # Waiting for Main Race (Session 5)
-            if is_ready(event["Session5DateUtc"], delay_hours=3.0):
-                log_func("[auto_runner] Main Race time passed. Attempting ingestion...")
-                try:
-                    ingest_race.run(year, round_number)
-                    compute_season_stats.run(year)
-                    log_func("[auto_runner] Main Race ingestion completed successfully.")
-                except Exception as e:
-                    log_func(f"[auto_runner] Error during Main Race sequence: {e}. Reverting status.")
-                    log_job_failure("ingest_race", e, race_id=race_id, year=year, round=round_number)
-                    conn = get_conn()
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute("UPDATE races SET status = %s WHERE id = %s", (status, race_id))
-                        conn.commit()
-                    finally:
-                        conn.close()
-                    raise
-            else:
-                log_func("[auto_runner] Main Race not finished yet or hasn't reached delay threshold. Exiting.")
-
-        else:
+        if action is None:
             log_func(f"[auto_runner] Unhandled status '{status}'. Exiting.")
+        elif not action.ready:
+            log_func(f"[auto_runner] {action.label} not finished yet or hasn't reached delay threshold. Exiting.")
+        else:
+            log_func(f"[auto_runner] {action.label} time passed. Attempting ingestion...")
+            try:
+                _run_action(action, race_id=race_id, year=year, round_number=round_number)
+                log_func(f"[auto_runner] {action.label} ingestion completed successfully.")
+            except Exception as e:
+                log_func(f"[auto_runner] Error during {action.label} sequence: {e}. Reverting status.")
+                revert_race_status(race_id, status, e, action.job_name, year, round_number)
+                raise
 
     except (DataNotLoadedError, InvalidSessionError, NoLapDataError, ValueError, RuntimeError) as e:
         log_func(f"[auto_runner] Data not ready from FastF1 yet. Will try again next hour. Details: {e}")
