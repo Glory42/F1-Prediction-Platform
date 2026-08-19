@@ -5,11 +5,12 @@ import {
   sprintResults, sprintLapTimes, drivers, teams,
 } from '../../db/schema';
 import type {
-  SprintPredictionResponse, DriverSprintPrediction,
+  SprintPredictionResponse,
   SprintResult, SprintDetailResponse, SprintFeatureScores, LapSummary,
 } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';
 import { toDriver, toRace } from '../../common/mappers';
+import { buildPredictionResponse as buildSharedPredictionResponse } from '../../common/prediction-response';
 
 function toSprintFeatures(f: typeof driverSprintFeatures.$inferSelect): SprintFeatureScores {
   return {
@@ -117,54 +118,47 @@ export class SprintService {
     db: Db,
     target: 'upcoming' | number,
   ): Promise<SprintPredictionResponse | null> {
-    const predRows =
-      target === 'upcoming'
-        ? await db
-            .select()
-            .from(sprintPredictions)
-            .innerJoin(races, eq(sprintPredictions.raceId, races.id))
-            .innerJoin(circuits, eq(races.circuitId, circuits.id))
-            .where(and(
-              inArray(races.status, ['sprint_qualifying_done', 'sprint_done', 'qualifying_done']),
-              gte(sql`DATE(${races.sprintDate})`, sql`CURRENT_DATE`),
-            ))
-            .orderBy(asc(races.sprintDate))
-            .limit(1)
-        : await db
-            .select()
-            .from(sprintPredictions)
-            .innerJoin(races, eq(sprintPredictions.raceId, races.id))
-            .innerJoin(circuits, eq(races.circuitId, circuits.id))
-            .where(eq(sprintPredictions.raceId, target))
-            .limit(1);
-
-    if (!predRows[0]) return null;
-    const { sprint_predictions: pred, races: race, circuits: circuit } = predRows[0];
-
-    const featureRows = await db
-      .select()
-      .from(driverSprintFeatures)
-      .innerJoin(drivers, eq(driverSprintFeatures.driverId, drivers.id))
-      .innerJoin(teams, eq(drivers.teamId, teams.id))
-      .where(eq(driverSprintFeatures.raceId, race.id))
-      .orderBy(asc(driverSprintFeatures.predictedPosition));
-
-    const winnerRow = featureRows.find((r) => r.drivers.id === pred.predictedWinnerId);
-    if (!winnerRow) return null;
-
-    const driverPredictions: DriverSprintPrediction[] = featureRows.map((r) => ({
-      driver: toDriver(r.drivers, r.teams),
-      winProbability: r.driver_sprint_features.winProbability,
-      predictedPosition: r.driver_sprint_features.predictedPosition,
-      features: toSprintFeatures(r.driver_sprint_features),
-    }));
-
-    return {
-      race: toRace(race, circuit),
-      predictedWinner: toDriver(winnerRow.drivers, winnerRow.teams),
-      computedAt: pred.computedAt.toISOString(),
-      modelVersion: pred.modelVersion,
-      drivers: driverPredictions,
-    };
+    return buildSharedPredictionResponse<typeof driverSprintFeatures.$inferSelect, SprintFeatureScores>(db, {
+      target,
+      queryUpcoming: (db) =>
+        db
+          .select()
+          .from(sprintPredictions)
+          .innerJoin(races, eq(sprintPredictions.raceId, races.id))
+          .innerJoin(circuits, eq(races.circuitId, circuits.id))
+          .where(and(
+            inArray(races.status, ['sprint_qualifying_done', 'sprint_done', 'qualifying_done']),
+            gte(sql`DATE(${races.sprintDate})`, sql`CURRENT_DATE`),
+          ))
+          .orderBy(asc(races.sprintDate))
+          .limit(1)
+          .then((rows) => rows.map((r) => ({ prediction: r.sprint_predictions, race: r.races, circuit: r.circuits }))),
+      queryById: (db, raceId) =>
+        db
+          .select()
+          .from(sprintPredictions)
+          .innerJoin(races, eq(sprintPredictions.raceId, races.id))
+          .innerJoin(circuits, eq(races.circuitId, circuits.id))
+          .where(eq(sprintPredictions.raceId, raceId))
+          .limit(1)
+          .then((rows) => rows.map((r) => ({ prediction: r.sprint_predictions, race: r.races, circuit: r.circuits }))),
+      fetchFeatureRows: (db, raceId) =>
+        db
+          .select()
+          .from(driverSprintFeatures)
+          .innerJoin(drivers, eq(driverSprintFeatures.driverId, drivers.id))
+          .innerJoin(teams, eq(drivers.teamId, teams.id))
+          .where(eq(driverSprintFeatures.raceId, raceId))
+          .orderBy(asc(driverSprintFeatures.predictedPosition))
+          .then((rows) => rows.map((r) => ({
+            driverId: r.drivers.id,
+            driver: r.drivers,
+            team: r.teams,
+            winProbability: r.driver_sprint_features.winProbability,
+            predictedPosition: r.driver_sprint_features.predictedPosition,
+            raw: r.driver_sprint_features,
+          }))),
+      toFeatures: toSprintFeatures,
+    });
   }
 }
