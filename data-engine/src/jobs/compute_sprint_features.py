@@ -1,7 +1,9 @@
 from collections import defaultdict
+from typing import Any
 from src.db.client import get_conn
 from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp
 from src.utils.upsert import upsert
+from src.utils.feature_context import build_feature_context
 from src.utils.feature_helpers import (
     compute_weather_score,
     compute_luck_score,
@@ -30,66 +32,27 @@ def run(race_id: int) -> None:
 
     conn = get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT r.id, r.season_id, r.sprint_weather, r.weather, r.circuit_id, r.event_format, "
-                "       c.overtake_rate, c.sc_probability "
-                "FROM races r JOIN circuits c ON r.circuit_id = c.id "
-                "WHERE r.id = %s",
-                (race_id,),
-            )
-            race = cur.fetchone()
-        if not race:
-            raise ValueError(f"Race {race_id} not found")
+        def _validate_sprint_weekend(race: dict[str, Any]) -> None:
+            if race["event_format"] not in ("sprint", "sprint_qualifying", "sprint_shootout"):
+                raise ValueError(
+                    f"Race {race_id} has event_format='{race['event_format']}' — "
+                    "compute_sprint_features only runs on sprint weekends"
+                )
 
-        if race["event_format"] not in ("sprint", "sprint_qualifying", "sprint_shootout"):
-            raise ValueError(
-                f"Race {race_id} has event_format='{race['event_format']}' — "
-                "compute_sprint_features only runs on sprint weekends"
-            )
+        ctx = build_feature_context(
+            conn, race_id,
+            grid_table="sprint_results",
+            grid_not_found_message=f"No sprint results (grid) for race {race_id} — run ingest_sprint first",
+            validate_race=_validate_sprint_weekend,
+        )
 
-        season_id = race["season_id"]
-        weather = race["sprint_weather"] or race["weather"] or "dry"
-        overtake_rate = float(race["overtake_rate"]) if race["overtake_rate"] is not None else 0.5
-        sc_probability = float(race["sc_probability"]) if race["sc_probability"] is not None else 0.3
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT sr.driver_id, sr.grid_position "
-                "FROM sprint_results sr WHERE sr.race_id = %s",
-                (race_id,),
-            )
-            sprint_grid_rows = cur.fetchall()
-
-        if not sprint_grid_rows:
-            raise ValueError(f"No sprint results (grid) for race {race_id} — run ingest_sprint first")
-
-        driver_ids = [r["driver_id"] for r in sprint_grid_rows]
-        grid_map = {r["driver_id"]: r["grid_position"] for r in sprint_grid_rows}
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT dss.driver_id, dss.races_entered, dss.wins, dss.total_points, "
-                "       dss.dnf_rate, d.team_id, "
-                "       dss.sprint_races_entered, dss.sprint_wins, dss.sprint_total_points "
-                "FROM driver_season_stats dss "
-                "JOIN drivers d ON dss.driver_id = d.id "
-                "WHERE dss.season_id = %s AND dss.driver_id = ANY(%s)",
-                (season_id, driver_ids),
-            )
-            stats_rows = {r["driver_id"]: r for r in cur.fetchall()}
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT t.id AS team_id, tss.car_performance_score "
-                "FROM team_season_stats tss JOIN teams t ON tss.team_id = t.id "
-                "WHERE tss.season_id = %s",
-                (season_id,),
-            )
-            team_perf = {
-                r["team_id"]: float(r["car_performance_score"]) if r["car_performance_score"] else 0.5
-                for r in cur.fetchall()
-            }
+        season_id = ctx.season_id
+        weather = ctx.sprint_weather or ctx.weather or "dry"
+        overtake_rate = ctx.overtake_rate
+        sc_probability = ctx.sc_probability
+        driver_ids = ctx.driver_ids
+        stats_rows = ctx.stats_rows
+        team_perf = ctx.team_perf
 
         short_run_map  = _compute_short_run_pace(conn, driver_ids, race_id)
         weather_map    = compute_weather_score(conn, driver_ids, weather)
@@ -125,8 +88,7 @@ def run(race_id: int) -> None:
                 driver_rating = clamp(race_pts / max(race_races, 1) / 25.0)
                 win_rate = bayesian_win_rate(race_wins, race_races)
 
-            grid = grid_map.get(driver_id, 20)
-            start_pos = (21 - grid) / 20.0
+            start_pos = ctx.start_pos_map[driver_id]
 
             # Circuit-context multiplier — shared with the GP model, see feature_helpers.
             circuit_adj_start_pos = calc_circuit_adj_start_pos(start_pos, overtake_rate, sc_probability)

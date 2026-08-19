@@ -2,6 +2,7 @@ from collections import defaultdict
 from src.db.client import get_conn
 from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp
 from src.utils.upsert import upsert
+from src.utils.feature_context import build_feature_context
 from src.utils.feature_helpers import (
     compute_weather_score,
     compute_luck_score,
@@ -32,68 +33,24 @@ def run(race_id: int) -> None:
 
     conn = get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT r.id, r.season_id, r.weather, r.circuit_id, "
-                "       c.overtake_rate, c.sc_probability "
-                "FROM races r JOIN circuits c ON r.circuit_id = c.id "
-                "WHERE r.id = %s",
-                (race_id,),
-            )
-            race = cur.fetchone()
-        if not race:
-            raise ValueError(f"Race {race_id} not found")
+        ctx = build_feature_context(
+            conn, race_id,
+            grid_table="qualifying_results",
+            grid_not_found_message=f"No qualifying results for race {race_id}",
+        )
 
-        season_id = race["season_id"]
-        weather = race["weather"] or "dry"
-        overtake_rate = float(race["overtake_rate"]) if race["overtake_rate"] is not None else 0.5
-        sc_probability = float(race["sc_probability"]) if race["sc_probability"] is not None else 0.3
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT qr.driver_id, qr.grid_position "
-                "FROM qualifying_results qr WHERE qr.race_id = %s",
-                (race_id,),
-            )
-            quali_rows = cur.fetchall()
-
-        if not quali_rows:
-            raise ValueError(f"No qualifying results for race {race_id}")
-
-        driver_ids = [r["driver_id"] for r in quali_rows]
-        grid_map = {r["driver_id"]: r["grid_position"] for r in quali_rows}
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT dss.driver_id, dss.races_entered, dss.wins, dss.total_points, "
-                "       dss.avg_position_gain, dss.dnf_rate, dss.teammate_quali_delta, d.team_id "
-                "FROM driver_season_stats dss "
-                "JOIN drivers d ON dss.driver_id = d.id "
-                "WHERE dss.season_id = %s AND dss.driver_id = ANY(%s)",
-                (season_id, driver_ids),
-            )
-            stats_rows = {r["driver_id"]: r for r in cur.fetchall()}
-
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT t.id AS team_id, tss.car_performance_score, tss.reliability_score "
-                "FROM team_season_stats tss JOIN teams t ON tss.team_id = t.id "
-                "WHERE tss.season_id = %s",
-                (season_id,),
-            )
-            team_data = {
-                r["team_id"]: {
-                    "car_perf": float(r["car_performance_score"]) if r["car_performance_score"] else 0.5,
-                    "reliability": float(r["reliability_score"]) if r["reliability_score"] else 0.5,
-                }
-                for r in cur.fetchall()
-            }
-
-        team_perf = {tid: v["car_perf"] for tid, v in team_data.items()}
+        season_id = ctx.season_id
+        weather = ctx.weather or "dry"
+        overtake_rate = ctx.overtake_rate
+        sc_probability = ctx.sc_probability
+        driver_ids = ctx.driver_ids
+        stats_rows = ctx.stats_rows
+        team_data = ctx.team_data
+        team_perf = ctx.team_perf
 
         luck_map        = compute_luck_score(conn, driver_ids, race_id, team_perf, stats_rows)
         weather_map     = compute_weather_score(conn, driver_ids, weather)
-        long_run_map    = _compute_long_run_pace(conn, driver_ids, race_id, race["circuit_id"])
+        long_run_map    = _compute_long_run_pace(conn, driver_ids, race_id, ctx.circuit_id)
         reliability_map = _compute_reliability(driver_ids, stats_rows, team_data)
         quali_delta_map = compute_rolling_teammate_delta(
             conn, driver_ids, race_id,
@@ -102,7 +59,7 @@ def run(race_id: int) -> None:
             status_filter=("qualifying_done", "completed"),
         )
         sector_map      = _compute_sector_strength(conn, driver_ids, race_id)
-        tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, race["circuit_id"])
+        tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, ctx.circuit_id)
 
         rows_to_upsert = []
         for driver_id in driver_ids:
@@ -121,8 +78,7 @@ def run(race_id: int) -> None:
             driver_rating = clamp(pts / max(races_entered, 1) / 25.0)
             win_rate = bayesian_win_rate(wins, races_entered)
 
-            grid = grid_map.get(driver_id, 20)
-            start_pos = (21 - grid) / 20.0
+            start_pos = ctx.start_pos_map[driver_id]
             position_gain = clamp((avg_gain + 15.0) / 30.0)
 
             # Circuit-context multiplier — shared with the sprint model, see feature_helpers.
