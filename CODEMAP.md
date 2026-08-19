@@ -69,6 +69,7 @@ apps/api/
 │   └── modules/                   # Feature modules (service / controller / module)
 │       ├── races/
 │       │   ├── races.service.ts   # DB queries — race list, detail, circuit history
+│       │   ├── circuit-detail.helpers.ts # Pure helpers for findCircuitDetails (era bucketing, win aggregation, stats)
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── drivers/
