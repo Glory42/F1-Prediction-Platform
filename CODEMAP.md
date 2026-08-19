@@ -330,7 +330,11 @@ data-engine/
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
-│       └── ingest_runner.py       # run_ingest_job(...) — shared headshot/results/lap-time/conditions logic for ingest_race + ingest_sprint
+│       ├── ingest_runner.py       # run_ingest_job(...) — shared headshot/results/lap-time/conditions logic for ingest_race + ingest_sprint
+│       ├── feature_helpers.py     # Shared scoring math for GP + sprint models — compute_weather_score(),
+│       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
+│       └── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
+│                                   # grid map, start_pos, driver/team season stats) behind both feature jobs
 ├── scripts/                       # One-off/operational scripts — not imported by src/
 │   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
 │   ├── backfill_full.py           # Full historical backfill: sync + ingest + sprint + predictions
@@ -370,6 +374,8 @@ data-engine/
 | `fastf1_helpers.py` | `get_session(year, round, type, messages=False)` — loads FastF1 session (SQ sessions need `messages=True`); `session_to_quali_results()`, `session_to_race_results()`, `session_to_lap_times()` — extract structured dicts from FastF1 DataFrames |
 | `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=0.3)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)` |
 | `upsert.py` | `upsert(conn, table, rows, conflict_cols, exclude_update=[])` — idempotent bulk write; `exclude_update` prevents overwriting specified columns (used to protect sprint race data from SQ re-ingest) |
+| `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
+| `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |
 
 ---
 
