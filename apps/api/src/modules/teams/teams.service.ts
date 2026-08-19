@@ -3,7 +3,7 @@ import type { Db } from '../../config/database';
 import { teams, seasons, drivers, teamSeasonStats } from '../../db/schema';
 import type { Team, Driver, TeamDetailResponse, TeamStanding, TeamYearStats } from '../../common/types';
 import { toTeam, toDriver } from '../../common/mappers';
-import { toKeyedMap } from '../../common/collections';
+import { resolveSeason, buildStandings, buildCareerStats } from '../../common/standings';
 
 function toTeamStats(s: typeof teamSeasonStats.$inferSelect) {
   return {
@@ -22,17 +22,17 @@ const emptyTeamStats = {
 
 export class TeamsService {
   async findAll(db: Db, year: number): Promise<Team[]> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return [];
-    const rows = await db.select().from(teams).where(eq(teams.seasonId, seasonRows[0].id));
+    const season = await resolveSeason(db, year);
+    if (!season) return [];
+    const rows = await db.select().from(teams).where(eq(teams.seasonId, season.id));
     return rows.map(toTeam);
   }
 
   async findStandings(db: Db, year: number): Promise<TeamStanding[]> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return [];
+    const season = await resolveSeason(db, year);
+    if (!season) return [];
 
-    const teamRows = await db.select().from(teams).where(eq(teams.seasonId, seasonRows[0].id));
+    const teamRows = await db.select().from(teams).where(eq(teams.seasonId, season.id));
     if (!teamRows.length) return [];
 
     const teamIds = teamRows.map((t) => t.id);
@@ -40,26 +40,19 @@ export class TeamsService {
       .select()
       .from(teamSeasonStats)
       .where(and(
-        eq(teamSeasonStats.seasonId, seasonRows[0].id),
+        eq(teamSeasonStats.seasonId, season.id),
         inArray(teamSeasonStats.teamId, teamIds),
       ));
 
-    const statsById = toKeyedMap(statsRows, (s) => s.teamId);
-
-    const result: TeamStanding[] = teamRows.map((t) => {
-      const s = statsById.get(t.id);
-      return {
-        team: toTeam(t),
-        stats: s ? toTeamStats(s) : emptyTeamStats,
-      };
-    });
-
-    return result.sort((a, b) => {
-      const posA = a.stats.championshipPosition ?? 999;
-      const posB = b.stats.championshipPosition ?? 999;
-      if (posA !== posB) return posA - posB;
-      return Number(b.stats.totalPoints) - Number(a.stats.totalPoints);
-    });
+    return buildStandings(
+      teamRows,
+      statsRows,
+      (t) => t.id,
+      (s) => s.teamId,
+      toTeamStats,
+      emptyTeamStats,
+      (t, stats): TeamStanding => ({ team: toTeam(t), stats })
+    );
   }
 
   async findCareerStats(db: Db, teamId: number): Promise<TeamYearStats[]> {
@@ -83,16 +76,18 @@ export class TeamsService {
       .from(teamSeasonStats)
       .where(inArray(teamSeasonStats.teamId, allIds));
 
-    const statsById = toKeyedMap(statsRows, (s) => s.teamId);
-
-    return allEntries.map((e) => {
-      const s = statsById.get(e.teams.id);
-      return {
+    return buildCareerStats(
+      allEntries,
+      statsRows,
+      (e) => e.teams.id,
+      (s) => s.teamId,
+      toTeamStats,
+      (e, stats): TeamYearStats => ({
         year: e.seasons.year,
         teamId: e.teams.id,
-        stats: s ? toTeamStats(s) : null,
-      };
-    });
+        stats,
+      })
+    );
   }
 
   // `teams` rows are season-scoped, so teamId alone already pins the season — no `year` param needed.

@@ -44,6 +44,7 @@ apps/api/
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
 │   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit() — canonical mappers used by all services
 │   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
+│   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)

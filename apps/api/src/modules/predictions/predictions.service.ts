@@ -11,6 +11,7 @@ import type {
 } from '../../common/types';
 import { toDriver, toRace, toCircuit } from '../../common/mappers';
 import { toKeyedMap } from '../../common/collections';
+import { resolveSeason } from '../../common/standings';
 
 function toFeatures(f: typeof driverPredictionFeatures.$inferSelect) {
   return {
@@ -180,14 +181,14 @@ export class PredictionsService {
   }
 
   async findIntelStandings(db: Db, year: number): Promise<IntelStandingRow[]> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return [];
+    const season = await resolveSeason(db, year);
+    if (!season) return [];
 
     const raceIdsRows = await db
       .select({ id: races.id })
       .from(races)
       .innerJoin(racePredictions, eq(racePredictions.raceId, races.id))
-      .where(eq(races.seasonId, seasonRows[0].id));
+      .where(eq(races.seasonId, season.id));
 
     if (!raceIdsRows.length) return [];
     const raceIds = raceIdsRows.map((r) => r.id);
@@ -304,7 +305,7 @@ export class PredictionsService {
           .from(driverSeasonStats)
           .where(and(
             inArray(driverSeasonStats.driverId, driverIds),
-            eq(driverSeasonStats.seasonId, seasonRows[0].id),
+            eq(driverSeasonStats.seasonId, season.id),
           ))
       : [];
     const sprintMap = toKeyedMap(sprintStatsRows, (s) => s.driverId);

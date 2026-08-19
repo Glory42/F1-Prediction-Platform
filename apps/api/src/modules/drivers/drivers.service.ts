@@ -3,7 +3,7 @@ import type { Db } from '../../config/database';
 import { drivers, teams, seasons, driverSeasonStats, raceResults, races } from '../../db/schema';
 import type { Driver, DriverDetailResponse, DriverStanding, DriverYearStats } from '../../common/types';
 import { toDriver } from '../../common/mappers';
-import { toKeyedMap } from '../../common/collections';
+import { resolveSeason, buildStandings, buildCareerStats } from '../../common/standings';
 
 function toDriverStats(s: typeof driverSeasonStats.$inferSelect) {
   return {
@@ -28,8 +28,8 @@ const emptyDriverStats = {
 
 export class DriversService {
   async findAll(db: Db, year: number, teamId?: number): Promise<Driver[]> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return [];
+    const season = await resolveSeason(db, year);
+    if (!season) return [];
 
     const rows = await db
       .select()
@@ -37,22 +37,22 @@ export class DriversService {
       .innerJoin(teams, eq(drivers.teamId, teams.id))
       .where(
         teamId
-          ? and(eq(drivers.seasonId, seasonRows[0].id), eq(drivers.teamId, teamId))
-          : eq(drivers.seasonId, seasonRows[0].id)
+          ? and(eq(drivers.seasonId, season.id), eq(drivers.teamId, teamId))
+          : eq(drivers.seasonId, season.id)
       );
 
     return rows.map((r) => toDriver(r.drivers, r.teams));
   }
 
   async findStandings(db: Db, year: number): Promise<DriverStanding[]> {
-    const seasonRows = await db.select().from(seasons).where(eq(seasons.year, year)).limit(1);
-    if (!seasonRows[0]) return [];
+    const season = await resolveSeason(db, year);
+    if (!season) return [];
 
     const rows = await db
       .select()
       .from(drivers)
       .innerJoin(teams, eq(drivers.teamId, teams.id))
-      .where(eq(drivers.seasonId, seasonRows[0].id));
+      .where(eq(drivers.seasonId, season.id));
 
     if (!rows.length) return [];
     const driverIds = rows.map((r) => r.drivers.id);
@@ -61,26 +61,19 @@ export class DriversService {
       .select()
       .from(driverSeasonStats)
       .where(and(
-        eq(driverSeasonStats.seasonId, seasonRows[0].id),
+        eq(driverSeasonStats.seasonId, season.id),
         inArray(driverSeasonStats.driverId, driverIds),
       ));
 
-    const statsById = toKeyedMap(statsRows, (s) => s.driverId);
-
-    const result: DriverStanding[] = rows.map((r) => {
-      const s = statsById.get(r.drivers.id);
-      return {
-        driver: toDriver(r.drivers, r.teams),
-        stats: s ? toDriverStats(s) : emptyDriverStats,
-      };
-    });
-
-    return result.sort((a, b) => {
-      const posA = a.stats.championshipPosition ?? 999;
-      const posB = b.stats.championshipPosition ?? 999;
-      if (posA !== posB) return posA - posB;
-      return Number(b.stats.totalPoints) - Number(a.stats.totalPoints);
-    });
+    return buildStandings(
+      rows,
+      statsRows,
+      (r) => r.drivers.id,
+      (s) => s.driverId,
+      toDriverStats,
+      emptyDriverStats,
+      (r, stats): DriverStanding => ({ driver: toDriver(r.drivers, r.teams), stats })
+    );
   }
 
   async findCareerStats(db: Db, driverId: number): Promise<DriverYearStats[]> {
@@ -110,19 +103,21 @@ export class DriversService {
       .from(driverSeasonStats)
       .where(inArray(driverSeasonStats.driverId, allIds));
 
-    const statsById = toKeyedMap(statsRows, (s) => s.driverId);
-
-    return allEntries.map((e) => {
-      const s = statsById.get(e.drivers.id);
-      return {
+    return buildCareerStats(
+      allEntries,
+      statsRows,
+      (e) => e.drivers.id,
+      (s) => s.driverId,
+      toDriverStats,
+      (e, stats): DriverYearStats => ({
         year: e.seasons.year,
         driverId: e.drivers.id,
         driverNumberThatYear: e.drivers.driverNumber,
         teamName: e.teams.name,
         headshotUrl: e.drivers.headshotUrl ?? null,
-        stats: s ? toDriverStats(s) : null,
-      };
-    });
+        stats,
+      })
+    );
   }
 
   // `drivers` rows are season-scoped, so driverId alone already pins the season — no `year` param needed.
