@@ -1,87 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Command } from "cmdk";
 import { Search, Building2 } from "lucide-react";
-import { api } from "@/lib/api";
-import type { Driver, Team, Circuit } from "@/types";
 import { getTeamLogo } from "@/lib/teamLogos";
 import { getCountryFlag } from "@/lib/countryFlags";
+import { useGlobalSearch } from "@/features/search/useGlobalSearch";
 
 export function GlobalSearch() {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [circuits, setCircuits] = useState<Circuit[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
+  const { isVisible, closing, results, loading, close, selectResult } = useGlobalSearch();
   const [activeFilter, setActiveFilter] = useState<'all' | 'drivers' | 'teams' | 'circuits'>('all');
-  const openRef = useRef(open);
-  openRef.current = open;
+  const { drivers, teams, circuits } = results;
 
-  // Retrace the entrance animation on the way out instead of snapping shut
-  function close() {
-    setClosing(true);
-    setTimeout(() => {
-      setOpen(false);
-      setClosing(false);
-    }, 160);
-  }
-
-  // Toggle the menu when ctrl + K is pressed or close when Escape is pressed
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        if (openRef.current) {
-          close();
-        } else {
-          setOpen(true);
-        }
-      } else if (e.key === "Escape" && openRef.current) {
-        close();
-      }
-    };
-
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  // Fetch data when opened for the first time
-  useEffect(() => {
-    if (open && !hasFetched) {
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const data = await api.getGlobalSearch();
-          setDrivers(data.drivers);
-          setTeams(data.teams);
-          setCircuits(data.circuits);
-          setHasFetched(true);
-        } catch (error) {
-          console.error("Failed to fetch search data", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchData();
-    }
-  }, [open, hasFetched]);
-
-  // Listen for custom event to open the search modal from non-React components (e.g. Navbar.astro)
-  useEffect(() => {
-    const handleOpen = () => setOpen(true);
-    window.addEventListener("open-global-search", handleOpen);
-    return () => window.removeEventListener("open-global-search", handleOpen);
-  }, []);
-
-  const handleSelect = (url: string) => {
-    window.location.assign(url);
-    // Delay closing the modal so the browser can initiate navigation before the component unmounts
-    setTimeout(() => setOpen(false), 100);
-  };
-
-  if (!open && !closing) return null;
+  if (!isVisible) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] sm:pt-[25vh]">
@@ -142,7 +71,7 @@ export function GlobalSearch() {
                 <Command.Item
                   key={driver.id}
                   value={`${driver.fullName} ${driver.code} ${driver.team.name}`}
-                  onSelect={() => handleSelect(`/drivers/${driver.id}`)}
+                  onSelect={() => selectResult(`/drivers/${driver.id}`)}
                   className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-white/10 data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50"
                 >
                   <div className="flex items-center w-full">
@@ -184,7 +113,7 @@ export function GlobalSearch() {
                   <Command.Item
                     key={team.id}
                     value={team.name}
-                    onSelect={() => handleSelect(`/teams/${team.id}`)}
+                    onSelect={() => selectResult(`/teams/${team.id}`)}
                     className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-white/10 data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50"
                   >
                     <div className="flex items-center w-full">
@@ -215,7 +144,7 @@ export function GlobalSearch() {
                 <Command.Item
                   key={circuit.id}
                   value={`${circuit.name} ${circuit.country} ${circuit.city}`}
-                  onSelect={() => handleSelect(`/circuits/${circuit.circuitKey}`)}
+                  onSelect={() => selectResult(`/circuits/${circuit.circuitKey}`)}
                   className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-white/10 data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50"
                 >
                   <div className="flex items-center w-full">

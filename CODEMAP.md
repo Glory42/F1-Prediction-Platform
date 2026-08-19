@@ -223,8 +223,10 @@ apps/web/
 │   │   │   │   └── CompareStatus.tsx      # Loading/error status display
 │   │   │   ├── compareStats.ts        # aggregateCareerStats() — career stat aggregation
 │   │   │   └── useCompareController.ts # Generic compare-tool state hook (URL sync, year/career switching, detail fetch)
-│   │   └── search/components/
-│   │       └── GlobalSearch.tsx       # React global search palette (cmdk)
+│   │   └── search/
+│   │       ├── components/
+│   │       │   └── GlobalSearch.tsx   # React global search palette (cmdk) — render only
+│   │       └── useGlobalSearch.ts     # Search-open state hook (keyboard shortcut, Navbar event bridge, fetch-on-open, close animation)
 │   ├── lib/                       # Only truly cross-feature helpers
 │   │   ├── api.ts                 # Typed API client — all fetch calls, uses PUBLIC_API_URL
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
@@ -284,6 +286,7 @@ apps/web/
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
 | `features/compare/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, season/career toggle, URL param sync, detail/career fetch. |
+| `features/search/useGlobalSearch.ts` | Hook powering `GlobalSearch` — open/close state, Cmd/Ctrl+K + Escape keyboard shortcut, `open-global-search` event bridge from `Navbar.astro`, fetch-on-first-open, close-animation timing. |
 
 ---
 
