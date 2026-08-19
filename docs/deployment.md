@@ -10,8 +10,8 @@ order: 6
 
 | Layer | Platform | How it deploys |
 |-------|----------|----------------|
-| `web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-builds |
-| `api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-builds |
+| `apps/web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-builds |
+| `apps/api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-builds |
 | `data-engine/` | Render | Cron jobs triggered on schedule |
 | DB migrations | Neon | Manual — run locally via `drizzle-kit` |
 
@@ -27,7 +27,7 @@ order: 6
 |----------|-----------|-------|
 | `DATABASE_URL` | Workers → Settings → Variables and Secrets → **Secret** | Neon connection string |
 
-`keep_vars = true` is set in `api/wrangler.toml` so deploys never erase dashboard-set variables.
+`keep_vars = true` is set in `apps/api/wrangler.toml` so deploys never erase dashboard-set variables.
 
 Set this as a **Secret** (not plaintext) so it's encrypted at rest.
 
@@ -39,7 +39,7 @@ Set this as a **Secret** (not plaintext) so it's encrypted at rest.
 
 Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
 
-`keep_vars = true` is set in `web/wrangler.toml`.
+`keep_vars = true` is set in `apps/web/wrangler.toml`.
 
 ### Data Engine — Render Dashboard
 
@@ -57,7 +57,7 @@ Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
 
 The API allows requests only from `https://f1.gorkemkaryol.dev` in production. `http://localhost:4321` and `http://localhost:8787` are only allowed when the `ENVIRONMENT` var is not `"production"` — `wrangler.toml` sets `ENVIRONMENT = "production"` for the deployed Worker, and `.dev.vars` overrides it to `"development"` for local `wrangler dev`.
 
-Configured in `api/src/main.ts`. Only `GET` and `OPTIONS` methods are allowed.
+Configured in `apps/api/src/main.ts`. Only `GET` and `OPTIONS` methods are allowed.
 
 ---
 
@@ -66,7 +66,7 @@ Configured in `api/src/main.ts`. Only `GET` and `OPTIONS` methods are allowed.
 ### 1. Database
 
 ```bash
-cd api
+cd apps/api
 bun install
 # Set DATABASE_URL in your shell or .env
 bun run db:push    # applies schema to Neon
@@ -83,13 +83,15 @@ python src/main.py --job sync_season   --year 2025 --round 1
 
 ### 2. API (Cloudflare Workers)
 
-1. Connect the `api/` directory to a Cloudflare Worker via the GitHub integration in the Cloudflare dashboard.
+1. Connect the `apps/api/` directory to a Cloudflare Worker via the GitHub integration in the
+   Cloudflare dashboard (set "Root directory" to `apps/api`).
 2. In the Worker's dashboard, add `DATABASE_URL` as a Secret.
 3. Push to `master` to trigger the first deploy.
 
 ### 3. Frontend (Cloudflare Pages)
 
-1. Connect the `web/` directory to Cloudflare Pages via the GitHub integration.
+1. Connect the `apps/web/` directory to Cloudflare Pages via the GitHub integration (set "Root
+   directory" to `apps/web`).
 2. Set build command: `bun run build`
 3. Set output directory: `dist`
 4. Add environment variable `PUBLIC_API_URL` pointing to your Worker URL.
@@ -115,13 +117,17 @@ Frontend: `https://f1.gorkemkaryol.dev` (custom domain on Cloudflare Pages)
 ## Local Development
 
 ```bash
+# All at once (from repo root)
+bun run install:all
+bun run dev
+
 # API
-cd api
+cd apps/api
 bun install
 bun run dev        # starts on http://localhost:8787
 
 # Frontend
-cd web
+cd apps/web
 bun install
 bun run dev        # starts on http://localhost:4321
 

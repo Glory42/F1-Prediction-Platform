@@ -19,9 +19,10 @@ F1-prediction/
 │   ├── database-schema.md # All tables, columns, and relationships
 │   ├── api-reference.md   # All endpoints, params, and response shapes
 │   └── deployment.md      # Env vars, Cloudflare setup, first-time steps
-├── api/                   # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
-├── web/                   # Astro SSR frontend — Cloudflare Pages
-├── data-engine/           # Python ETL batch jobs — Render
+├── apps/                  # JS/Bun-only convention — orchestrated by root package.json, no workspaces
+│   ├── api/               # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
+│   └── web/               # Astro SSR frontend — Cloudflare Pages
+├── data-engine/           # Python ETL batch jobs — Render (outside apps/: no dev server, one-shot jobs)
 └── .claude/skills/        # Claude Code skill definitions
     ├── commit/            # Conventional commit format and workflow
     ├── build/             # Build verification skill
@@ -30,13 +31,13 @@ F1-prediction/
 
 ---
 
-## API (`api/`)
+## API (`apps/api/`)
 
 Hono on Cloudflare Workers. NestJS-style module structure.
 Must use `@neondatabase/serverless` (HTTP driver) — no TCP in Workers.
 
 ```
-api/
+apps/api/
 ├── src/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
@@ -144,15 +145,15 @@ Each module follows the same three-file pattern:
 
 ---
 
-## Frontend (`web/`)
+## Frontend (`apps/web/`)
 
 Astro SSR with Cloudflare adapter. All data fetching is server-side in Astro frontmatter — no client-side data fetching.
 
 ```
-web/
+apps/web/
 ├── src/
 │   ├── content/
-│   │   └── config.ts              # Astro Content Layer — docs collection via glob('../docs')
+│   │   └── config.ts              # Astro Content Layer — docs collection via glob('../../docs')
 │   ├── pages/                     # File-based routes
 │   │   ├── index.astro            # Landing page (static)
 │   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged)

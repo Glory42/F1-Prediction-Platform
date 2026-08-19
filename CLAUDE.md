@@ -7,11 +7,16 @@ predict race winners with a weighted feature scoring system.
 ## Monorepo Layout
 ```
 f1-intelligence/
-├── web/           # Astro SSR on Cloudflare Pages
-├── api/           # Hono on Cloudflare Workers (NestJS-style modules)
+├── apps/
+│   ├── web/       # Astro SSR on Cloudflare Pages
+│   └── api/       # Hono on Cloudflare Workers (NestJS-style modules)
 │                  # Also owns the Drizzle schema (src/db/schema/) and migrations (drizzle/migrations/)
 └── data-engine/   # Python ETL batch jobs on Render
 ```
+`apps/` is a JS/Bun-only convention — root `package.json` orchestrates `apps/api` and `apps/web` via
+plain `cd`-based scripts (no Bun workspaces). `data-engine/` stays outside `apps/`: it's Python, and
+its jobs run once and exit rather than being a long-running dev server. See
+`docs/adr/0001-apps-layout-scoped-to-js-bun.md`.
 
 ---
 
@@ -21,7 +26,7 @@ f1-intelligence/
 |-------|-----------|-------|
 | Frontend | Astro + Tailwind | `output: 'server'`, Cloudflare adapter |
 | API | Hono | Cloudflare Workers |
-| ORM | Drizzle ORM | TypeScript, schema lives in `api/src/db/schema/` |
+| ORM | Drizzle ORM | TypeScript, schema lives in `apps/api/src/db/schema/` |
 | Database | Neon PostgreSQL | |
 | DB driver (Workers) | `@neondatabase/serverless` | HTTP driver — mandatory for CF Workers |
 | DB driver (Python) | `psycopg2` | TCP — fine on Render |
@@ -33,7 +38,7 @@ f1-intelligence/
 ## Critical Constraints — Read Before Writing Any Code
 
 ### 1. Cloudflare Workers cannot use TCP
-Never use `pg`, `postgres`, or any npm package that uses TCP sockets in the `api/` directory.
+Never use `pg`, `postgres`, or any npm package that uses TCP sockets in the `apps/api/` directory.
 Cloudflare Workers run in V8 isolates with no TCP support.
 
 **Always use:**
@@ -42,10 +47,10 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 ```
 
-### 2. Drizzle schema is in `api/src/db/schema/`
-The canonical schema lives in `api/src/db/schema/`. Generated migration SQL files live in
-`api/drizzle/migrations/` — both the schema and its migrations are owned by `api/`, since that's
-also where `drizzle.config.ts` and the `drizzle-kit` CLI scripts live.
+### 2. Drizzle schema is in `apps/api/src/db/schema/`
+The canonical schema lives in `apps/api/src/db/schema/`. Generated migration SQL files live in
+`apps/api/drizzle/migrations/` — both the schema and its migrations are owned by `apps/api/`, since
+that's also where `drizzle.config.ts` and the `drizzle-kit` CLI scripts live.
 Never define schema inline in route files.
 
 ### 3. Astro data fetching is server-side only
@@ -104,11 +109,11 @@ sprint weekend:
 
 ---
 
-## API (Hono — `api/`)
+## API (Hono — `apps/api/`)
 
 ### Module structure (NestJS-style)
 ```
-api/src/
+apps/api/src/
 ├── common/types.ts                    # Bindings + all response types
 ├── config/database.ts                 # createDb() — Neon HTTP driver
 ├── db/schema/                         # Drizzle table definitions
@@ -180,7 +185,7 @@ All queries use Drizzle joins. Never fetch a list then loop-query for each item.
 
 ---
 
-## Frontend (Astro — `web/`)
+## Frontend (Astro — `apps/web/`)
 
 ### Environment Variables
 | Variable | Where set |
@@ -249,12 +254,12 @@ Use structured logging: `{"job": "ingest_race", "round": 14, "status": "failed",
 
 ---
 
-## Drizzle ORM (`api/drizzle/`)
+## Drizzle ORM (`apps/api/drizzle/`)
 
 ### Running migrations
 ```bash
-cd api
-bun run db:generate   # generate SQL from schema changes -> api/drizzle/migrations/
+cd apps/api
+bun run db:generate   # generate SQL from schema changes -> apps/api/drizzle/migrations/
 bun run db:push       # apply to Neon (dev)
 bun run db:migrate    # apply via migration files (prod)
 ```
@@ -318,17 +323,26 @@ win_probabilities = exp_s / exp_s.sum()
 
 ## Development Setup
 
+### Root (apps/api + apps/web)
+```bash
+bun run install:all  # bun install in both apps/api and apps/web
+bun run dev           # runs apps/api (wrangler dev) + apps/web (astro dev) concurrently
+bun run build          # apps/web production build
+```
+Plain orchestration scripts — no Bun workspaces. `data-engine/` isn't part of `bun run dev` since its
+jobs run once and exit rather than being a long-running dev server; invoke it directly (below).
+
 ### API
 ```bash
-cd api
+cd apps/api
 bun install
 bun run dev          # local dev via wrangler dev
 bun run deploy       # deploy to CF Workers
 ```
 
-### Frontend (web/)
+### Frontend (apps/web/)
 ```bash
-cd web
+cd apps/web
 bun install
 bun run dev          # local Astro dev server on :4321
 bun run build        # production build
@@ -343,7 +357,7 @@ pip install -r requirements.txt
 cp .env.example .env   # fill in DATABASE_URL
 ```
 
-Applying the DB schema is covered under [Drizzle ORM](#drizzle-orm-apidrizzle) above — it's part of the `api/` setup, not a separate package.
+Applying the DB schema is covered under [Drizzle ORM](#drizzle-orm-appsapidrizzle) above — it's part of the `apps/api/` setup, not a separate package.
 
 ---
 
@@ -357,7 +371,7 @@ Applying the DB schema is covered under [Drizzle ORM](#drizzle-orm-apidrizzle) a
 
 ## Code Style
 
-- TypeScript strict mode everywhere in `api/` and `frontend/`
+- TypeScript strict mode everywhere in `apps/api/` and `apps/web/`
 - No `any` types — define proper interfaces in `types/index.ts`
 - Python: type hints on all function signatures
 - No comments explaining what code does — name things clearly instead

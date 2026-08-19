@@ -39,7 +39,7 @@ FastF1 is the sole external data source. It provides telemetry and session data 
 | Weather | every ingest | `races.weather`, `races.sprint_weather` — `Rainfall` flag from session telemetry |
 
 FastF1 `HeadshotUrl` is used for driver photos (available 2019+, not available earlier).
-FastF1 does **not** provide team logos — those are stored as static files in `web/public/teams/`.
+FastF1 does **not** provide team logos — those are stored as static files in `apps/web/public/teams/`.
 
 ### 2. Computed aggregates (run after each race)
 `compute_season_stats` reads from the raw tables above and computes season-wide summaries.

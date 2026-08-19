@@ -8,8 +8,8 @@ order: 3
 
 **Provider:** Neon PostgreSQL  
 **ORM:** Drizzle  
-**Schema source:** `api/src/db/schema/`  
-**Migrations:** `api/drizzle/migrations/` (generated SQL files)
+**Schema source:** `apps/api/src/db/schema/`  
+**Migrations:** `apps/api/drizzle/migrations/` (generated SQL files)
 
 ---
 

@@ -6,7 +6,7 @@ Key non-obvious choices made in this project and why. Read this before proposing
 
 ## Cloudflare Workers — HTTP driver only, no TCP
 
-Workers run in V8 isolates with no TCP socket support. The API layer **must** use `@neondatabase/serverless` (HTTP driver). Never introduce `pg`, `postgres`, or Prisma in `api/` — they all require TCP and will silently fail or refuse to build.
+Workers run in V8 isolates with no TCP socket support. The API layer **must** use `@neondatabase/serverless` (HTTP driver). Never introduce `pg`, `postgres`, or Prisma in `apps/api/` — they all require TCP and will silently fail or refuse to build.
 
 Python on Render is a normal server, so psycopg2 over TCP is fine there.
 
@@ -70,7 +70,7 @@ The platform is a read-only data product. There is nothing to protect on a per-u
 
 ## What NOT to do
 
-- `pg` / `postgres` / Prisma in `api/` — no TCP in CF Workers
+- `pg` / `postgres` / Prisma in `apps/api/` — no TCP in CF Workers
 - `client:*` islands for data fetching in Astro — all fetches in frontmatter
 - Write endpoints on the Hono API — ETL writes directly to Neon
 - Secrets in `wrangler.toml` — use the Cloudflare dashboard (Variables and Secrets)

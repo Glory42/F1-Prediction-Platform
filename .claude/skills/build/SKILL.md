@@ -7,10 +7,10 @@ description: Build and verify the web and API. Use when the user says "build", "
 
 Verify the web frontend and API compile correctly after changes.
 
-## Web (Astro — `web/`)
+## Web (Astro — `apps/web/`)
 
 ```bash
-cd /home/glory42/projects/side-projects/F1-prediction/web
+cd /home/glory42/Projects/side-projects/F1-prediction/apps/web
 bun run build
 ```
 
@@ -20,13 +20,13 @@ bun run build
 [build] Complete!
 ```
 
-## API (Hono — `api/`)
+## API (Hono — `apps/api/`)
 
 TypeScript type-check only (no build step needed for Workers):
 
 ```bash
-cd /home/glory42/projects/side-projects/F1-prediction/api
-bunx tsc --noEmit
+cd /home/glory42/Projects/side-projects/F1-prediction/apps/api
+bun run typecheck
 ```
 
 Expected pre-existing errors (ignore these):
@@ -36,11 +36,14 @@ Expected pre-existing errors (ignore these):
 ## Local Dev
 
 ```bash
+# Both, from repo root
+bun run dev
+
 # Frontend dev server on :4321
-cd web && bun run dev
+cd apps/web && bun run dev
 
 # API local dev via wrangler
-cd api && bun run dev
+cd apps/api && bun run dev
 ```
 
 ## Rules
@@ -54,6 +57,6 @@ cd api && bun run dev
 If schema changed, push to Neon before building:
 
 ```bash
-cd api
+cd apps/api
 DATABASE_URL=$(cat .env | grep DATABASE_URL | cut -d'=' -f2-) bunx drizzle-kit push
 ```

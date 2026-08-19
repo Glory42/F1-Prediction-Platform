@@ -17,12 +17,13 @@ F1 race winner prediction using historical and current data via FastF1. A weight
 
 ```
 f1-prediction/
-├── web/           # Astro SSR (output: 'server', Cloudflare adapter)
-├── api/           # Hono on Cloudflare Workers (NestJS-style modules)
-│   ├── drizzle/migrations/  # Generated SQL migrations
-│   └── src/
-│       ├── db/schema/   # Drizzle table definitions (source of truth)
-│       └── modules/     # races, drivers, teams, predictions, seasons
+├── apps/
+│   ├── web/       # Astro SSR (output: 'server', Cloudflare adapter)
+│   └── api/       # Hono on Cloudflare Workers (NestJS-style modules)
+│       ├── drizzle/migrations/  # Generated SQL migrations
+│       └── src/
+│           ├── db/schema/   # Drizzle table definitions (source of truth)
+│           └── modules/     # races, drivers, teams, predictions, seasons
 ├── data-engine/   # Python ETL polling web service on Render
 │   └── src/jobs/  # sync, ingest, compute jobs
 └── docs/          # Architecture, API reference, schema, pipeline, deployment
@@ -32,16 +33,22 @@ See [CODEMAP.md](./CODEMAP.md) for the full file-level reference and [DECISIONS.
 
 ## Local Development
 
+### Root (apps/api + apps/web)
+```bash
+bun run install:all
+bun run dev         # runs api + web dev servers concurrently
+```
+
 ### API (Hono — Cloudflare Workers)
 ```bash
-cd api
+cd apps/api
 bun install
 bun run dev        # wrangler dev on :8787
 ```
 
 ### Frontend (Astro)
 ```bash
-cd web
+cd apps/web
 bun install
 bun run dev        # Astro dev server on :4321
 ```
@@ -57,7 +64,7 @@ cp .env.example .env   # fill in DATABASE_URL
 
 ### Database (Drizzle)
 ```bash
-cd api
+cd apps/api
 bunx drizzle-kit push   # apply schema to Neon
 ```
 

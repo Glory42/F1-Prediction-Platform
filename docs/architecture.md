@@ -10,13 +10,14 @@ order: 1
 
 ```
 F1-prediction/
-├── web/           Astro SSR frontend — Cloudflare Pages
-├── api/           Hono REST API — Cloudflare Workers
+├── apps/
+│   ├── web/       Astro SSR frontend — Cloudflare Pages
+│   └── api/       Hono REST API — Cloudflare Workers
 └── data-engine/   Python ETL batch jobs — Render
 ```
 
-The schema source of truth lives in `api/src/db/schema/`. Generated SQL migration files live in
-`api/drizzle/migrations/` — both are owned by `api/`, not a separate top-level package.
+The schema source of truth lives in `apps/api/src/db/schema/`. Generated SQL migration files live in
+`apps/api/drizzle/migrations/` — both are owned by `apps/api/`, not a separate top-level package.
 
 ---
 
@@ -28,13 +29,13 @@ The schema source of truth lives in `api/src/db/schema/`. Generated SQL migratio
 └────────────────────┬────────────────────────────┘
                      │ HTTPS
 ┌────────────────────▼────────────────────────────┐
-│  web/  (Astro SSR — Cloudflare Pages)           │
+│  apps/web/  (Astro SSR — Cloudflare Pages)      │
 │  Renders HTML server-side, fetches from API     │
 │  in Astro frontmatter (never client-side JS)    │
 └────────────────────┬────────────────────────────┘
                      │ HTTP (PUBLIC_API_URL)
 ┌────────────────────▼────────────────────────────┐
-│  api/  (Hono — Cloudflare Workers)              │
+│  apps/api/  (Hono — Cloudflare Workers)         │
 │  Read-only REST API, Drizzle ORM queries        │
 │  Uses @neondatabase/serverless (HTTP driver)    │
 └────────────────────┬────────────────────────────┘
@@ -56,7 +57,7 @@ The schema source of truth lives in `api/src/db/schema/`. Generated SQL migratio
 
 ## Key Constraints
 
-**Cloudflare Workers have no TCP.** The `api/` layer must use `@neondatabase/serverless` (HTTP driver). Never use `pg` or `postgres` packages there.
+**Cloudflare Workers have no TCP.** The `apps/api/` layer must use `@neondatabase/serverless` (HTTP driver). Never use `pg` or `postgres` packages there.
 
 **Python writes directly to Neon.** The API is read-only. There are no write endpoints — the ETL engine connects directly via psycopg2.
 
@@ -141,7 +142,7 @@ Sunday
 
 | Layer | Host | Trigger |
 |-------|------|---------|
-| `web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-deploys |
-| `api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-deploys |
+| `apps/web/` | Cloudflare Pages | Push to `master` → GitHub integration auto-deploys |
+| `apps/api/` | Cloudflare Workers | Push to `master` → GitHub integration auto-deploys |
 | `data-engine/` | Render | Web Service (hourly polling) |
-| DB migrations | Neon | Manual: `bun run db:push` from `api/` |
+| DB migrations | Neon | Manual: `bun run db:push` from `apps/api/` |

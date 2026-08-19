@@ -22,7 +22,7 @@ export default defineConfig({
     server: {
       fs: {
         // Allow loading files from the monorepo root (e.g. docs/ for content collections)
-        allow: [".."],
+        allow: ["../.."],
       },
     },
     resolve: {

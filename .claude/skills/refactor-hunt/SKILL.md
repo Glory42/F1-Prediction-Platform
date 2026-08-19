@@ -9,7 +9,7 @@ Scans for code that would benefit from simplification, consolidation, or better 
 
 ## Scope
 
-Default: the diff since the last commit or the modules the user names. For a broader hunt, use the `Explore` agent to search across `api/src`, `web/src`, and `data-engine/src`.
+Default: the diff since the last commit or the modules the user names. For a broader hunt, use the `Explore` agent to search across `apps/api/src`, `apps/web/src`, and `data-engine/src`.
 
 If the user says "hunt in the sprint pipeline" or names a module, scope to that.
 
@@ -35,19 +35,19 @@ Also check `math_utils.py` — if a new normalization/scoring formula is added t
 
 ### 3. Duplicate mapper logic
 
-`api/src/common/mappers.ts` holds `toDriver`, `toRace`, `toCircuit` — the canonical row-to-response-shape converters. Grep service files for inline object construction that duplicates what a mapper already does (e.g. manually building a `{ id, name, ... }` driver-shaped object instead of calling `toDriver(row.drivers, row.teams)`). Flag any service file reconstructing a shape mappers.ts already covers.
+`apps/api/src/common/mappers.ts` holds `toDriver`, `toRace`, `toCircuit` — the canonical row-to-response-shape converters. Grep service files for inline object construction that duplicates what a mapper already does (e.g. manually building a `{ id, name, ... }` driver-shaped object instead of calling `toDriver(row.drivers, row.teams)`). Flag any service file reconstructing a shape mappers.ts already covers.
 
 ### 4. Frontend: duplicate API caller definitions
 
-`web/src/lib/api.ts` is the single source of truth for backend calls — every method is a one-liner around the shared `get<T>()` helper. Grep `web/src/pages/**/*.astro` and `web/src/components/**/*.tsx` for raw `fetch(` calls that bypass `api.ts`. Every backend route should have exactly one caller definition there; pages/components should only import from `api`.
+`apps/web/src/lib/api.ts` is the single source of truth for backend calls — every method is a one-liner around the shared `get<T>()` helper. Grep `apps/web/src/pages/**/*.astro` and `apps/web/src/components/**/*.tsx` for raw `fetch(` calls that bypass `api.ts`. Every backend route should have exactly one caller definition there; pages/components should only import from `api`.
 
 ### 5. Frontend: duplicate display-formatting logic
 
-`web/src/lib/teamColors.ts`, `teamLogos.ts`, `countryFlags.ts`, `circuitMetadata.ts` are the canonical lookup tables for team/country/circuit display data. Grep components for inline color hex codes, flag emoji, or circuit stat literals that duplicate what's already in one of these files (a sign a lookup was hand-rolled instead of imported).
+`apps/web/src/lib/teamColors.ts`, `teamLogos.ts`, `countryFlags.ts`, `circuitMetadata.ts` are the canonical lookup tables for team/country/circuit display data. Grep components for inline color hex codes, flag emoji, or circuit stat literals that duplicate what's already in one of these files (a sign a lookup was hand-rolled instead of imported).
 
 ### 6. Compare-tool duplication
 
-`DriverCompareTool.tsx` (626 lines) and `TeamCompareTool.tsx` (562 lines) are the two largest frontend files and structurally similar (side-by-side stat comparison UI). Diff their internals for identical helper functions (formatting, delta calculation, winner-highlighting logic) that could move to a shared `web/src/lib/` helper or a shared `.tsx` subcomponent instead of being duplicated in both files.
+`DriverCompareTool.tsx` (626 lines) and `TeamCompareTool.tsx` (562 lines) are the two largest frontend files and structurally similar (side-by-side stat comparison UI). Diff their internals for identical helper functions (formatting, delta calculation, winner-highlighting logic) that could move to a shared `apps/web/src/lib/` helper or a shared `.tsx` subcomponent instead of being duplicated in both files.
 
 ### 7. Premature abstraction / over-engineered indirection
 

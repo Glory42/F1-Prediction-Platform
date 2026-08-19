@@ -25,13 +25,13 @@ Same check for changed `.py` files in `data-engine/src/`. Common leftovers after
 
 ### 3. Unused exported constants and types
 
-Grep for exported constants/types in `api/src/common/types.ts`, `api/src/common/constants.ts`, and `web/src/types/index.ts`. For each export, check if it has any import anywhere in the project:
+Grep for exported constants/types in `apps/api/src/common/types.ts`, `apps/api/src/common/constants.ts`, and `apps/web/src/types/index.ts`. For each export, check if it has any import anywhere in the project:
 ```bash
-grep -rn "ImportName" api/src web/src --include="*.ts" --include="*.tsx" --include="*.astro"
+grep -rn "ImportName" apps/api/src apps/web/src --include="*.ts" --include="*.tsx" --include="*.astro"
 ```
 Remove only if the sole hit is the definition itself. Do **not** remove if:
-- It's a Drizzle schema export from `api/src/db/schema/` — these are used by `drizzle-kit` tooling even with zero direct code imports.
-- It's a response-shape type consumed only structurally by JSON parsing (no explicit import needed at the call site in some cases) — verify against `web/src/lib/api.ts` return types first.
+- It's a Drizzle schema export from `apps/api/src/db/schema/` — these are used by `drizzle-kit` tooling even with zero direct code imports.
+- It's a response-shape type consumed only structurally by JSON parsing (no explicit import needed at the call site in some cases) — verify against `apps/web/src/lib/api.ts` return types first.
 
 ### 4. Legacy ingest job leftovers
 
@@ -39,14 +39,14 @@ Remove only if the sole hit is the definition itself. Do **not** remove if:
 
 ### 5. Orphaned migration files
 ```bash
-ls api/drizzle/migrations/*.sql
-grep '"tag"' api/drizzle/migrations/meta/_journal.json
+ls apps/api/drizzle/migrations/*.sql
+grep '"tag"' apps/api/drizzle/migrations/meta/_journal.json
 ```
 Flag any `.sql` file whose tag doesn't appear in the journal — it won't run and clutters the directory. Do not delete automatically; confirm with the user, since it might be an in-progress migration.
 
 ### 6. Commented-out code blocks
 ```bash
-grep -n "^[[:space:]]*//" api/src web/src -r --include="*.ts" --include="*.tsx" | grep -v "TODO\|FIXME\|NOTE\|eslint\|prettier"
+grep -n "^[[:space:]]*//" apps/api/src apps/web/src -r --include="*.ts" --include="*.tsx" | grep -v "TODO\|FIXME\|NOTE\|eslint\|prettier"
 grep -n "^[[:space:]]*#" data-engine/src -r --include="*.py" | grep -v "TODO\|FIXME\|NOTE"
 ```
 Flag clusters of 3+ consecutive commented lines. Distinguish dead code (old implementation, clearly replaced — safe to remove) from an explanatory comment describing *why* (keep).
@@ -55,22 +55,22 @@ Flag clusters of 3+ consecutive commented lines. Distinguish dead code (old impl
 
 CLAUDE.md: "No console.log in production code — use structured logging patterns."
 ```bash
-grep -rn "console\.log" api/src web/src --include="*.ts" --include="*.tsx"
+grep -rn "console\.log" apps/api/src apps/web/src --include="*.ts" --include="*.tsx"
 ```
-`console.error` inside `app.onError` (`api/src/main.ts`) is the documented error-handling path — keep it. Flag any other `console.log`/`console.warn` left from debugging. `api/src/db/seed.ts` uses `console.log` for one-off seed progress output — that's a standalone script run manually, not production request-path code, so it's fine; don't flag it.
+`console.error` inside `app.onError` (`apps/api/src/main.ts`) is the documented error-handling path — keep it. Flag any other `console.log`/`console.warn` left from debugging. `apps/api/src/db/seed.ts` uses `console.log` for one-off seed progress output — that's a standalone script run manually, not production request-path code, so it's fine; don't flag it.
 
 For Python, bare `print()` calls are the existing convention for job progress (`print(f"[compute_features] race_id={race_id}")` — see every job's `run()` entry). Only flag `print()` used in place of the structured-logging failure path CLAUDE.md requires on error, not progress prints.
 
 ### 8. Stale feature flags / always-false branches
 ```bash
-grep -rn "if (false\|if (0\|&& false" api/src web/src --include="*.ts" --include="*.tsx"
+grep -rn "if (false\|if (0\|&& false" apps/api/src apps/web/src --include="*.ts" --include="*.tsx"
 grep -rn "if False:\|if 0:" data-engine/src --include="*.py"
 ```
 Usually leftover from debugging sessions.
 
 ### 9. Unregistered API routes
 
-Check `api/src/main.ts` — every module under `api/src/modules/` should have a corresponding `app.route('/api/...', xModule)` line. Flag any module directory present in `modules/` but never mounted (dead code that can't be reached), and any `app.route()` call whose imported module file no longer exists.
+Check `apps/api/src/main.ts` — every module under `apps/api/src/modules/` should have a corresponding `app.route('/api/...', xModule)` line. Flag any module directory present in `modules/` but never mounted (dead code that can't be reached), and any `app.route()` call whose imported module file no longer exists.
 
 ---
 
@@ -79,12 +79,12 @@ Check `api/src/main.ts` — every module under `api/src/modules/` should have a 
 Before removing anything:
 
 1. **Grep first** — confirm zero usages outside the definition file.
-2. **Don't touch `api/src/db/schema/`** — Drizzle uses these exports for migration generation even with no direct code import.
+2. **Don't touch `apps/api/src/db/schema/`** — Drizzle uses these exports for migration generation even with no direct code import.
 3. **Don't touch `ingest_*_legacy.py`** — deliberately kept for pre-2018 backfills.
 4. **Don't remove migration files** — even orphaned ones; confirm with the user first.
 5. **One file at a time** — don't batch delete across unrelated modules in a single pass; stage and verify each area before moving to the next.
 
-After cleanup, run the `build` skill (or directly: `bunx tsc --noEmit` in `api/`, `bun run build` in `web/`) to confirm zero new type errors.
+After cleanup, run the `build` skill (or directly: `bun run typecheck` in `apps/api/`, `bun run build` in `apps/web/`) to confirm zero new type errors.
 
 ---
 
