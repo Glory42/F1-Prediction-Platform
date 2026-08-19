@@ -23,15 +23,15 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
   const defaultYear = years[0] || 2026;
 
   const {
-    year, setYear,
+    year,
     items: teams,
-    aId: teamAId, setAId: setTeamAId,
-    bId: teamBId, setBId: setTeamBId,
-    isCareer, setIsCareer,
+    aId: teamAId,
+    bId: teamBId,
     itemA: teamA, itemB: teamB,
-    aData: teamAData, bData: teamBData,
-    aCareer: teamACareer, bCareer: teamBCareer,
+    isCareer,
+    comparison,
     loading, error,
+    actions: { setYear, setAId: setTeamAId, setBId: setTeamBId, setIsCareer },
   } = useCompareController<Team, TeamDetailResponse, TeamYearStats>({
     years,
     defaultYear,
@@ -42,6 +42,9 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
     fetchDetail: (id, y) => api.getTeamById(id, y),
     fetchCareer: (id) => api.getTeamCareer(id),
   });
+
+  const teamACareer = comparison?.mode === 'career' ? comparison.a : null;
+  const teamBCareer = comparison?.mode === 'career' ? comparison.b : null;
 
   const logoA = useMemo(() => getTeamLogo(teamA?.teamKey || ''), [teamA]);
   const logoB = useMemo(() => getTeamLogo(teamB?.teamKey || ''), [teamB]);
@@ -160,58 +163,58 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
             </div>
 
             <div className="space-y-4">
-              {!isCareer && teamAData?.seasonStats && teamBData?.seasonStats ? (
+              {comparison?.mode === 'season' ? (
                 <>
                   <ComparisonRow
                     label="Championship Points"
-                    valA={parseFloat(teamAData.seasonStats.totalPoints)}
-                    valB={parseFloat(teamBData.seasonStats.totalPoints)}
+                    valA={parseFloat(comparison.a.seasonStats.totalPoints)}
+                    valB={parseFloat(comparison.b.seasonStats.totalPoints)}
                     format={(v) => v.toString()}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Grand Prix Wins"
-                    valA={teamAData.seasonStats.wins}
-                    valB={teamBData.seasonStats.wins}
+                    valA={comparison.a.seasonStats.wins}
+                    valB={comparison.b.seasonStats.wins}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Podiums Secured"
-                    valA={teamAData.seasonStats.podiums}
-                    valB={teamBData.seasonStats.podiums}
+                    valA={comparison.a.seasonStats.podiums}
+                    valB={comparison.b.seasonStats.podiums}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Car Performance Score"
-                    valA={parseFloat(teamAData.seasonStats.carPerformanceScore || '0')}
-                    valB={parseFloat(teamBData.seasonStats.carPerformanceScore || '0')}
+                    valA={parseFloat(comparison.a.seasonStats.carPerformanceScore || '0')}
+                    valB={parseFloat(comparison.b.seasonStats.carPerformanceScore || '0')}
                     format={(v) => v.toFixed(1)}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Reliability Score"
-                    valA={parseFloat(teamAData.seasonStats.reliabilityScore || '0') * 100}
-                    valB={parseFloat(teamBData.seasonStats.reliabilityScore || '0') * 100}
+                    valA={parseFloat(comparison.a.seasonStats.reliabilityScore || '0') * 100}
+                    valB={parseFloat(comparison.b.seasonStats.reliabilityScore || '0') * 100}
                     format={(v) => `${Math.round(v)}%`}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Constructor DNFs"
-                    valA={teamAData.seasonStats.dnfCount}
-                    valB={teamBData.seasonStats.dnfCount}
+                    valA={comparison.a.seasonStats.dnfCount}
+                    valB={comparison.b.seasonStats.dnfCount}
                     lowerBetter={true}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Avg Finish Position"
-                    valA={parseFloat(teamAData.seasonStats.avgFinishPosition || '20')}
-                    valB={parseFloat(teamBData.seasonStats.avgFinishPosition || '20')}
+                    valA={parseFloat(comparison.a.seasonStats.avgFinishPosition || '20')}
+                    valB={parseFloat(comparison.b.seasonStats.avgFinishPosition || '20')}
                     format={(v) => `P${v.toFixed(1)}`}
                     lowerBetter={true}
                     colorA={colorA} colorB={colorB}
                   />
                 </>
-              ) : isCareer && careerA && careerB ? (
+              ) : comparison?.mode === 'career' && careerA && careerB ? (
                 <>
                   <ComparisonRow
                     label="Best Championship Finish"
