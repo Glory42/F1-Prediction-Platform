@@ -23,15 +23,15 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
   const defaultYear = years[0] || 2026;
 
   const {
-    year, setYear,
+    year,
     items: drivers,
-    aId: driverAId, setAId: setDriverAId,
-    bId: driverBId, setBId: setDriverBId,
-    isCareer, setIsCareer,
+    aId: driverAId,
+    bId: driverBId,
     itemA: driverA, itemB: driverB,
-    aData: driverAData, bData: driverBData,
-    aCareer: driverACareer, bCareer: driverBCareer,
+    isCareer,
+    comparison,
     loading, error,
+    actions: { setYear, setAId: setDriverAId, setBId: setDriverBId, setIsCareer },
   } = useCompareController<Driver, DriverDetailResponse, DriverYearStats>({
     years,
     defaultYear,
@@ -43,21 +43,26 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
     fetchCareer: (id) => api.getDriverCareer(id),
   });
 
+  const driverACareer = comparison?.mode === 'career' ? comparison.a : null;
+  const driverBCareer = comparison?.mode === 'career' ? comparison.b : null;
+  const driverAData = comparison?.mode === 'season' ? comparison.a : null;
+  const driverBData = comparison?.mode === 'season' ? comparison.b : null;
+
   const colorA = useMemo(() => {
-    if (isCareer && driverACareer && driverACareer.length > 0) {
+    if (driverACareer && driverACareer.length > 0) {
       const sorted = [...driverACareer].sort((x, y) => y.year - x.year);
       return getTeamColor(sorted[0]?.teamName.toLowerCase().replace(/ /g, '_') || '');
     }
     return getTeamColor(driverAData?.driver.team?.teamKey || '');
-  }, [driverAData, driverACareer, isCareer]);
+  }, [driverAData, driverACareer]);
 
   const colorB = useMemo(() => {
-    if (isCareer && driverBCareer && driverBCareer.length > 0) {
+    if (driverBCareer && driverBCareer.length > 0) {
       const sorted = [...driverBCareer].sort((x, y) => y.year - x.year);
       return getTeamColor(sorted[0]?.teamName.toLowerCase().replace(/ /g, '_') || '');
     }
     return getTeamColor(driverBData?.driver.team?.teamKey || '');
-  }, [driverBData, driverBCareer, isCareer]);
+  }, [driverBData, driverBCareer]);
 
   // Compute Career summaries
   const careerA = useMemo(
@@ -196,88 +201,86 @@ export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Pr
             </div>
 
             <div className="space-y-4">
-              {!isCareer && driverAData?.seasonStats && driverBData?.seasonStats ? (
+              {comparison?.mode === 'season' ? (
                 <>
-                  {/* Season Stats comparisons */}
                   <ComparisonRow
                     label="Championship Points"
-                    valA={parseFloat(driverAData.seasonStats.totalPoints)}
-                    valB={parseFloat(driverBData.seasonStats.totalPoints)}
+                    valA={parseFloat(comparison.a.seasonStats.totalPoints)}
+                    valB={parseFloat(comparison.b.seasonStats.totalPoints)}
                     format={(v) => v.toString()}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Grand Prix Wins"
-                    valA={driverAData.seasonStats.wins}
-                    valB={driverBData.seasonStats.wins}
+                    valA={comparison.a.seasonStats.wins}
+                    valB={comparison.b.seasonStats.wins}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Podium Finishes"
-                    valA={driverAData.seasonStats.podiums}
-                    valB={driverBData.seasonStats.podiums}
+                    valA={comparison.a.seasonStats.podiums}
+                    valB={comparison.b.seasonStats.podiums}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Poles Secured"
-                    valA={driverAData.seasonStats.poles}
-                    valB={driverBData.seasonStats.poles}
+                    valA={comparison.a.seasonStats.poles}
+                    valB={comparison.b.seasonStats.poles}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Avg Finish Position"
-                    valA={parseFloat(driverAData.seasonStats.avgFinishPosition || '20')}
-                    valB={parseFloat(driverBData.seasonStats.avgFinishPosition || '20')}
+                    valA={parseFloat(comparison.a.seasonStats.avgFinishPosition || '20')}
+                    valB={parseFloat(comparison.b.seasonStats.avgFinishPosition || '20')}
                     format={(v) => `P${v.toFixed(1)}`}
                     lowerBetter={true}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Races Entered"
-                    valA={driverAData.seasonStats.racesEntered}
-                    valB={driverBData.seasonStats.racesEntered}
+                    valA={comparison.a.seasonStats.racesEntered}
+                    valB={comparison.b.seasonStats.racesEntered}
                     colorA={colorA} colorB={colorB}
                   />
                   <ComparisonRow
                     label="Total DNFs"
-                    valA={driverAData.seasonStats.dnfCount}
-                    valB={driverBData.seasonStats.dnfCount}
+                    valA={comparison.a.seasonStats.dnfCount}
+                    valB={comparison.b.seasonStats.dnfCount}
                     lowerBetter={true}
                     colorA={colorA} colorB={colorB}
                   />
-                  {/* Sector Times */}
-                  {(driverAData.seasonStats.avgSector1Ms || driverBData.seasonStats.avgSector1Ms) && (
+                  {(comparison.a.seasonStats.avgSector1Ms || comparison.b.seasonStats.avgSector1Ms) && (
                     <ComparisonRow
                       label="Avg Sector 1"
-                      valA={driverAData.seasonStats.avgSector1Ms || 99999}
-                      valB={driverBData.seasonStats.avgSector1Ms || 99999}
+                      valA={comparison.a.seasonStats.avgSector1Ms || 99999}
+                      valB={comparison.b.seasonStats.avgSector1Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
                       colorA={colorA} colorB={colorB}
                     />
                   )}
-                  {(driverAData.seasonStats.avgSector2Ms || driverBData.seasonStats.avgSector2Ms) && (
+                  {(comparison.a.seasonStats.avgSector2Ms || comparison.b.seasonStats.avgSector2Ms) && (
                     <ComparisonRow
                       label="Avg Sector 2"
-                      valA={driverAData.seasonStats.avgSector2Ms || 99999}
-                      valB={driverBData.seasonStats.avgSector2Ms || 99999}
+                      valA={comparison.a.seasonStats.avgSector2Ms || 99999}
+                      valB={comparison.b.seasonStats.avgSector2Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
                       colorA={colorA} colorB={colorB}
                     />
                   )}
-                  {(driverAData.seasonStats.avgSector3Ms || driverBData.seasonStats.avgSector3Ms) && (
+                  {(comparison.a.seasonStats.avgSector3Ms || comparison.b.seasonStats.avgSector3Ms) && (
                     <ComparisonRow
                       label="Avg Sector 3"
-                      valA={driverAData.seasonStats.avgSector3Ms || 99999}
-                      valB={driverBData.seasonStats.avgSector3Ms || 99999}
+                      valA={comparison.a.seasonStats.avgSector3Ms || 99999}
+                      valB={comparison.b.seasonStats.avgSector3Ms || 99999}
                       format={(v) => v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`}
                       lowerBetter={true}
                       colorA={colorA} colorB={colorB}
                     />
                   )}
                 </>
-              ) : isCareer && careerA && careerB ? (
+              ) : comparison?.mode === 'career' && careerA && careerB ? (
                 <>
                   {/* Career Stats comparisons */}
                   <ComparisonRow

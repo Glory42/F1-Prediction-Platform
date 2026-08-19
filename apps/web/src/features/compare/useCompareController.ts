@@ -1,5 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 
+export interface CompareLocationAdapter {
+  getSearchParams(): URLSearchParams;
+  getPathname(): string;
+  replaceUrl(url: string): void;
+}
+
+const browserLocationAdapter: CompareLocationAdapter = {
+  getSearchParams: () => new URLSearchParams(window.location.search),
+  getPathname: () => window.location.pathname,
+  replaceUrl: (url) => window.history.replaceState({}, '', url),
+};
+
 interface CompareControllerConfig<T extends { id: number }, TDetail, TYearStats> {
   years: number[];
   defaultYear: number;
@@ -11,32 +23,59 @@ interface CompareControllerConfig<T extends { id: number }, TDetail, TYearStats>
   fetchCareer: (id: number) => Promise<TYearStats[]>;
 }
 
-export function useCompareController<T extends { id: number }, TDetail, TYearStats>({
-  defaultYear,
-  initialItems,
-  allItems,
-  entityLabel,
-  fetchItemsForYear,
-  fetchDetail,
-  fetchCareer,
-}: CompareControllerConfig<T, TDetail, TYearStats>) {
+export type CompareResult<TDetail, TYearStats> =
+  | { mode: 'season'; a: TDetail; b: TDetail }
+  | { mode: 'career'; a: TYearStats[]; b: TYearStats[] };
+
+export interface CompareControllerActions {
+  setYear: (year: number) => void;
+  setAId: (id: number) => void;
+  setBId: (id: number) => void;
+  setIsCareer: (isCareer: boolean) => void;
+}
+
+export interface CompareControllerResult<T, TDetail, TYearStats> {
+  year: number;
+  items: T[];
+  aId: number;
+  bId: number;
+  itemA: T | undefined;
+  itemB: T | undefined;
+  isCareer: boolean;
+  comparison: CompareResult<TDetail, TYearStats> | null;
+  loading: boolean;
+  error: string | null;
+  actions: CompareControllerActions;
+}
+
+export function useCompareController<T extends { id: number }, TDetail, TYearStats>(
+  {
+    defaultYear,
+    initialItems,
+    allItems,
+    entityLabel,
+    fetchItemsForYear,
+    fetchDetail,
+    fetchCareer,
+  }: CompareControllerConfig<T, TDetail, TYearStats>,
+  locationAdapter: CompareLocationAdapter = browserLocationAdapter
+): CompareControllerResult<T, TDetail, TYearStats> {
   const [year, setYear] = useState<number>(defaultYear);
   const [items, setItems] = useState<T[]>(initialItems);
   const [aId, setAId] = useState<number>(initialItems[0]?.id || 0);
   const [bId, setBId] = useState<number>(initialItems[1]?.id || initialItems[0]?.id || 0);
   const [isCareer, setIsCareer] = useState<boolean>(false);
 
-  const [aData, setAData] = useState<TDetail | null>(null);
-  const [bData, setBData] = useState<TDetail | null>(null);
-  const [aCareer, setACareer] = useState<TYearStats[] | null>(null);
-  const [bCareer, setBCareer] = useState<TYearStats[] | null>(null);
+  const [seasonA, setSeasonA] = useState<TDetail | null>(null);
+  const [seasonB, setSeasonB] = useState<TDetail | null>(null);
+  const [careerA, setCareerA] = useState<TYearStats[] | null>(null);
+  const [careerB, setCareerB] = useState<TYearStats[] | null>(null);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Parse URL parameters on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = locationAdapter.getSearchParams();
     const paramYear = params.get('year');
     const paramA = params.get('a');
     const paramB = params.get('b');
@@ -69,7 +108,6 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update items list if year or mode changes
   useEffect(() => {
     if (isCareer) {
       setItems(allItems);
@@ -102,7 +140,6 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCareer, year, initialItems, allItems, defaultYear]);
 
-  // Sync state to URL parameters
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('year', year.toString());
@@ -110,11 +147,11 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
     params.set('b', bId.toString());
     if (isCareer) params.set('career', 'true');
 
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, '', newUrl);
+    const newUrl = `${locationAdapter.getPathname()}?${params.toString()}`;
+    locationAdapter.replaceUrl(newUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, aId, bId, isCareer]);
 
-  // Fetch detail stats when selected items or mode changes
   useEffect(() => {
     if (!aId || !bId) return;
 
@@ -130,15 +167,15 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
       .then(([resA, resB]) => {
         if (!active) return;
         if (isCareer) {
-          setACareer(resA as TYearStats[]);
-          setBCareer(resB as TYearStats[]);
-          setAData(null);
-          setBData(null);
+          setCareerA(resA as TYearStats[]);
+          setCareerB(resB as TYearStats[]);
+          setSeasonA(null);
+          setSeasonB(null);
         } else {
-          setAData(resA as TDetail);
-          setBData(resB as TDetail);
-          setACareer(null);
-          setBCareer(null);
+          setSeasonA(resA as TDetail);
+          setSeasonB(resB as TDetail);
+          setCareerA(null);
+          setCareerB(null);
         }
         setLoading(false);
       })
@@ -155,15 +192,23 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
   const itemA = useMemo(() => items.find((i) => i.id === aId), [items, aId]);
   const itemB = useMemo(() => items.find((i) => i.id === bId), [items, bId]);
 
+  const comparison = useMemo<CompareResult<TDetail, TYearStats> | null>(() => {
+    if (!isCareer && seasonA && seasonB) return { mode: 'season', a: seasonA, b: seasonB };
+    if (isCareer && careerA && careerB) return { mode: 'career', a: careerA, b: careerB };
+    return null;
+  }, [isCareer, seasonA, seasonB, careerA, careerB]);
+
   return {
-    year, setYear,
+    year,
     items,
-    aId, setAId,
-    bId, setBId,
-    isCareer, setIsCareer,
-    itemA, itemB,
-    aData, bData,
-    aCareer, bCareer,
-    loading, error,
+    aId,
+    bId,
+    itemA,
+    itemB,
+    isCareer,
+    comparison,
+    loading,
+    error,
+    actions: { setYear, setAId, setBId, setIsCareer },
   };
 }

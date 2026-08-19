@@ -224,7 +224,7 @@ apps/web/
 │   │   │   │   ├── CompareYearSelect.tsx  # Year selector variant for compare tools
 │   │   │   │   └── CompareStatus.tsx      # Loading/error status display
 │   │   │   ├── compareStats.ts        # aggregateCareerStats() — career stat aggregation
-│   │   │   └── useCompareController.ts # Generic compare-tool state hook (URL sync, year/career switching, detail fetch)
+│   │   │   └── useCompareController.ts # Generic compare-tool state hook — URL sync via injectable locationAdapter, discriminated season/career `comparison` result
 │   │   └── search/
 │   │       ├── components/
 │   │       │   └── GlobalSearch.tsx   # React global search palette (cmdk) — render only
@@ -287,7 +287,7 @@ apps/web/
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
-| `features/compare/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, season/career toggle, URL param sync, detail/career fetch. |
+| `features/compare/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, discriminated `comparison` (season/career) result, URL sync through an injectable `locationAdapter` seam. |
 | `features/search/useGlobalSearch.ts` | Hook powering `GlobalSearch` — open/close state, Cmd/Ctrl+K + Escape keyboard shortcut, `open-global-search` event bridge from `Navbar.astro`, fetch-on-first-open, close-animation timing. |
 
 ---
