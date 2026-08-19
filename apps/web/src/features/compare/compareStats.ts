@@ -1,3 +1,5 @@
+export const DEFAULT_COMPARE_YEAR = 2026;
+
 export interface CareerTotals {
   entries: number;
   wins: number;

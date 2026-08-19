@@ -221,10 +221,11 @@ apps/web/
 │   │   │   │   ├── DriverCompareTool.tsx  # Driver head-to-head comparison — entity-specific config over shared compare pieces
 │   │   │   │   ├── TeamCompareTool.tsx    # Team head-to-head comparison — entity-specific config over shared compare pieces
 │   │   │   │   ├── ComparisonRow.tsx      # Generic stat comparison bar; shared by Driver/TeamCompareTool
+│   │   │   │   ├── CompareEntityCard.tsx  # Generic profile card (avatar/logo + name + subtitle); shared by Driver/TeamCompareTool
 │   │   │   │   ├── CompareModeToggle.tsx  # Season/career mode switch
 │   │   │   │   ├── CompareYearSelect.tsx  # Year selector variant for compare tools
-│   │   │   │   └── CompareStatus.tsx      # Loading/error status display
-│   │   │   ├── compareStats.ts        # aggregateCareerStats() — career stat aggregation
+│   │   │   │   └── CompareStatus.tsx      # Loading/error/empty-stats status display
+│   │   │   ├── compareStats.ts        # aggregateCareerStats() + DEFAULT_COMPARE_YEAR — career stat aggregation
 │   │   │   └── useCompareController.ts # Generic compare-tool state hook — URL sync via injectable locationAdapter, discriminated season/career `comparison` result
 │   │   └── search/
 │   │       ├── components/

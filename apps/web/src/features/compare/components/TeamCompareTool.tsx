@@ -1,16 +1,17 @@
 import { useMemo } from 'react';
 import { api } from '@/lib/api';
-import type { Team, TeamDetailResponse, TeamYearStats, SeasonSummary } from '@/types';
+import type { Team, TeamDetailResponse, TeamSeasonStats, TeamYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getTeamLogo } from '@/lib/teamLogos';
-import { aggregateCareerStats } from '../compareStats';
-import { Shield, Zap } from 'lucide-react';
+import { aggregateCareerStats, DEFAULT_COMPARE_YEAR, type CareerTotals } from '../compareStats';
+import { Zap } from 'lucide-react';
 import { useCompareController } from '../useCompareController';
 import { SearchSelect } from '@/components/ui/search-select';
-import { ComparisonRow } from './ComparisonRow';
+import { ComparisonRow, type StatRowConfig } from './ComparisonRow';
 import { CompareModeToggle } from './CompareModeToggle';
 import { CompareYearSelect } from './CompareYearSelect';
 import { CompareStatus } from './CompareStatus';
+import { CompareEntityCard } from './CompareEntityCard';
 
 interface Props {
   allSeasons: SeasonSummary[];
@@ -18,9 +19,54 @@ interface Props {
   allTeams: Team[];
 }
 
+const teamSubtitle = (
+  <span className="font-mono text-[8px] text-muted-foreground tracking-widest uppercase block mt-1">Constructor</span>
+);
+
+const seasonStatConfig: StatRowConfig<TeamSeasonStats>[] = [
+  {
+    label: 'Championship Points',
+    value: (s) => parseFloat(s.totalPoints),
+    format: (v) => v.toString(),
+  },
+  { label: 'Grand Prix Wins', value: (s) => s.wins },
+  { label: 'Podiums Secured', value: (s) => s.podiums },
+  {
+    label: 'Car Performance Score',
+    value: (s) => parseFloat(s.carPerformanceScore || '0'),
+    format: (v) => v.toFixed(1),
+  },
+  {
+    label: 'Reliability Score',
+    value: (s) => parseFloat(s.reliabilityScore || '0') * 100,
+    format: (v) => `${Math.round(v)}%`,
+  },
+  { label: 'Constructor DNFs', value: (s) => s.dnfCount, lowerBetter: true },
+  {
+    label: 'Avg Finish Position',
+    value: (s) => parseFloat(s.avgFinishPosition || '20'),
+    format: (v) => `P${v.toFixed(1)}`,
+    lowerBetter: true,
+  },
+];
+
+const careerStatConfig: StatRowConfig<CareerTotals>[] = [
+  {
+    label: 'Best Championship Finish',
+    value: (c) => c.bestFin || 10,
+    format: (v) => (v === 10 ? '—' : `P${v}`),
+    lowerBetter: true,
+  },
+  { label: 'Total Points', value: (c) => c.points, format: (v) => v.toFixed(1) },
+  { label: 'Career Wins', value: (c) => c.wins },
+  { label: 'Career Podiums', value: (c) => c.podiums },
+  { label: 'Races Completed', value: (c) => c.entries },
+  { label: 'Total DNFs', value: (c) => c.dnfs, lowerBetter: true },
+];
+
 export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);
-  const defaultYear = years[0] || 2026;
+  const defaultYear = years[0] || DEFAULT_COMPARE_YEAR;
 
   const {
     year,
@@ -109,50 +155,28 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
         <div key="content" className="fade-swap space-y-8">
           {/* Team Profile Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Team A Card */}
             {teamA && (
-              <a
+              <CompareEntityCard
+                entityType="team"
                 href={`/teams/${teamA.id}${isCareer ? '' : `?year=${year}`}`}
-                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
-                style={{ borderLeft: `3px solid ${colorA}` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 border border-white/[0.08] bg-white/[0.02] flex items-center justify-center shrink-0 p-1">
-                    {logoA ? (
-                      <img src={logoA} alt={teamA.name} className="max-w-full max-h-full object-contain" />
-                    ) : (
-                      <Shield size={28} className="text-white/20" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{teamA.name}</h3>
-                    <span className="font-mono text-[8px] text-muted-foreground tracking-widest uppercase block mt-1">Constructor</span>
-                  </div>
-                </div>
-              </a>
+                imageUrl={logoA}
+                imageAlt={teamA.name}
+                borderColor={colorA}
+                name={teamA.name}
+                subtitle={teamSubtitle}
+              />
             )}
 
-            {/* Team B Card */}
             {teamB && (
-              <a
+              <CompareEntityCard
+                entityType="team"
                 href={`/teams/${teamB.id}${isCareer ? '' : `?year=${year}`}`}
-                className="group border border-white/[0.06] bg-black hover:border-white/[0.12] hover:shadow-[0_0_15px_rgba(255,255,255,0.015)] p-5 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5"
-                style={{ borderLeft: `3px solid ${colorB}` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 border border-white/[0.08] bg-white/[0.02] flex items-center justify-center shrink-0 p-1">
-                    {logoB ? (
-                      <img src={logoB} alt={teamB.name} className="max-w-full max-h-full object-contain" />
-                    ) : (
-                      <Shield size={28} className="text-white/20" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white leading-tight group-hover:text-[#a855f7] transition-colors">{teamB.name}</h3>
-                    <span className="font-mono text-[8px] text-muted-foreground tracking-widest uppercase block mt-1">Constructor</span>
-                  </div>
-                </div>
-              </a>
+                imageUrl={logoB}
+                imageAlt={teamB.name}
+                borderColor={colorB}
+                name={teamB.name}
+                subtitle={teamSubtitle}
+              />
             )}
           </div>
 
@@ -165,102 +189,34 @@ export function TeamCompareTool({ allSeasons, initialTeams, allTeams }: Props) {
             <div className="space-y-4">
               {comparison?.mode === 'season' ? (
                 <>
-                  <ComparisonRow
-                    label="Championship Points"
-                    valA={parseFloat(comparison.a.seasonStats.totalPoints)}
-                    valB={parseFloat(comparison.b.seasonStats.totalPoints)}
-                    format={(v) => v.toString()}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Grand Prix Wins"
-                    valA={comparison.a.seasonStats.wins}
-                    valB={comparison.b.seasonStats.wins}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Podiums Secured"
-                    valA={comparison.a.seasonStats.podiums}
-                    valB={comparison.b.seasonStats.podiums}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Car Performance Score"
-                    valA={parseFloat(comparison.a.seasonStats.carPerformanceScore || '0')}
-                    valB={parseFloat(comparison.b.seasonStats.carPerformanceScore || '0')}
-                    format={(v) => v.toFixed(1)}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Reliability Score"
-                    valA={parseFloat(comparison.a.seasonStats.reliabilityScore || '0') * 100}
-                    valB={parseFloat(comparison.b.seasonStats.reliabilityScore || '0') * 100}
-                    format={(v) => `${Math.round(v)}%`}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Constructor DNFs"
-                    valA={comparison.a.seasonStats.dnfCount}
-                    valB={comparison.b.seasonStats.dnfCount}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Avg Finish Position"
-                    valA={parseFloat(comparison.a.seasonStats.avgFinishPosition || '20')}
-                    valB={parseFloat(comparison.b.seasonStats.avgFinishPosition || '20')}
-                    format={(v) => `P${v.toFixed(1)}`}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
+                  {seasonStatConfig.map((row) => (
+                    <ComparisonRow
+                      key={row.label}
+                      label={row.label}
+                      valA={row.value(comparison.a.seasonStats)}
+                      valB={row.value(comparison.b.seasonStats)}
+                      format={row.format}
+                      lowerBetter={row.lowerBetter}
+                      colorA={colorA} colorB={colorB}
+                    />
+                  ))}
                 </>
               ) : comparison?.mode === 'career' && careerA && careerB ? (
                 <>
-                  <ComparisonRow
-                    label="Best Championship Finish"
-                    valA={careerA.bestFin || 10}
-                    valB={careerB.bestFin || 10}
-                    format={(v) => v === 10 ? '—' : `P${v}`}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Total Points"
-                    valA={careerA.points}
-                    valB={careerB.points}
-                    format={(v) => v.toFixed(1)}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Wins"
-                    valA={careerA.wins}
-                    valB={careerB.wins}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Career Podiums"
-                    valA={careerA.podiums}
-                    valB={careerB.podiums}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Races Completed"
-                    valA={careerA.entries}
-                    valB={careerB.entries}
-                    colorA={colorA} colorB={colorB}
-                  />
-                  <ComparisonRow
-                    label="Total DNFs"
-                    valA={careerA.dnfs}
-                    valB={careerB.dnfs}
-                    lowerBetter={true}
-                    colorA={colorA} colorB={colorB}
-                  />
+                  {careerStatConfig.map((row) => (
+                    <ComparisonRow
+                      key={row.label}
+                      label={row.label}
+                      valA={row.value(careerA)}
+                      valB={row.value(careerB)}
+                      format={row.format}
+                      lowerBetter={row.lowerBetter}
+                      colorA={colorA} colorB={colorB}
+                    />
+                  ))}
                 </>
               ) : (
-                <div className="py-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
-                  No stats available for these teams
-                </div>
+                <CompareStatus loading={false} error={null} entityLabel="teams" />
               )}
             </div>
           </div>
