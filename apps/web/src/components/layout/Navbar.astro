@@ -1,10 +1,22 @@
 ---
-import { Home, Flag, Users, Building2, Cpu, Search, Menu, X } from 'lucide-react';
+import { Home, Flag, Users, Building2, Cpu, Search, Menu, X, type LucideIcon } from 'lucide-react';
 import { GlobalSearch } from '@/features/search/components/GlobalSearch';
 
 const currentPath = Astro.url.pathname;
 
-const links = [
+interface NavDropdownItem {
+  href: string;
+  label: string;
+}
+
+interface NavLink {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  dropdown?: NavDropdownItem[];
+}
+
+const links: NavLink[] = [
   { href: '/',           label: 'home',       icon: Home       },
   {
     href: '/races',
@@ -36,7 +48,7 @@ const links = [
   { href: '/prediction', label: 'prediction', icon: Cpu        },
 ];
 
-function isActive(href: string, dropdown?: { href: string }[]) {
+function isActive(href: string, dropdown?: NavDropdownItem[]) {
   if (href === '/') return currentPath === '/';
   if (currentPath.startsWith(href)) return true;
   if (dropdown && dropdown.some((sub) => currentPath.startsWith(sub.href))) return true;
@@ -96,7 +108,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
     <!-- Desktop nav links -->
     <nav class="hidden sm:flex items-center gap-5 h-full">
       {links.map((link) => {
-        const { href, label, icon: Icon, dropdown } = link as any;
+        const { href, label, icon: Icon, dropdown } = link;
         const active = isActive(href, dropdown);
         if (dropdown) {
           return (
@@ -115,7 +127,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
               {/* Dropdown panel — core nav, checked many times a day: kept to a fast, opacity-only cue */}
               <div class="absolute top-[44px] pt-1.5 left-1/2 -translate-x-1/2 z-50 min-w-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto">
                 <div class="glass border border-white/[0.08] py-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-                  {dropdown.map((sub: any) => (
+                  {dropdown.map((sub) => (
                     <a
                       href={sub.href}
                       class="block px-4 py-2 font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-100"
@@ -183,7 +195,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
     <!-- Nav Links -->
     <nav class="flex flex-col space-y-4">
       {links.map((link) => {
-        const { href, label, icon: Icon, dropdown } = link as any;
+        const { href, label, icon: Icon, dropdown } = link;
         const active = isActive(href, dropdown);
         if (dropdown) {
           return (
@@ -201,7 +213,7 @@ function isActive(href: string, dropdown?: { href: string }[]) {
               <div id={`mobile-dropdown-${label}`} class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-spring">
                 <div class="overflow-hidden min-h-0">
                   <div class="pl-4 border-l border-white/[0.06] flex flex-col space-y-3 mt-1 opacity-0 transition-opacity duration-200 mobile-dropdown-content">
-                    {dropdown.map((sub: any) => (
+                    {dropdown.map((sub) => (
                       <a
                         href={sub.href}
                         class="block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-white py-0.5 transition-colors"
