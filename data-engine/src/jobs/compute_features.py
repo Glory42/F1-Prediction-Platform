@@ -1,6 +1,6 @@
 from collections import defaultdict
 from src.db.client import get_conn
-from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp
+from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp, weighted_sum
 from src.utils.upsert import upsert
 from src.utils.feature_context import build_feature_context
 from src.utils.feature_helpers import (
@@ -94,20 +94,20 @@ def run(race_id: int) -> None:
             sector_strength = sector_map.get(driver_id, 0.5)
             tyre_deg     = tyre_deg_map.get(driver_id, 0.5)
 
-            raw = (
-                car_perf                  * WEIGHTS["car_performance"] +
-                long_run                  * WEIGHTS["long_run_pace"] +
-                tyre_deg                  * WEIGHTS["tyre_degradation"] +
-                reliability               * WEIGHTS["reliability"] +
-                quali_delta               * WEIGHTS["qualifying_delta"] +
-                driver_rating             * WEIGHTS["driver_rating"] +
-                win_rate                  * WEIGHTS["win_rate"] +
-                luck                      * WEIGHTS["luck_factor"] +
-                sector_strength           * WEIGHTS["sector_strength"] +
-                circuit_adj_start_pos     * WEIGHTS["circuit_adj_start_pos"] +
-                circuit_adj_position_gain * WEIGHTS["circuit_adj_position_gain"] +
-                weather_score             * WEIGHTS["weather_impact"]
-            )
+            raw = weighted_sum({
+                "car_performance":           car_perf,
+                "long_run_pace":             long_run,
+                "tyre_degradation":          tyre_deg,
+                "reliability":               reliability,
+                "qualifying_delta":          quali_delta,
+                "driver_rating":             driver_rating,
+                "win_rate":                  win_rate,
+                "luck_factor":               luck,
+                "sector_strength":           sector_strength,
+                "circuit_adj_start_pos":     circuit_adj_start_pos,
+                "circuit_adj_position_gain": circuit_adj_position_gain,
+                "weather_impact":            weather_score,
+            }, WEIGHTS)
 
             rows_to_upsert.append({
                 "race_id":                       race_id,

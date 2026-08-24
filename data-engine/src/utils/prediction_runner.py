@@ -5,6 +5,16 @@ from src.db.client import get_conn
 from src.utils.math_utils import softmax
 
 
+def rank_by_probability(
+    driver_ids: list[int], probabilities: list[float]
+) -> tuple[dict[int, int], int]:
+    """Rank drivers by win probability, highest first. Returns (driver_id -> position, predicted_winner_id)."""
+    sorted_indices = sorted(range(len(probabilities)), key=lambda i: probabilities[i], reverse=True)
+    position_map = {driver_ids[sorted_indices[rank]]: rank + 1 for rank in range(len(driver_ids))}
+    predicted_winner_id = driver_ids[sorted_indices[0]]
+    return position_map, predicted_winner_id
+
+
 def run_prediction_job(
     race_id: int,
     *,
@@ -39,9 +49,7 @@ def run_prediction_job(
         assert abs(sum(probabilities) - 1.0) < 1e-4, "Probabilities do not sum to 1"
 
         # Rank: position 1 = highest probability
-        sorted_indices = sorted(range(len(probabilities)), key=lambda i: probabilities[i], reverse=True)
-        position_map = {driver_ids[sorted_indices[rank]]: rank + 1 for rank in range(len(driver_ids))}
-        predicted_winner_id = driver_ids[sorted_indices[0]]
+        position_map, predicted_winner_id = rank_by_probability(driver_ids, probabilities)
 
         with conn.cursor() as cur:
             update_rows = [
@@ -72,8 +80,9 @@ def run_prediction_job(
             )
 
         conn.commit()
+        winner_probability = probabilities[driver_ids.index(predicted_winner_id)]
         print(f"  {winner_label}: driver_id={predicted_winner_id} "
-              f"(p={round(probabilities[sorted_indices[0]], 3)})")
+              f"(p={round(winner_probability, 3)})")
 
     finally:
         conn.close()

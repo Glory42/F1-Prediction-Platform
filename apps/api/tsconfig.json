@@ -9,8 +9,8 @@
     "lib": ["ESNext"],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "types": ["@cloudflare/workers-types", "node"]
+    "types": ["@cloudflare/workers-types", "node", "bun"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
   "exclude": ["src/db/seed.ts"]
 }
