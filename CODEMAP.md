@@ -47,6 +47,7 @@ apps/api/
 │   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
+│   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)
@@ -110,7 +111,8 @@ apps/api/
 │           ├── mappers.test.ts
 │           ├── collections.test.ts
 │           ├── standings.test.ts
-│           └── prediction-response.test.ts
+│           ├── prediction-response.test.ts
+│           └── cache.test.ts
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)

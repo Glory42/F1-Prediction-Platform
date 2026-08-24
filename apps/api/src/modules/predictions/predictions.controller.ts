@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import type { Bindings } from '../../common/types';
 import { createDb } from '../../config/database';
 import { PredictionsService } from './predictions.service';
+import { cacheControlForStatus, cacheControlForYear } from '../../common/cache';
 
 const service = new PredictionsService();
 
@@ -11,6 +12,7 @@ export const PredictionsController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: 'No upcoming prediction available' } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 
@@ -23,18 +25,22 @@ export const PredictionsController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `No prediction for race ${raceId}` } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 
   getHistory: async (c: Context<{ Bindings: Bindings }>) => {
     const year = Number(c.req.query('year') ?? new Date().getFullYear());
     const data = await service.findHistory(createDb(c.env.DATABASE_URL), year);
+    // Only a fully past season is guaranteed to have every race completed.
+    c.header('Cache-Control', cacheControlForYear(year));
     return c.json({ data, error: null });
   },
 
   getIntelStandings: async (c: Context<{ Bindings: Bindings }>) => {
     const year = Number(c.req.query('year') ?? new Date().getFullYear());
     const data = await service.findIntelStandings(createDb(c.env.DATABASE_URL), year);
+    c.header('Cache-Control', cacheControlForYear(year));
     return c.json({ data, error: null });
   },
 

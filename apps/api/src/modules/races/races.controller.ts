@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import type { Bindings } from '../../common/types';
 import { createDb } from '../../config/database';
 import { RacesService } from './races.service';
+import { CACHE_ACTIVE, CACHE_COMPLETED, cacheControlForStatus } from '../../common/cache';
 
 const service = new RacesService();
 
@@ -13,6 +14,9 @@ export const RacesController = {
       return c.json({ data: null, error: { code: 'INVALID_YEAR', message: 'year must be a number' } }, 400);
     }
     const data = await service.findAll(createDb(c.env.DATABASE_URL), year, status);
+    // Only a status=completed filter guarantees every row in the list is immutable —
+    // an unfiltered or non-completed filter can include a race that's still in progress.
+    c.header('Cache-Control', status === 'completed' ? CACHE_COMPLETED : CACHE_ACTIVE);
     return c.json({ data, error: null });
   },
 
@@ -39,6 +43,7 @@ export const RacesController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `Race ${id} not found` } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 };

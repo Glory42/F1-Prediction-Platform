@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import type { Bindings } from '../../common/types';
 import { createDb } from '../../config/database';
 import { SprintService } from './sprint.service';
+import { cacheControlForStatus } from '../../common/cache';
 
 const service = new SprintService();
 
@@ -11,6 +12,7 @@ export const SprintController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: 'No upcoming sprint prediction available' } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 
@@ -23,6 +25,7 @@ export const SprintController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `No sprint prediction for race ${raceId}` } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 
@@ -35,6 +38,7 @@ export const SprintController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `No sprint data for race ${raceId}` } }, 404);
     }
+    c.header('Cache-Control', cacheControlForStatus(data.race.status));
     return c.json({ data, error: null });
   },
 };
