@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Any
 from src.db.client import get_conn
-from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp
+from src.utils.math_utils import normalize_minmax, bayesian_win_rate, clamp, weighted_sum
 from src.utils.upsert import upsert
 from src.utils.feature_context import build_feature_context
 from src.utils.feature_helpers import (
@@ -98,16 +98,16 @@ def run(race_id: int) -> None:
             luck          = luck_map.get(driver_id, 0.5)
             sq_delta      = sq_delta_map.get(driver_id, 0.5)
 
-            raw = (
-                car_perf              * WEIGHTS["car_performance"] +
-                circuit_adj_start_pos * WEIGHTS["circuit_adj_start_pos"] +
-                short_run             * WEIGHTS["short_run_pace"] +
-                driver_rating         * WEIGHTS["driver_rating"] +
-                weather_score         * WEIGHTS["weather_impact"] +
-                win_rate              * WEIGHTS["win_rate"] +
-                luck                  * WEIGHTS["luck_factor"] +
-                sq_delta              * WEIGHTS["qualifying_delta_sprint"]
-            )
+            raw = weighted_sum({
+                "car_performance":         car_perf,
+                "circuit_adj_start_pos":   circuit_adj_start_pos,
+                "short_run_pace":          short_run,
+                "driver_rating":           driver_rating,
+                "weather_impact":          weather_score,
+                "win_rate":                win_rate,
+                "luck_factor":             luck,
+                "qualifying_delta_sprint": sq_delta,
+            }, WEIGHTS)
 
             rows_to_upsert.append({
                 "race_id":                    race_id,

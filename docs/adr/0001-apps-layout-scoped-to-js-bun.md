@@ -16,3 +16,13 @@ Cloudflare's dashboard "root directory" setting for both the Workers project (ap
 project (web) was pointing at the old `api/`/`web/` paths and had to be updated manually after this
 merge — there's no CLI deploy path per `CLAUDE.md`, so this couldn't be scripted. Expect a brief
 deploy gap between merge and that manual dashboard update.
+
+## Update: apps/e2e added
+
+When baseline test coverage was added (issue #16), Playwright smoke tests were given their own
+`apps/e2e` package — own `package.json`, `playwright.config.ts`, `tests/smoke/` — rather than
+nesting them under `apps/web`. This isn't a new exception to the rule above; it's the same
+"mirror the Interis monorepo" reasoning this ADR opened with, applied to a part of that layout
+we hadn't needed yet. `apps/e2e` is JS/Bun like `api`/`web`, has no dev server of its own (it
+drives `apps/web`'s `astro dev` as a Playwright `webServer`), and is orchestrated the same way
+via root `package.json`.

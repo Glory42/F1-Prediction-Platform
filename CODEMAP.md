@@ -21,7 +21,8 @@ F1-prediction/
 │   └── deployment.md      # Env vars, Cloudflare setup, first-time steps
 ├── apps/                  # JS/Bun-only convention — orchestrated by root package.json, no workspaces
 │   ├── api/               # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
-│   └── web/               # Astro SSR frontend — Cloudflare Pages
+│   ├── web/               # Astro SSR frontend — Cloudflare Pages
+│   └── e2e/               # Playwright smoke tests for apps/web — own package.json + playwright.config.ts
 ├── data-engine/           # Python ETL batch jobs — Render (outside apps/: no dev server, one-shot jobs)
 └── .claude/skills/        # Claude Code skill definitions
     ├── commit/            # Conventional commit format and workflow
@@ -103,6 +104,13 @@ apps/api/
 │       ├── 0000_glamorous_galactus.sql  # Initial schema
 │       ├── 0001_useful_old_lace.sql     # Schema additions
 │       └── meta/                        # Drizzle migration metadata (_journal.json, snapshots)
+├── tests/
+│   └── unit/
+│       └── common/                # bun test — mirrors src/common/, one *.test.ts per file
+│           ├── mappers.test.ts
+│           ├── collections.test.ts
+│           ├── standings.test.ts
+│           └── prediction-response.test.ts
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
@@ -253,6 +261,14 @@ apps/web/
 ├── public/
 │   ├── favicon.svg
 │   └── teams/                     # Static team logo files (PNG/SVG/JPG) served at /teams/<teamKey>.*
+├── tests/
+│   └── unit/                      # Vitest — pure logic only, no .astro/hook rendering
+│       ├── compare/
+│       │   └── compareStats.test.ts   # aggregateCareerStats()
+│       └── lib/
+│           ├── teamColors.test.ts
+│           └── teamLogos.test.ts
+├── vitest.config.ts
 ├── wrangler.toml                  # CF Pages config — keep_vars = true, PUBLIC_API_URL
 ├── astro.config.mjs               # output: 'server', Cloudflare adapter
 ├── tailwind.config.mjs
@@ -294,6 +310,29 @@ apps/web/
 
 ---
 
+## E2E (`apps/e2e/`)
+
+Own package — see `docs/adr/0001-apps-layout-scoped-to-js-bun.md` for why this isn't nested under
+`apps/web/`. Playwright drives a real browser against `apps/web`'s `astro dev` server; a fixture
+HTTP server stands in for `apps/api` since the pages under test fetch data server-side (in Astro
+frontmatter), where Playwright's own request interception can't reach.
+
+```
+apps/e2e/
+├── fixtures/
+│   ├── data.ts                    # Typed fixture objects (Driver, Race, PredictionResponse, ...)
+│   └── server.ts                  # Bun.serve() — serves { data, error: null } for the routes under test
+├── tests/
+│   └── smoke/
+│       ├── prediction.spec.ts     # /prediction renders against fixture data
+│       └── race-detail.spec.ts    # /races/1 renders against fixture data
+├── playwright.config.ts           # webServer: [fixture server, `astro dev` in ../web]
+├── tsconfig.json
+└── package.json
+```
+
+---
+
 ## Data Engine (`data-engine/`)
 
 Python 3.11+ batch jobs. Fetches F1 data via FastF1, computes predictions, writes directly to Neon via psycopg2.
@@ -328,7 +367,7 @@ data-engine/
 │       ├── fastf1_helpers.py      # get_session(messages=False), session_to_race_results(),
 │       │                          # session_to_quali_results(), session_to_lap_times(),
 │       │                          # get_weather(), get_weather_details(), get_sc_vsc_laps()
-│       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp()
+│       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp(), weighted_sum()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
@@ -345,8 +384,16 @@ data-engine/
 │   ├── backfill_all_predictions.py # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
 │   ├── backfill_historical.sh     # Shell loop over sync_schedule/ingest/compute for a year range
 │   └── populate_all.sh            # One-time population run for 2021–2025
+├── tests/                         # pytest — pure-function unit tests only, no DB mocking
+│   ├── conftest.py                # Placeholder DATABASE_URL so importing job modules doesn't need a real .env
+│   ├── test_math_utils.py         # normalize_minmax, softmax, bayesian_win_rate, clamp, weighted_sum
+│   ├── test_feature_helpers_pure.py # car_rank, circuit_adj_start_pos
+│   ├── test_weights.py            # WEIGHTS sum-to-1 + positivity, both models
+│   └── test_prediction_ranking.py # rank_by_probability
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
+├── requirements-dev.txt           # requirements.txt + pytest
+├── pyproject.toml                 # pytest config (pythonpath, testpaths)
 └── .env.example                   # DATABASE_URL template
 ```
 
@@ -374,10 +421,11 @@ data-engine/
 | File | Key functions |
 |------|--------------|
 | `fastf1_helpers.py` | `get_session(year, round, type, messages=False)` — loads FastF1 session (SQ sessions need `messages=True`); `session_to_quali_results()`, `session_to_race_results()`, `session_to_lap_times()` — extract structured dicts from FastF1 DataFrames |
-| `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=0.3)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)` |
+| `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=0.3)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)`; `weighted_sum(scores, weights)` — dot product of a feature-score dict against a model's `WEIGHTS` dict, shared by `compute_features`/`compute_sprint_features` |
 | `upsert.py` | `upsert(conn, table, rows, conflict_cols, exclude_update=[])` — idempotent bulk write; `exclude_update` prevents overwriting specified columns (used to protect sprint race data from SQ re-ingest) |
 | `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
 | `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |
+| `prediction_runner.py` | `run_prediction_job(...)` — shared softmax/rank/upsert logic for GP + sprint predictions; `rank_by_probability(driver_ids, probabilities)` — pure position-ranking + winner-pick, extracted so it's unit-testable without a DB connection |
 
 ---
 

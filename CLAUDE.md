@@ -9,14 +9,29 @@ predict race winners with a weighted feature scoring system.
 f1-intelligence/
 ├── apps/
 │   ├── web/       # Astro SSR on Cloudflare Pages
-│   └── api/       # Hono on Cloudflare Workers (NestJS-style modules)
-│                  # Also owns the Drizzle schema (src/db/schema/) and migrations (drizzle/migrations/)
+│   ├── api/       # Hono on Cloudflare Workers (NestJS-style modules)
+│   │              # Also owns the Drizzle schema (src/db/schema/) and migrations (drizzle/migrations/)
+│   └── e2e/       # Playwright smoke tests for apps/web — own package.json + playwright.config.ts
 └── data-engine/   # Python ETL batch jobs on Render
 ```
-`apps/` is a JS/Bun-only convention — root `package.json` orchestrates `apps/api` and `apps/web` via
-plain `cd`-based scripts (no Bun workspaces). `data-engine/` stays outside `apps/`: it's Python, and
-its jobs run once and exit rather than being a long-running dev server. See
+`apps/` is a JS/Bun-only convention — root `package.json` orchestrates `apps/api`, `apps/web`, and
+`apps/e2e` via plain `cd`-based scripts (no Bun workspaces). `data-engine/` stays outside `apps/`:
+it's Python, and its jobs run once and exit rather than being a long-running dev server. See
 `docs/adr/0001-apps-layout-scoped-to-js-bun.md`.
+
+### Where tests live
+- `data-engine/tests/` — pytest, pure-function unit tests only (`math_utils.py`, pure `feature_helpers.py`
+  helpers, model `WEIGHTS` invariants). DB-touching functions are not mocked/tested.
+- `apps/api/tests/unit/` — `bun test`, mirrors `src/` by domain (e.g. `tests/unit/common/mappers.test.ts`
+  tests `src/common/mappers.ts`). Currently covers the shared `src/common/` mapper/aggregation layer only —
+  full service-layer tests against a real DB are a future addition, not yet started.
+- `apps/web/tests/unit/` — Vitest, pure logic only (feature helpers like `compareStats.ts`, `lib/` lookups).
+  Does not cover React hooks (`useCompareController`, `useGlobalSearch`) or `.astro` component rendering.
+- `apps/e2e/tests/smoke/` — Playwright, drives a real browser against `astro dev` with a fixture API server
+  (`apps/e2e/fixtures/`) standing in for `apps/api`. Only `/prediction` and `/races/[id]` are covered.
+
+Test files are never co-located with source — always under the app's `tests/` (or `apps/e2e/tests/`) directory,
+mirroring the source path being tested.
 
 ---
 

@@ -57,3 +57,5 @@ logs/
 
 # Test artifacts
 test-results/
+playwright-report/
+.pytest_cache/
