@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import type { Bindings } from '../../common/types';
 import { createDb } from '../../config/database';
 import { PredictionsService } from './predictions.service';
-import { cacheControlForStatus, cacheControlForYear } from '../../common/cache';
+import { CACHE_ACTIVE, cacheControlForStatus, cacheControlForYear } from '../../common/cache';
 
 const service = new PredictionsService();
 
@@ -34,6 +34,14 @@ export const PredictionsController = {
     const data = await service.findHistory(createDb(c.env.DATABASE_URL), year);
     // Only a fully past season is guaranteed to have every race completed.
     c.header('Cache-Control', cacheControlForYear(year));
+    return c.json({ data, error: null });
+  },
+
+  getAccuracy: async (c: Context<{ Bindings: Bindings }>) => {
+    const data = await service.findAccuracyBySeason(createDb(c.env.DATABASE_URL));
+    // Response spans every season, and the most recent one is almost always still in
+    // progress — cache short rather than trying to reason about which years are final.
+    c.header('Cache-Control', CACHE_ACTIVE);
     return c.json({ data, error: null });
   },
 

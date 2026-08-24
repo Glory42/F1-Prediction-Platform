@@ -7,6 +7,7 @@ const predictionsModule = new Hono<{ Bindings: Bindings }>();
 predictionsModule.get('/model-info', PredictionsController.getModelInfo);
 predictionsModule.get('/upcoming', PredictionsController.getUpcoming);
 predictionsModule.get('/history', PredictionsController.getHistory);
+predictionsModule.get('/accuracy', PredictionsController.getAccuracy);
 predictionsModule.get('/standings', PredictionsController.getIntelStandings);
 predictionsModule.get('/race/:raceId', PredictionsController.getByRaceId);
 

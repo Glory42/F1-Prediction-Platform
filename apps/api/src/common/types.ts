@@ -222,6 +222,19 @@ export type PredictionHistoryItem = {
   isSprint: boolean;
 };
 
+export type AccuracyBucket = {
+  races: number;
+  correct: number;
+  accuracyPct: number | null;
+};
+
+export type SeasonAccuracy = {
+  year: number;
+  gp: AccuracyBucket;
+  sprint: AccuracyBucket;
+  overall: AccuracyBucket;
+};
+
 export type IntelStandingRow = {
   driver: Driver;
   features: FeatureScores;
