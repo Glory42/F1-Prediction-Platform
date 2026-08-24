@@ -13,7 +13,7 @@ keep_vars = true
 # this to "development" via .dev.vars so localhost origins keep working.
 ENVIRONMENT = "production"
 
-# Cloudflare's git integration was reconnected on 2026-08-24 after sitting stale for
-# weeks (every prior deploy was a manual `wrangler deploy`, never a build trigger).
-# This comment exists solely to touch apps/api and confirm the reconnected webhook
-# actually fires an automatic deploy.
+# Cloudflare's Build watch path for this Worker was a bare "apps/api" for weeks,
+# which never matched any nested file, so every push silently built zero times —
+# only manual `wrangler deploy` ever actually shipped this Worker. Fixed on
+# 2026-08-24 by changing the watch path to "apps/api/**" in the dashboard.
