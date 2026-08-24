@@ -48,6 +48,7 @@ apps/api/
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
 │   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
+│   ├── common/accuracy.ts          # aggregateAccuracyBySeason() — groups PredictionHistoryItem[] into per-season gp/sprint/overall accuracy buckets
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)
@@ -85,9 +86,9 @@ apps/api/
 │       │   ├── teams.controller.ts
 │       │   └── teams.module.ts    # GET /, /standings, /:id, /:id/career
 │       ├── predictions/
-│       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), standings, model-info
+│       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), accuracy-by-season, standings, model-info
 │       │   ├── predictions.controller.ts
-│       │   └── predictions.module.ts  # GET /model-info, /upcoming, /race/:id, /history, /standings
+│       │   └── predictions.module.ts  # GET /model-info, /upcoming, /race/:id, /history, /accuracy, /standings
 │       ├── sprint/
 │       │   ├── sprint.service.ts  # Sprint detail — results, SQ grid, lap summaries, prediction
 │       │   ├── sprint.controller.ts
@@ -112,7 +113,8 @@ apps/api/
 │           ├── collections.test.ts
 │           ├── standings.test.ts
 │           ├── prediction-response.test.ts
-│           └── cache.test.ts
+│           ├── cache.test.ts
+│           └── accuracy.test.ts
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
@@ -152,6 +154,7 @@ Each module follows the same three-file pattern:
 | GET | `/api/predictions/upcoming` | — |
 | GET | `/api/predictions/race/:raceId` | — |
 | GET | `/api/predictions/history` | `year` |
+| GET | `/api/predictions/accuracy` | — |
 | GET | `/api/predictions/standings` | `year` |
 | GET | `/api/sprint/upcoming` | — |
 | GET | `/api/sprint/race/:raceId` | — |
@@ -285,7 +288,7 @@ apps/web/
 | `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
 | `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav + on-this-page rail |
 | `/` | Static | Landing — no API call |
-| `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` | GP + sprint upcoming; history merged |
+| `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` + `/api/predictions/accuracy` | GP + sprint upcoming; history merged; season-by-season accuracy table |
 | `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction |
 | `/races` | `GET /api/races?year=N` | Race calendar — filter (ALL/SPRINT/GP), sort (ASC/DESC), sprint weekends as two cards |
 | `/races/[id]` | `GET /api/races/:id` | GP results, qualifying, lap chart |

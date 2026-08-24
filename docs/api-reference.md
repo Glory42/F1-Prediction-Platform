@@ -227,6 +227,33 @@ Each item includes `isSprint: boolean`. Sprint items link to `/races/:id/sprint`
 }
 ```
 
+### `GET /api/predictions/accuracy`
+
+Season-by-season accuracy breakdown, across every season with at least one decided race —
+no `year` param; a single call returns the full history. Built from the same predicted/actual
+comparison as `/history`, aggregated per year and split into `gp`/`sprint`/`overall` buckets.
+A season with no decided races yet (e.g. it's just started) is omitted entirely. `accuracyPct`
+is `null` when a bucket has zero races (e.g. `sprint` for a season with no sprint weekends).
+
+```json
+{
+  "data": [
+    {
+      "year": 2026,
+      "gp": { "races": 12, "correct": 7, "accuracyPct": 58 },
+      "sprint": { "races": 5, "correct": 3, "accuracyPct": 60 },
+      "overall": { "races": 17, "correct": 10, "accuracyPct": 59 }
+    },
+    {
+      "year": 2025,
+      "gp": { "races": 24, "correct": 13, "accuracyPct": 54 },
+      "sprint": { "races": 6, "correct": 3, "accuracyPct": 50 },
+      "overall": { "races": 30, "correct": 16, "accuracyPct": 53 }
+    }
+  ]
+}
+```
+
 ### `GET /api/predictions/standings?year=N`
 
 Returns the "Intelligence Standings" — driver rankings by average prediction score. Each row includes sprint aggregates (`sprintWins`, `sprintPodiums`, `sprintTotalPoints`).

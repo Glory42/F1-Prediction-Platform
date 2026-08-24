@@ -7,12 +7,13 @@ import {
 } from '../../db/schema';
 import type {
   PredictionResponse, Driver,
-  PredictionHistoryItem, IntelStandingRow, ModelInfo, FeatureScores,
+  PredictionHistoryItem, IntelStandingRow, ModelInfo, FeatureScores, SeasonAccuracy,
 } from '../../common/types';
 import { toDriver, toCircuit } from '../../common/mappers';
 import { toKeyedMap } from '../../common/collections';
 import { resolveSeason } from '../../common/standings';
 import { buildPredictionResponse } from '../../common/prediction-response';
+import { aggregateAccuracyBySeason } from '../../common/accuracy';
 
 function toFeatures(f: typeof driverPredictionFeatures.$inferSelect): FeatureScores {
   return {
@@ -43,7 +44,9 @@ export class PredictionsService {
     return this.buildResponse(db, raceId);
   }
 
-  async findHistory(db: Db, year: number): Promise<PredictionHistoryItem[]> {
+  // `year` omitted returns every season — used by findAccuracyBySeason() to aggregate across all years.
+  async findHistory(db: Db, year?: number): Promise<PredictionHistoryItem[]> {
+    const yearFilter = year !== undefined ? eq(seasons.year, year) : undefined;
     const [rows, sprintRows] = await Promise.all([
       db.select()
         .from(racePredictions)
@@ -52,7 +55,7 @@ export class PredictionsService {
         .innerJoin(circuits, eq(races.circuitId, circuits.id))
         .innerJoin(drivers, eq(racePredictions.predictedWinnerId, drivers.id))
         .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .where(eq(seasons.year, year))
+        .where(yearFilter)
         .orderBy(desc(races.raceDate)),
       db.select()
         .from(sprintPredictions)
@@ -61,7 +64,7 @@ export class PredictionsService {
         .innerJoin(circuits, eq(races.circuitId, circuits.id))
         .innerJoin(drivers, eq(sprintPredictions.predictedWinnerId, drivers.id))
         .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .where(eq(seasons.year, year))
+        .where(yearFilter)
         .orderBy(desc(races.raceDate)),
     ]);
 
@@ -179,6 +182,11 @@ export class PredictionsService {
     return [...mainItems, ...sprintItems].sort((a, b) =>
       new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime()
     );
+  }
+
+  async findAccuracyBySeason(db: Db): Promise<SeasonAccuracy[]> {
+    const allHistory = await this.findHistory(db);
+    return aggregateAccuracyBySeason(allHistory);
   }
 
   async findIntelStandings(db: Db, year: number): Promise<IntelStandingRow[]> {

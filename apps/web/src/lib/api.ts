@@ -3,7 +3,7 @@ import type {
   Race, Driver, Team, DriverStanding, TeamStanding, Circuit,
   PredictionHistoryItem, IntelStandingRow, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
-  SprintPredictionResponse, SprintDetailResponse, ModelInfo,
+  SprintPredictionResponse, SprintDetailResponse, ModelInfo, SeasonAccuracy,
 } from '@/types';
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
@@ -22,6 +22,7 @@ export const api = {
   getUpcomingPrediction: () => get<PredictionResponse>('/api/predictions/upcoming'),
   getPredictionByRace: (raceId: number) => get<PredictionResponse>(`/api/predictions/race/${raceId}`),
   getPredictionHistory: (year: number) => get<PredictionHistoryItem[]>(`/api/predictions/history?year=${year}`),
+  getPredictionAccuracy: () => get<SeasonAccuracy[]>('/api/predictions/accuracy'),
   getIntelStandings: (year: number) => get<IntelStandingRow[]>(`/api/predictions/standings?year=${year}`),
 
   // Races

@@ -86,6 +86,8 @@ export type PredictionHistoryItem = {
   correct: boolean | null; computedAt: string; isSprint: boolean;
   actualWinnerPredictedPosition: number | null;
 };
+export type AccuracyBucket = { races: number; correct: number; accuracyPct: number | null };
+export type SeasonAccuracy = { year: number; gp: AccuracyBucket; sprint: AccuracyBucket; overall: AccuracyBucket };
 export type IntelStandingRow = {
   driver: Driver; features: FeatureScores; rawWeightedScore: string;
   winProbability: string; predictedPosition: number | null; overallScore: number;
