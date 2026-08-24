@@ -18,6 +18,11 @@ All responses follow this envelope:
 
 No authentication. All endpoints are read-only GET.
 
+**Caching:** race/prediction/sprint endpoints set `Cache-Control` based on whether the
+underlying race is `completed` — `public, max-age=86400, immutable` once a race is done
+(results and predictions for a finished race never change), otherwise `public, max-age=30`
+while the weekend is still in progress. See `apps/api/src/common/cache.ts`.
+
 ---
 
 ## Health
