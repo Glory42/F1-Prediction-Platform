@@ -12,3 +12,8 @@ keep_vars = true
 # Gates which CORS origins are allowed — see main.ts. Local dev overrides
 # this to "development" via .dev.vars so localhost origins keep working.
 ENVIRONMENT = "production"
+
+# Cloudflare's git integration was reconnected on 2026-08-24 after sitting stale for
+# weeks (every prior deploy was a manual `wrangler deploy`, never a build trigger).
+# This comment exists solely to touch apps/api and confirm the reconnected webhook
+# actually fires an automatic deploy.
