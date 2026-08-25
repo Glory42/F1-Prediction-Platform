@@ -13,7 +13,11 @@ export default defineConfig({
   adapter: cloudflare({
     imageService: "passthrough",
   }),
-  integrations: [react(), sitemap()],
+  integrations: [react(), sitemap({
+    // The data-quality dashboard is dev-only tooling (404-guarded in production);
+    // keep it out of the public sitemap for live users.
+    filter: (page) => !page.includes('/health-quality/'),
+  })],
   vite: {
     optimizeDeps: {
       include: ["react", "react-dom", "react/jsx-runtime"],

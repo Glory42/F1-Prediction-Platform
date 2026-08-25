@@ -1,0 +1,170 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { api } from '@/lib/api';
+import type { QualityReport, SeasonSummary } from '@/types';
+import YearSelect from '@/components/shared/YearSelect.astro';
+import { Cpu, ShieldAlert, ShieldCheck, Wrench, TriangleAlert, CircleAlert, Info } from 'lucide-react';
+
+// Development-only dashboard: the data-quality reports are internal tooling, not
+// meant for live users. SSR runs this on every request, so a production request
+// short-circuits to a 404 before any data is fetched or rendered.
+if (!import.meta.env.DEV) {
+  return Astro.redirect('/404', 404);
+}
+
+const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
+
+const [reportResult, seasonsResult] = await Promise.allSettled([
+  api.getQuality(year),
+  api.getSeasons(),
+]);
+
+const report: QualityReport | null = reportResult.status === 'fulfilled' ? reportResult.value : null;
+const seasons: SeasonSummary[] = seasonsResult.status === 'fulfilled' ? seasonsResult.value : [];
+
+const score = report ? Number(report.healthScore) : null;
+const scoreColor = score === null ? 'text-muted-foreground' : score >= 80 ? 'text-[#a855f7]' : score >= 50 ? 'text-amber-400' : 'text-red-400';
+
+const severityMeta = {
+  high: { label: 'high', dot: 'bg-red-400', text: 'text-red-400', border: 'border-red-500/30', icon: TriangleAlert },
+  medium: { label: 'medium', dot: 'bg-amber-400', text: 'text-amber-400', border: 'border-amber-500/30', icon: CircleAlert },
+  low: { label: 'low', dot: 'bg-sky-400', text: 'text-sky-400', border: 'border-sky-500/30', icon: Info },
+} as const;
+
+const tableNames: Record<string, string> = {
+  qualifying_results: 'qualifying_results',
+  race_results: 'race_results',
+  lap_times: 'lap_times',
+  sprint_lap_times: 'sprint_lap_times',
+  fp2_long_run_times: 'fp2_long_run_times',
+  driver_season_stats: 'driver_season_stats',
+  driver_prediction_features: 'driver_prediction_features',
+  race_predictions: 'race_predictions',
+};
+---
+
+<BaseLayout title={`${year} Data Quality`}>
+  <div class="mt-7 space-y-10">
+
+    <!-- Header -->
+    <div class="flex items-end justify-between gap-4 flex-wrap">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Cpu size={11} />./data-quality · dev</span>
+          <div class="h-px w-16 bg-white/[0.05]" />
+        </div>
+        <h1 class="text-2xl font-bold">{year} Data Quality</h1>
+        <p class="mt-1 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
+          {report ? `${report.issueCount} issues · ${report.fixableCount} fixable · generated ${new Date(report.generatedAt).toLocaleString()}` : 'no report generated yet'}
+        </p>
+      </div>
+      <YearSelect years={seasons} currentYear={year} basePath="/health-quality" />
+    </div>
+
+    {report ? (
+      <>
+        <!-- Overall score -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="panel p-6">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">health score</div>
+            <div class={`text-5xl font-bold ${scoreColor}`}>{score}</div>
+            <div class="w-full h-1 bg-white/[0.06] mt-3">
+              <div class={`h-full ${score! >= 80 ? 'bg-[#a855f7]' : score! >= 50 ? 'bg-amber-400' : 'bg-red-400'} bar-fill`} style={`width:${score}%`} />
+            </div>
+            <div class="mt-3 font-mono text-[8px] text-muted-foreground/60">mean of per-race 100 − severity points</div>
+          </div>
+          <div class="panel p-6">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">races audited</div>
+            <div class="text-5xl font-bold">{report.racesAudited}</div>
+            <div class="mt-3 font-mono text-[9px] text-muted-foreground">across {year}</div>
+          </div>
+          <div class="panel p-6">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">open issues</div>
+            <div class="text-5xl font-bold">{report.issueCount}</div>
+            <div class="mt-3 flex items-center gap-2 font-mono text-[9px]">
+              <span class="text-red-400">{report.bySeverity.high} high</span>
+              <span class="text-amber-400">{report.bySeverity.medium} med</span>
+              <span class="text-sky-400">{report.bySeverity.low} low</span>
+            </div>
+          </div>
+          <div class="panel p-6">
+            <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">fixable gaps</div>
+            <div class="text-5xl font-bold text-[#a855f7]">{report.fixableCount}</div>
+            <div class="mt-3 font-mono text-[9px] text-muted-foreground">re-ingest / recompute via data_quality_repair</div>
+          </div>
+        </div>
+
+        <!-- Per-table breakdown -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><ShieldAlert size={11} />./by table</span>
+            <div class="h-px flex-1 bg-white/[0.05]" />
+          </div>
+          <div class="border border-white/[0.06]">
+            {Object.entries(report.byTable).length > 0 ? (
+              Object.entries(report.byTable)
+                .sort((a, b) => b[1] - a[1])
+                .map(([table, n], i) => (
+                  <div class={`flex items-center gap-4 px-5 py-3 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+                    <span class="font-mono text-[10px] font-bold w-56 shrink-0 truncate">{tableNames[table] ?? table}</span>
+                    <div class="flex-1 h-1 bg-white/[0.06] relative overflow-hidden">
+                      <div class="h-full bg-[#a855f7] bar-fill absolute inset-y-0 left-0" style={`width:${Math.min(100, (n / Math.max(report.issueCount, 1)) * 100)}%`} />
+                    </div>
+                    <span class="font-mono text-[9px] text-[#a855f7] w-8 text-right">{n}</span>
+                  </div>
+                ))
+            ) : (
+              <div class="px-5 py-4 font-mono text-[9px] text-muted-foreground">All tables clean for {year}.</div>
+            )}
+          </div>
+        </div>
+
+        <!-- Issue list -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><ShieldCheck size={11} />./issues</span>
+            <div class="h-px flex-1 bg-white/[0.05]" />
+          </div>
+          <div class="border border-white/[0.06]">
+            {report.issues.length > 0 ? (
+              report.issues.map((issue, i) => {
+                const meta = severityMeta[issue.severity];
+                const Icon = meta.icon;
+                return (
+                  <div class={`flex items-start gap-4 px-5 py-4 ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+                    <Icon size={14} className={`${meta.text} shrink-0 mt-0.5`} />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-mono text-[9px] text-muted-foreground shrink-0">{issue.isSprint ? 'sprint' : `R${String(issue.roundNumber ?? '').padStart(2, '0')}`}</span>
+                        <span class="font-mono text-[9px] text-muted-foreground shrink-0">{tableNames[issue.tableName ?? ''] ?? issue.tableName}</span>
+                        <span class="font-mono text-[9px] font-bold">{issue.checkName}</span>
+                        <span class={`font-mono text-[7px] tracking-[0.1em] uppercase px-1.5 py-0.5 border ${meta.border} ${meta.text}`}>{issue.severity}</span>
+                        {issue.fixable && (
+                          <span class="flex items-center gap-1 font-mono text-[7px] tracking-[0.1em] uppercase px-1.5 py-0.5 border border-[#a855f7]/30 text-[#a855f7]/80"><Wrench size={8} />fixable</span>
+                        )}
+                      </div>
+                      {issue.detail && <div class="font-mono text-[9px] text-muted-foreground mt-1">{issue.detail}</div>}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div class="px-5 py-6 font-mono text-[9px] text-muted-foreground flex items-center gap-2">
+                <ShieldCheck size={12} className="text-green-400" /> No data-quality issues flagged for {year}.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <p class="font-mono text-[8px] text-muted-foreground/60">
+          Run the audit with <code class="text-foreground">python src/main.py --job data_quality_audit --year {year}</code></p>
+      </>
+    ) : (
+      <div class="border border-white/[0.06] p-10 text-center">
+        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No data-quality report for {year}</p>
+        <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">Run <code class="text-foreground">python src/main.py --job data_quality_audit --year {year}</code> to generate one.</p>
+      </div>
+    )}
+
+  </div>
+</BaseLayout>

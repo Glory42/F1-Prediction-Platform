@@ -101,6 +101,10 @@ apps/api/
 │           ├── search.service.ts  # Global search query — unique drivers, teams, circuits
 │           ├── search.controller.ts
 │           └── search.module.ts   # GET /
+│       └── quality/
+│           ├── quality.service.ts # Latest data-quality report + years list (reads data_quality_runs/issues)
+│           ├── quality.controller.ts
+│           └── quality.module.ts  # GET /, /years — dev-only reporting (no write path)
 ├── drizzle/
 │   └── migrations/                # Generated SQL migration files + Drizzle metadata
 │       ├── 0000_glamorous_galactus.sql  # Initial schema
@@ -108,6 +112,8 @@ apps/api/
 │       └── meta/                        # Drizzle migration metadata (_journal.json, snapshots)
 ├── tests/
 │   └── unit/
+│       ├── modules/
+│       │   └── quality/           # quality.service test (severity casting)
 │       └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │           ├── mappers.test.ts
 │           ├── collections.test.ts
@@ -174,6 +180,7 @@ apps/web/
 │   │   ├── index.astro            # Landing page (static)
 │   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged)
 │   │   ├── prediction/[id].astro  # Historical GP prediction by race
+│   │   ├── health-quality.astro   # Dev-only data-quality dashboard (404-guarded outside DEV)
 │   │   ├── docs/
 │   │   │   ├── index.astro        # Docs index — card grid of all docs
 │   │   │   └── [slug].astro       # Individual doc page — all-docs sidebar, content, on-this-page rail
@@ -367,7 +374,9 @@ data-engine/
 │   │   ├── compute_features.py         # 12 feature scores per driver per GP
 │   │   ├── compute_predictions.py      # Softmax on GP feature scores → win probabilities
 │   │   ├── compute_sprint_features.py  # 8 sprint feature scores per driver
-│   │   └── compute_sprint_predictions.py # Softmax on sprint scores → sprint win probabilities
+│   │   ├── compute_sprint_predictions.py # Softmax on sprint scores → sprint win probabilities
+│   │   ├── data_quality_audit.py        # Per-table completeness/coverage audit → data_quality_runs/issues
+│   │   └── data_quality_repair.py       # Re-ingests data for fixable audit issues; recomputes features/predictions
 │   └── utils/
 │       ├── fastf1_helpers.py      # get_session(messages=False), session_to_race_results(),
 │       │                          # session_to_quali_results(), session_to_lap_times(),
@@ -380,7 +389,8 @@ data-engine/
 │       ├── feature_helpers.py     # Shared scoring math for GP + sprint models — compute_weather_score(),
 │       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
 │       └── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
-│                                   # grid map, start_pos, driver/team season stats) behind both feature jobs
+│       │                          # grid map, start_pos, driver/team season stats) behind both feature jobs
+│       └── quality_utils.py        # health_from_issues() + resolve_issue_actions() — pure audit/repair scoring logic
 ├── scripts/                       # One-off/operational scripts — not imported by src/
 │   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
 │   ├── backfill_full.py           # Full historical backfill: sync + ingest + sprint + predictions
@@ -392,6 +402,7 @@ data-engine/
 ├── tests/                         # pytest — pure-function unit tests only, no DB mocking
 │   ├── conftest.py                # Placeholder DATABASE_URL so importing job modules doesn't need a real .env
 │   ├── test_math_utils.py         # normalize_minmax, softmax, bayesian_win_rate, clamp, weighted_sum
+│   ├── test_quality_utils.py      # health_from_issues + resolve_issue_actions
 │   ├── test_feature_helpers_pure.py # car_rank, circuit_adj_start_pos
 │   ├── test_weights.py            # WEIGHTS sum-to-1 + positivity, both models
 │   └── test_prediction_ranking.py # rank_by_probability

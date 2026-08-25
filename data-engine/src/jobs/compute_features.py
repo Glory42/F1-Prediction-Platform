@@ -50,7 +50,7 @@ def run(race_id: int) -> None:
 
         luck_map        = compute_luck_score(conn, driver_ids, race_id, team_perf, stats_rows)
         weather_map     = compute_weather_score(conn, driver_ids, weather)
-        long_run_map    = _compute_long_run_pace(conn, driver_ids, race_id, ctx.circuit_id)
+        long_run_map, long_run_used_fp2 = _compute_long_run_pace(conn, driver_ids, race_id, ctx.circuit_id)
         reliability_map = _compute_reliability(driver_ids, stats_rows, team_data)
         quali_delta_map = compute_rolling_teammate_delta(
             conn, driver_ids, race_id,
@@ -121,6 +121,7 @@ def run(race_id: int) -> None:
                 "track_overtake_score":           None,
                 "position_gain_score":            round(position_gain, 5),
                 "long_run_pace_score":            round(long_run, 5),
+                "long_run_used_fp2":              long_run_used_fp2,
                 "reliability_score":              round(reliability, 5),
                 "qualifying_delta_score":         round(quali_delta, 5),
                 "sector_strength_score":          round(sector_strength, 5),
@@ -141,10 +142,12 @@ def run(race_id: int) -> None:
 
 # ── Feature helpers ────────────────────────────────────────────────────────────
 
-def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> dict[int, float]:
+def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> tuple[dict[int, float], bool]:
     """
     Primary: FP2 MEDIUM-normalised median lap time from fp2_long_run_times.
     Fallback: historical circuit median from lap_times (last 6 completed races).
+    Returns (pace_map, used_fp2) — used_fp2 records whether the feature came from
+    FP2 data or the weaker historical fallback, surfaced by the data-quality audit.
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -160,8 +163,9 @@ def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id
 
     # Use FP2 when ≥70% of drivers have data; otherwise fall back to historical
     if len(fp2_map) >= len(driver_ids) * 0.7:
-        pace_map = fp2_map
+        pace_map, used_fp2 = fp2_map, True
     else:
+        used_fp2 = False
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id FROM races "
@@ -172,7 +176,7 @@ def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id
             past_ids = [r["id"] for r in cur.fetchall()]
 
         if not past_ids:
-            return {d: 0.5 for d in driver_ids}
+            return {d: 0.5 for d in driver_ids}, used_fp2
 
         with conn.cursor() as cur:
             cur.execute(
@@ -193,14 +197,14 @@ def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id
             pace_map = {r["driver_id"]: float(r["median_ms"]) for r in cur.fetchall()}
 
     if not pace_map:
-        return {d: 0.5 for d in driver_ids}
+        return {d: 0.5 for d in driver_ids}, used_fp2
 
     worst = max(pace_map.values()) * 1.02
     times = [pace_map.get(d, worst) for d in driver_ids]
     max_t = max(times)
     inverted = [max_t - t for t in times]
     normalized = normalize_minmax(inverted)
-    return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}
+    return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}, used_fp2
 
 
 def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> dict[int, float]:

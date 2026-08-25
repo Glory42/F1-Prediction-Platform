@@ -4,6 +4,7 @@ import type {
   PredictionHistoryItem, IntelStandingRow, CircuitDetailResponse,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo, SeasonAccuracy,
+  QualityReport,
 } from '@/types';
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
@@ -56,4 +57,7 @@ export const api = {
   getTeamStandings: (year: number) => get<TeamStanding[]>(`/api/teams/standings?year=${year}`),
   getTeamById: (id: number, year: number) => get<TeamDetailResponse>(`/api/teams/${id}?year=${year}`),
   getTeamCareer: (id: number) => get<TeamYearStats[]>(`/api/teams/${id}/career`),
+
+  // Quality (dev-only — see lib/api dev guard)
+  getQuality: (year: number) => get<QualityReport>(`/api/quality?year=${year}`),
 };
