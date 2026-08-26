@@ -58,14 +58,19 @@ def _load_races(conn, year: int | None, all_years: bool) -> list[dict]:
     )
 
 
-def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
+def _audit_race(conn, race: dict, *, run_season_stats: bool) -> tuple[list[dict], float]:
     issues: list[dict[str, Any]] = []
     race_id = race["id"]
     round_number = race["round_number"]
     year = race["year"]
     status = race["status"]
     is_sprint = race["event_format"] in SPRINT_FORMATS
-    expected = max(race["quali_count"], race["result_count"], 0)
+    quali_count = race["quali_count"]
+    result_count = race["result_count"]
+    # Cross-table references: use the other table's count as the expected value so a
+    # row-count check never compares a value against itself (which would be tautological).
+    # A ~20-car grid is the fallback when the counterpart table is empty (pre-race).
+    expected_grid = quali_count or 20
     lap_count = race.get("lap_count") or 0
 
     def add(table_name, check_name, severity, detail, fixable):
@@ -80,9 +85,11 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
     # Legacy eras (pre-2018) intentionally lack part of this data per data-pipeline
     # coverage, so only FastF1-era rounds are measured for qualifying quality.
     if status in ("qualifying_done", "completed") and year >= 2018:
-        if race["quali_count"] < max(int(expected * 0.9), 1):
+        # Cross-check against race_results (independent reference) when available.
+        quali_expected = result_count if result_count else 20
+        if quali_count < max(int(quali_expected * 0.9), 1):
             add("qualifying_results", "row_count", "high",
-                f"expected ~{expected} rows, found {race['quali_count']}", True)
+                f"expected ~{quali_expected} rows, found {quali_count}", True)
 
         gaps = _scalar(conn, """
             SELECT string_agg(grid_position::text, ',')
@@ -103,12 +110,11 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
                 f"{missing_times} drivers with no Q time set", True)
 
         sector_cov = _scalar(conn, """
-            SELECT AVG(frac) FROM (
-                SELECT (COUNT(sector1_ms IS NOT NULL OR NULL) +
-                        COUNT(sector2_ms IS NOT NULL OR NULL) +
-                        COUNT(sector3_ms IS NOT NULL OR NULL)) / 3.0 AS frac
-                FROM qualifying_results WHERE race_id = %s
-            ) t
+            SELECT (COUNT(sector1_ms IS NOT NULL OR NULL)
+                  + COUNT(sector2_ms IS NOT NULL OR NULL)
+                  + COUNT(sector3_ms IS NOT NULL OR NULL))
+                  / (3.0 * NULLIF(COUNT(*), 0))
+            FROM qualifying_results WHERE race_id = %s
             """, (race_id,))
         if sector_cov is not None and sector_cov < 0.9:
             add("qualifying_results", "sector_times", "low",
@@ -116,9 +122,9 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
 
     # ── race_results ──────────────────────────────────────────────────────
     if status == "completed":
-        if race["result_count"] < max(10, expected):
+        if result_count < max(10, expected_grid):
             add("race_results", "row_count", "high",
-                f"expected ~{expected}, got {race['result_count']}", True)
+                f"expected ~{expected_grid}, got {result_count}", True)
         if not _scalar(conn, "SELECT 1 FROM race_results WHERE race_id = %s AND finish_position = 1",
                        (race_id,)):
             add("race_results", "winner_present", "high", "no finish_position=1 row", True)
@@ -146,6 +152,11 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
                 f"{r['null_times']} laps missing lap_time_ms", False)
 
         if is_sprint:
+            spr = _scalar(conn,
+                "SELECT COUNT(*) FROM sprint_results WHERE race_id = %s", (race_id,)) or 0
+            if spr < max(10, expected_grid):
+                add("sprint_results", "row_count", "high",
+                    f"expected ~{expected_grid} sprint results, got {spr}", True)
             sr = _query(conn, """
                 SELECT COUNT(DISTINCT (race_id || ':' || driver_id || ':' || lap_number)) AS n
                 FROM sprint_lap_times WHERE race_id = %s
@@ -154,23 +165,26 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
                 add("sprint_lap_times", "lap_coverage", "low",
                     "no sprint laps ingested for a completed sprint weekend", True)
 
-    # ── fp2_long_run_times (2018+, expected grid) ─────────────────────────
+# ── fp2_long_run_times (2018+, expected grid) ─────────────────────────
     # Sprint weekends replace FP2 with FP1 (no FP2 session exists), so only measure
     # conventional weekends — otherwise every sprint race is a permanent false positive.
     # FP2 is informational, not re-ingestable: drivers sometimes do no long-run stint, in
     # which case the model deliberately falls back to historical circuit pace (compute_features).
-    if year >= 2018 and expected > 0 and not is_sprint:
+    if (status in ("qualifying_done", "completed") and year >= 2018
+            and expected_grid > 0 and not is_sprint):
         fp2_drivers = _scalar(conn,
             "SELECT COUNT(DISTINCT driver_id) FROM fp2_long_run_times WHERE race_id = %s",
             (race_id,)) or 0
-        coverage = fp2_drivers / expected
+        coverage = fp2_drivers / expected_grid
         if coverage < FP2_COVERAGE_GATE:
             add("fp2_long_run_times", "driver_coverage", "low",
-                f"FP2 long-run coverage {coverage:.0%} ({fp2_drivers}/~{expected} drivers); "
+                f"FP2 long-run coverage {coverage:.0%} ({fp2_drivers}/~{expected_grid} drivers); "
                 f"model falls back to historical circuit pace", False)
 
     # ── season stats presence ─────────────────────────────────────────────
-    if status == "completed":
+    # Season-scoped aggregate — emit only once (on the first completed race of the
+    # season) so a single season-level gap isn't duplicated across every race.
+    if status == "completed" and run_season_stats:
         missing = _scalar(conn, """
             SELECT COUNT(*) FROM drivers d
             WHERE d.season_id = %s AND NOT EXISTS (
@@ -186,9 +200,9 @@ def _audit_race(conn, race: dict) -> tuple[list[dict], float]:
     if status in ("qualifying_done", "completed"):
         fc = _scalar(conn,
             "SELECT COUNT(*) FROM driver_prediction_features WHERE race_id = %s", (race_id,)) or 0
-        if fc < max(15, int(expected * 0.9)):
+        if fc < max(15, int(expected_grid * 0.9)):
             add("driver_prediction_features", "feature_rows", "high",
-                f"expected ~{expected} feature rows, got {fc}", True)
+                f"expected ~{expected_grid} feature rows, got {fc}", True)
         prob_sum = _scalar(conn,
             "SELECT SUM(win_probability) FROM driver_prediction_features WHERE race_id = %s",
             (race_id,))
@@ -210,8 +224,17 @@ def run(year: int | None = None, all_years: bool = False) -> None:
         races = _load_races(conn, year, all_years)
         all_issues: list[dict[str, Any]] = []
         total_health = 0.0
+        # Season stats are season-scoped; emit them once per season (on the first
+        # completed race) rather than duplicating the same gap across every race.
+        season_stats_emitted: set[int] = set()
         for race in races:
-            issues, health = _audit_race(conn, race)
+            run_season_stats = (
+                race["status"] == "completed"
+                and race["season_id"] not in season_stats_emitted
+            )
+            if run_season_stats:
+                season_stats_emitted.add(race["season_id"])
+            issues, health = _audit_race(conn, race, run_season_stats=run_season_stats)
             all_issues.extend(issues)
             total_health += health
 
@@ -232,15 +255,27 @@ def run(year: int | None = None, all_years: bool = False) -> None:
 
         # One aggregate run per audit pass (race_id NULL). `year_key` is the stored
         # year column value — a per-season scan stores the real year; an all-years scan
-        # stores 0.
+        # stores 0. The partial unique index (year) WHERE race_id IS NULL makes this
+        # INSERT ... ON CONFLICT idempotent: re-running an audit for the same year upserts
+        # the same single row instead of accumulating new runs (and issue rows).
         year_key = year if not all_years and year is not None else 0
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO data_quality_runs (year, race_id, generated_at, health_score, summary) "
-                "VALUES (%s, NULL, now(), %s, %s::jsonb) RETURNING id",
+                "VALUES (%s, NULL, now(), %s, %s::jsonb) "
+                "ON CONFLICT (year) WHERE race_id IS NULL "
+                "DO UPDATE SET generated_at = now(), health_score = EXCLUDED.health_score, "
+                "              summary = EXCLUDED.summary "
+                "RETURNING id",
                 (year_key, overall, json.dumps(summary)),
             )
             run_id = cur.fetchone()["id"]
+
+        # Replace every issue row for this run so a re-audit never leaves stale entries
+        # behind (driving the same idempotent behaviour as the run row itself).
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM data_quality_issues WHERE run_id = %s", (run_id,))
+            replaced_issues = cur.rowcount
 
         if all_issues:
             for issue in all_issues:
@@ -254,22 +289,9 @@ def run(year: int | None = None, all_years: bool = False) -> None:
                     "VALUES ({})".format(col_sql, ",".join(["%s"] * len(cols))),
                     [[issue[c] for c in cols] for issue in all_issues],
                 )
-
-        # The dashboard shows only the latest run per year, so a fresh audit pass
-        # supersedes (not accumulates with) earlier passes for the same year key.
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM data_quality_issues WHERE run_id IN "
-                        "(SELECT id FROM data_quality_runs WHERE year = %s AND id != %s)",
-                        (year_key, run_id))
-            removed_issues = cur.rowcount
-            cur.execute("DELETE FROM data_quality_runs WHERE year = %s AND id != %s",
-                        (year_key, run_id))
-            removed_runs = cur.rowcount
         conn.commit()
-        if removed_runs:
-            print(f"[data_quality_audit] pruned {removed_runs} stale run(s) "
-                  f"({removed_issues} issues) for year_key={year_key}")
         print(f"[data_quality_audit] year={year} all={all_years} races={len(races)} "
-              f"issues={len(all_issues)} health={overall}")
+              f"issues={len(all_issues)} health={overall} "
+              f"(replaced {replaced_issues} prior issue rows for run {run_id})")
     finally:
         conn.close()

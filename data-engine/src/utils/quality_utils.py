@@ -23,7 +23,7 @@ def resolve_issue_actions(issue: dict[str, Any]) -> list[str]:
     if table == "race_results" and check in ("row_count", "points_present", "winner_present"):
         return ["ingest_race", "compute_season_stats"]
     if table == "lap_times" and check in ("lap_coverage", "lap_time_present"):
-        return ["ingest_race"]
+        return ["ingest_race", "compute_features", "compute_predictions"]
     if table == "sprint_results" and check == "row_count":
         return ["ingest_sprint", "compute_season_stats"]
     if table == "sprint_lap_times" and check == "lap_coverage":

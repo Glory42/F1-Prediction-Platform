@@ -7,9 +7,9 @@ import { Cpu, ShieldAlert, ShieldCheck, Wrench, TriangleAlert, CircleAlert, Info
 
 // Development-only dashboard: the data-quality reports are internal tooling, not
 // meant for live users. SSR runs this on every request, so a production request
-// short-circuits to a 404 before any data is fetched or rendered.
+// short-circuits to a real 404 response before any data is fetched or rendered.
 if (!import.meta.env.DEV) {
-  return Astro.redirect('/404', 404);
+  return new Response('Not found', { status: 404 });
 }
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());

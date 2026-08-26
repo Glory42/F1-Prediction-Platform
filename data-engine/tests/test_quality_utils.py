@@ -61,4 +61,6 @@ def test_unknown_issue_has_no_path():
 
 
 def test_lap_coverage_maps_to_race_ingest():
-    assert resolve_issue_actions({"table_name": "lap_times", "check_name": "lap_coverage"}) == ["ingest_race"]
+    assert resolve_issue_actions({"table_name": "lap_times", "check_name": "lap_coverage"}) == [
+        "ingest_race", "compute_features", "compute_predictions"
+    ]

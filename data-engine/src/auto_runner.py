@@ -149,18 +149,18 @@ def _backfill_fp2(log_func, conn, race_id: int, year: int, round_number: int) ->
     if _fp2_coverage(conn, race_id) >= 0.7:
         return
     before = _fp2_coverage(conn, race_id)
-    log(f"[auto_runner] FP2 coverage {before:.0%} — retrying FP2 + recompute while waiting for race")
+    log_func(f"[auto_runner] FP2 coverage {before:.0%} — retrying FP2 + recompute while waiting for race")
     try:
         ingest_fp2.run(year, round_number)
         after = _fp2_coverage(conn, race_id)
         if after > before:
             compute_features.run(race_id)
             compute_predictions.run(race_id)
-            log(f"[auto_runner] FP2 backfilled ({before:.0%} -> {after:.0%}); features/predictions refreshed")
+            log_func(f"[auto_runner] FP2 backfilled ({before:.0%} -> {after:.0%}); features/predictions refreshed")
         else:
-            log(f"[auto_runner] FP2 still not available ({after:.0%}); will retry next cycle")
+            log_func(f"[auto_runner] FP2 still not available ({after:.0%}); will retry next cycle")
     except (DataNotLoadedError, InvalidSessionError, NoLapDataError) as e:
-        log(f"[auto_runner] FP2 not ready yet: {e}")
+        log_func(f"[auto_runner] FP2 not ready yet: {e}")
 
 
 def run(log_func: Callable[[str], None] = print) -> None:

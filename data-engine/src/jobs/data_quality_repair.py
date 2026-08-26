@@ -105,28 +105,43 @@ def run(year: int, resolve_run: int | None = None) -> None:
             return
 
         print(f"[data_quality_repair] run {run_id}: {len(issues)} fixable issues")
-        fixed = failed = skipped = 0
+        # Dedupe by race: a race with several related issues must not re-run the full
+        # ingest + recompute chain once per issue. Group fixable issues by race, union
+        # their repair steps in first-seen order, execute each group once, then resolve.
+        skipped = 0
+        grouped: dict[tuple, dict] = {}
         for issue in issues:
             steps = resolve_issue_actions(issue)
             if not steps:
                 print(f"  [skip] no repair path for {issue['table_name']}.{issue['check_name']}")
                 skipped += 1
                 continue
+            key = (issue["round_number"], issue["race_id"])
+            group = grouped.setdefault(key, {"issues": [], "steps": []})
+            group["issues"].append(issue)
+            for s in steps:
+                if s not in group["steps"]:
+                    group["steps"].append(s)
+
+        fixed = failed = 0
+        for key, group in grouped.items():
+            round_num, race_id = key
+            steps = group["steps"]
             try:
                 for step in steps:
-                    _run_ingest(conn, issue, step)
-                # mark resolved
-                with conn.cursor() as cur:
-                    cur.execute("UPDATE data_quality_issues SET resolved=true WHERE id=%s",
-                                (issue["id"],))
-                conn.commit()
-                print(f"  [OK] race={issue['round_number'] or issue['race_id']} "
-                      f"{issue['table_name']}.{issue['check_name']}")
-                fixed += 1
+                    _run_ingest(conn, group["issues"][0], step)
+                for issue in group["issues"]:
+                    with conn.cursor() as cur:
+                        cur.execute("UPDATE data_quality_issues SET resolved=true WHERE id=%s",
+                                    (issue["id"],))
+                    conn.commit()
+                    fixed += 1
+                print(f"  [OK] race={round_num or race_id} steps={','.join(steps)} "
+                      f"resolved {len(group['issues'])} issue(s)")
             except Exception as e:
                 conn.rollback()
-                print(f"  [FAIL] race={issue['round_number']} {issue['table_name']}.{issue['check_name']}: {e}")
-                failed += 1
+                print(f"  [FAIL] race={round_num or race_id} steps={','.join(steps)}: {e}")
+                failed += len(group["issues"])
         print(f"[data_quality_repair] done: fixed={fixed} failed={failed} skipped={skipped}")
     finally:
         conn.close()
