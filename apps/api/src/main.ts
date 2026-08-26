@@ -10,6 +10,7 @@ import predictionsModule from './modules/predictions/predictions.module';
 import seasonsModule from './modules/seasons/seasons.module';
 import sprintModule from './modules/sprint/sprint.module';
 import searchModule from './modules/search/search.module';
+import qualityModule from './modules/quality/quality.module';
 import type { Bindings } from './common/types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -55,6 +56,7 @@ app.route('/api/predictions', predictionsModule);
 app.route('/api/sprint', sprintModule);
 app.route('/api/seasons', seasonsModule);
 app.route('/api/search', searchModule);
+app.route('/api/quality', qualityModule);
 
 app.onError((err, c) => {
   console.error(err.message);

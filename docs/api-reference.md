@@ -363,6 +363,47 @@ Returns all unique drivers (their latest profiles), teams, and circuits across a
 
 ---
 
+## Data Quality
+
+### `GET /api/quality?year=N`
+
+Returns the latest data-quality audit report for a season (records produced by the
+`data_quality_audit` data-engine job). 404 when no report exists for the year yet.
+
+```json
+{
+  "data": {
+    "year": 2026,
+    "generatedAt": "2026-08-24T12:00:00.000Z",
+    "healthScore": "91.00",
+    "racesAudited": 13,
+    "issueCount": 7,
+    "fixableCount": 3,
+    "bySeverity": { "high": 2, "medium": 3, "low": 2 },
+    "byTable": { "fp2_long_run_times": 2, "lap_times": 3 },
+    "issues": [
+      {
+        "raceId": 420,
+        "roundNumber": 13,
+        "year": 2026,
+        "tableName": "fp2_long_run_times",
+        "checkName": "driver_coverage",
+        "severity": "high",
+        "detail": "FP2 coverage 0.00% (0/~20 drivers)",
+        "fixable": true,
+        "isSprint": false
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/quality/years`
+
+Returns the list of years that have at least one audit report.
+
+---
+
 ## Error Codes
 
 | Code | HTTP | Meaning |

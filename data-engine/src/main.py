@@ -188,6 +188,14 @@ def _dispatch(job: str, args) -> None:
         from src.jobs.compute_predictions import run
         run(args.race_id)
 
+    elif job == "data_quality_audit":
+        from src.jobs.data_quality_audit import run
+        run(year=args.year, all_years=args.all)
+
+    elif job == "data_quality_repair":
+        from src.jobs.data_quality_repair import run
+        run(year=(args.year or date.today().year), resolve_run=args.resolve_run)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="F1 Intelligence Data Engine")
@@ -204,10 +212,14 @@ def main() -> None:
         "compute_sprint_predictions",
         "compute_features",
         "compute_predictions",
+        "data_quality_audit",
+        "data_quality_repair",
     ])
     parser.add_argument("--year", type=int, help="Season year (e.g. 2025)")
     parser.add_argument("--round", type=int, dest="round_num", help="Race round number")
     parser.add_argument("--race_id", type=int, help="Race DB id (for feature/prediction jobs)")
+    parser.add_argument("--all", action="store_true", help="data_quality_audit: scan every season")
+    parser.add_argument("--resolve_run", type=int, help="data_quality_repair: audit run id to act on")
     args = parser.parse_args()
 
     try:

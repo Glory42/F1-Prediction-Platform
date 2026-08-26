@@ -140,7 +140,7 @@ def compute_rolling_teammate_delta(
                 JOIN races r ON qr.race_id = r.id
                 WHERE d_cur.id = ANY(%s)
                   AND r.race_date <= %s
-                  AND r.status = ANY(%s)
+                  AND r.status::text = ANY(%s)
             ) sub
             WHERE sub.best_ms IS NOT NULL
             """,

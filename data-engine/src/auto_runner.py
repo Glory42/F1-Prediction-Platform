@@ -120,6 +120,49 @@ def _run_action(action: Action, race_id: int, year: int, round_number: int) -> N
         compute_season_stats.run(year)
 
 
+def _fp2_coverage(conn, race_id: int) -> float:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(DISTINCT driver_id) AS n FROM fp2_long_run_times "
+            "WHERE race_id = %s",
+            (race_id,),
+        )
+        covered = cur.fetchone()["n"]
+        cur.execute(
+            "SELECT COUNT(*) AS n FROM qualifying_results WHERE race_id = %s",
+            (race_id,),
+        )
+        expected = cur.fetchone()["n"]
+    if not expected:
+        return 1.0
+    return covered / expected
+
+
+def _backfill_fp2(log_func, conn, race_id: int, year: int, round_number: int) -> None:
+    """
+    Opportunistic FP2 catch-up while a race sits in `qualifying_done` before the
+    main race. ingest_fp2 only runs once (during MAIN_QUALIFYING); if FastF1 did
+    not have the session data yet it silently returned and was never retried.
+    Each qualifying wait-cycle, if FP2 coverage is still below the model's 0.7
+    fallback gate, retry the ingest and refresh features/predictions on success.
+    """
+    if _fp2_coverage(conn, race_id) >= 0.7:
+        return
+    before = _fp2_coverage(conn, race_id)
+    log_func(f"[auto_runner] FP2 coverage {before:.0%} — retrying FP2 + recompute while waiting for race")
+    try:
+        ingest_fp2.run(year, round_number)
+        after = _fp2_coverage(conn, race_id)
+        if after > before:
+            compute_features.run(race_id)
+            compute_predictions.run(race_id)
+            log_func(f"[auto_runner] FP2 backfilled ({before:.0%} -> {after:.0%}); features/predictions refreshed")
+        else:
+            log_func(f"[auto_runner] FP2 still not available ({after:.0%}); will retry next cycle")
+    except (DataNotLoadedError, InvalidSessionError, NoLapDataError) as e:
+        log_func(f"[auto_runner] FP2 not ready yet: {e}")
+
+
 def run(log_func: Callable[[str], None] = print) -> None:
     log_func("[auto_runner] Waking up to check for pending F1 sessions...")
     conn = get_conn()
@@ -167,8 +210,19 @@ def run(log_func: Callable[[str], None] = print) -> None:
 
         if action is None:
             log_func(f"[auto_runner] Unhandled status '{status}'. Exiting.")
-        elif not action.ready:
+            return
+        if not action.ready:
+            # While the main race hasn't finished the wait window, opportunistically
+            # backfill FP2 (see _backfill_fp2) so a missing-at-qualifying session
+            # still lands before the race starts.
+            if status == "qualifying_done" and action.kind == ActionKind.MAIN_RACE:
+                conn = get_conn()
+                try:
+                    _backfill_fp2(log_func, conn, race_id, year, round_number)
+                finally:
+                    conn.close()
             log_func(f"[auto_runner] {action.label} not finished yet or hasn't reached delay threshold. Exiting.")
+            return
         else:
             log_func(f"[auto_runner] {action.label} time passed. Attempting ingestion...")
             try:

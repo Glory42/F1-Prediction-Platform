@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, numeric, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { races } from './races';
 import { drivers } from './drivers';
 
@@ -26,6 +26,7 @@ export const driverPredictionFeatures = pgTable('driver_prediction_features', {
   rawWeightedScore: numeric('raw_weighted_score', { precision: 8, scale: 6 }).notNull(),
   winProbability: numeric('win_probability', { precision: 6, scale: 5 }).notNull(),
   predictedPosition: integer('predicted_position'),
+  longRunUsedFp2: boolean('long_run_used_fp2'),
 
   computedAt: timestamp('computed_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "data_quality_runs_year_agg_idx" ON "data_quality_runs" USING btree ("year") WHERE "race_id" IS NULL;

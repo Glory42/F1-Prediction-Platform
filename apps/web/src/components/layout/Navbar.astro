@@ -1,8 +1,11 @@
 ---
-import { Home, Flag, Users, Building2, Cpu, Search, Menu, X, type LucideIcon } from 'lucide-react';
+import { Home, Flag, Users, Building2, Cpu, Search, Menu, X, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { GlobalSearch } from '@/features/search/components/GlobalSearch';
 
 const currentPath = Astro.url.pathname;
+// The data-quality dashboard reads development reporting tables — keep it out of
+// the production bundle entirely, only wiring the nav link when running locally.
+const isDev = import.meta.env.DEV;
 
 interface NavDropdownItem {
   href: string;
@@ -47,6 +50,11 @@ const links: NavLink[] = [
   },
   { href: '/prediction', label: 'prediction', icon: Cpu        },
 ];
+
+// Dev-only nav link — appended in local builds so it never ships to production.
+if (isDev) {
+  links.push({ href: '/health-quality', label: 'data quality', icon: ShieldCheck });
+}
 
 function isActive(href: string, dropdown?: NavDropdownItem[]) {
   if (href === '/') return currentPath === '/';

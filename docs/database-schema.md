@@ -42,7 +42,9 @@ seasons
   └── driver_season_stats  (FK → drivers)
   └── team_season_stats    (FK → teams)
 
-circuits   (static, seeded once)
+circuits      (static, seeded once)
+data_quality_runs      (FK → races, race_id nullable for season aggregates)
+  └── data_quality_issues  (FK → runs)
 ```
 
 ---
@@ -345,6 +347,7 @@ One row per driver per grand prix race. Written by `compute_features`, updated b
 | `circuit_adj_start_pos_score` | numeric(6,5) | Starting position scaled by overtake_rate × sc_probability |
 | `circuit_adj_position_gain_score` | numeric(6,5) | Position gain scaled by overtake_rate |
 | `raw_weighted_score` | numeric(8,6) | Weighted sum before softmax |
+| `long_run_used_fp2` | boolean | Whether `long_run_pace_score` came from FP2 data (true) or the historical circuit fallback (false/null) |
 | `win_probability` | numeric(6,5) | After softmax — sums to 1.0 per race |
 | `predicted_position` | integer | 1 = predicted winner |
 | UNIQUE | `(race_id, driver_id)` | |
@@ -396,3 +399,36 @@ One row per sprint weekend — the single predicted sprint winner.
 | `predicted_winner_id` | FK → drivers | |
 | `computed_at` | timestamptz | |
 | `model_version` | varchar(20) | `sprint-v2` |
+
+---
+
+### `data_quality_runs`
+One row per audit pass (season aggregate) or per-race audit. Written by `data_quality_audit`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `year` | integer | Season audited (0 when an all-years scan ran) |
+| `race_id` | FK → races, nullable | Null = season aggregate pass |
+| `generated_at` | timestamptz | |
+| `health_score` | numeric(5,2) | 0–100, per-pass average |
+| `summary` | jsonb | `races_audited`, `issue_count`, `fixable_count`, `by_severity`, `by_table` |
+
+### `data_quality_issues`
+One row per flagged gap. Written by `data_quality_audit`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `run_id` | FK → data_quality_runs | |
+| `race_id` | FK → races, nullable | |
+| `round_number` | integer | |
+| `year` | integer | |
+| `table_name` | varchar(40) | Source table the issue belongs to |
+| `check_name` | varchar(60) | e.g. `driver_coverage`, `lap_coverage`, `row_count` |
+| `severity` | varchar(10) | `high` \| `medium` \| `low` |
+| `detail` | varchar(500) | Human-readable summary |
+| `fixable` | boolean | Whether re-ingest/recompute can close it |
+| `is_sprint` | boolean | Sprint-weekend issue |
+| `resolved` | boolean | Manual triage flag (default false) |
+| `created_at` | timestamptz | |

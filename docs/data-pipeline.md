@@ -33,6 +33,8 @@ All jobs live in `data-engine/src/jobs/`. They are invoked via `src/main.py --jo
 | `ingest_sprint` | Ingests sprint race results, sprint lap times, and sprint conditions (weather, SC/VSC, temps) |
 | `compute_sprint_features` | Computes 8 sprint-specific feature scores per driver |
 | `compute_sprint_predictions` | Runs softmax on sprint feature scores → sprint win probabilities |
+| `data_quality_audit` | Measures per-table completeness/coverage across a season; writes `data_quality_runs` + `data_quality_issues` |
+| `data_quality_repair` | Re-ingests data for open, `fixable` issues reported by the audit, then recomputes the affected features/predictions/season-stats |
 
 ---
 
@@ -134,7 +136,21 @@ python src/main.py --job ingest_sprint_qualifying --year 2026 --round 9
 python src/main.py --job compute_sprint_features  --race_id 55
 python src/main.py --job compute_sprint_predictions --race_id 55
 python src/main.py --job ingest_sprint            --year 2026 --round 9
+
+# Data-quality audit
+python src/main.py --job data_quality_audit --year 2026     # latest season
+python src/main.py --job data_quality_audit --all            # every season in the DB
+
+# Repair fixable gaps found by the audit (act on the latest run for the year)
+python src/main.py --job data_quality_repair --year 2026
+python src/main.py --job data_quality_repair --year 2026 --resolve_run 5
 ```
+
+Repair maps each fixable issue to the ingest+recompute jobs that own that table's
+data (per `quality_utils.resolve_issue_actions`). It does NOT attempt data the source
+API doesn't provide — e.g. FP2 long-run coverage is flagged as informational (the
+model falls back to historical circuit pace) rather than re-ingested, because a driver
+that ran no long-run stint can't be reconstructed.
 
 For pre-2018:
 
