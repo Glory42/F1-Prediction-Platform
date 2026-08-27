@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 export interface CompareLocationAdapter {
   getSearchParams(): URLSearchParams;
@@ -74,6 +74,15 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The mount-hydration effect (below) sets `year` from the URL, which also
+  // triggers the year-tracking effect (also below) to re-fetch that year's
+  // items. Rather than both effects independently fetching the same year (a
+  // race where the year-tracking effect's fetch callback closes over a stale
+  // aId/bId and can clobber the URL's a/b params), the mount effect stashes
+  // its desired a/b here and the year-tracking effect's single fetch applies
+  // them once — one fetch, one place that resolves the final aId/bId.
+  const pendingHydrationRef = useRef<{ aId?: number; bId?: number } | null>(null);
+
   useEffect(() => {
     const params = locationAdapter.getSearchParams();
     const paramYear = params.get('year');
@@ -90,17 +99,12 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
       if (paramA) setAId(parseInt(paramA));
       if (paramB) setBId(parseInt(paramB));
     } else if (paramYear && parseInt(paramYear) !== defaultYear) {
-      const targetYear = parseInt(paramYear);
-      fetchItemsForYear(targetYear)
-        .then((list) => {
-          setItems(list);
-          if (paramA) setAId(parseInt(paramA));
-          else if (list[0]) setAId(list[0].id);
-
-          if (paramB) setBId(parseInt(paramB));
-          else if (list[1]) setBId(list[1].id);
-        })
-        .catch((err) => console.error(`Failed to load ${entityLabel} for url year`, err));
+      // Let the year-tracking effect perform the fetch for this year; hand it
+      // the a/b ids to apply once that fetch resolves.
+      pendingHydrationRef.current = {
+        aId: paramA ? parseInt(paramA) : undefined,
+        bId: paramB ? parseInt(paramB) : undefined,
+      };
     } else {
       if (paramA) setAId(parseInt(paramA));
       if (paramB) setBId(parseInt(paramB));
@@ -127,10 +131,16 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
       .then((data) => {
         if (!active) return;
         setItems(data);
-        if (data.length > 0) {
-          if (!data.some((i) => i.id === aId)) setAId(data[0].id);
-          if (!data.some((i) => i.id === bId)) setBId(data[1]?.id || data[0].id);
-        }
+        if (data.length === 0) return;
+
+        const pending = pendingHydrationRef.current;
+        pendingHydrationRef.current = null;
+
+        if (pending?.aId !== undefined) setAId(pending.aId);
+        else if (!data.some((i) => i.id === aId)) setAId(data[0].id);
+
+        if (pending?.bId !== undefined) setBId(pending.bId);
+        else if (!data.some((i) => i.id === bId)) setBId(data[1]?.id || data[0].id);
       })
       .catch((err) => {
         console.error(`Failed to load ${entityLabel} for year`, year, err);

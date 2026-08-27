@@ -111,20 +111,31 @@ apps/api/
 │       ├── 0001_useful_old_lace.sql     # Schema additions
 │       └── meta/                        # Drizzle migration metadata (_journal.json, snapshots)
 ├── tests/
-│   └── unit/
-│       ├── modules/
-│       │   └── quality/           # quality.service test (severity casting)
-│       └── common/                # bun test — mirrors src/common/, one *.test.ts per file
-│           ├── mappers.test.ts
-│           ├── collections.test.ts
-│           ├── standings.test.ts
-│           ├── prediction-response.test.ts
-│           ├── cache.test.ts
-│           └── accuracy.test.ts
+│   ├── unit/
+│   │   ├── modules/
+│   │   │   └── quality/           # quality.service test (severity casting)
+│   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
+│   │       ├── mappers.test.ts
+│   │       ├── collections.test.ts
+│   │       ├── standings.test.ts
+│   │       ├── prediction-response.test.ts
+│   │       ├── cache.test.ts
+│   │       └── accuracy.test.ts
+│   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
+│   │   ├── races/races.test.ts     # list/filter/detail/circuit-history joins
+│   │   ├── drivers/drivers.test.ts # list/filter/standings/detail
+│   │   ├── teams/teams.test.ts     # list/standings/detail
+│   │   ├── seasons/seasons.test.ts # race-count aggregation
+│   │   └── search/search.test.ts   # cross-season dedup
+│   └── support/
+│       ├── app/request.ts          # apiRequest() — in-process app.request() with TEST_DATABASE_URL env
+│       ├── db/test-db.ts           # getTestDb()/truncateAll() — refuses to truncate if TEST_DATABASE_URL === DATABASE_URL
+│       └── factories/              # one insert helper per table, FK chain: season → team/circuit → driver → race → results
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
 ├── tsconfig.node.json             # Node target for drizzle.config.ts + seed.ts (@types/node)
+├── .env.example                   # DATABASE_URL + TEST_DATABASE_URL
 └── package.json
 ```
 
@@ -274,13 +285,20 @@ apps/web/
 │   ├── favicon.svg
 │   └── teams/                     # Static team logo files (PNG/SVG/JPG) served at /teams/<teamKey>.*
 ├── tests/
-│   └── unit/                      # Vitest — pure logic only, no .astro/hook rendering
-│       ├── compare/
-│       │   └── compareStats.test.ts   # aggregateCareerStats()
-│       └── lib/
-│           ├── teamColors.test.ts
-│           └── teamLogos.test.ts
-├── vitest.config.ts
+│   ├── unit/
+│   │   ├── compare/
+│   │   │   ├── compareStats.test.ts          # aggregateCareerStats() — pure, `node` env
+│   │   │   └── useCompareController.test.ts  # jsdom — URL hydration, career mode, location-adapter seam
+│   │   ├── lib/
+│   │   │   ├── teamColors.test.ts            # pure, `node` env
+│   │   │   └── teamLogos.test.ts             # pure, `node` env
+│   │   └── features/search/                  # jsdom — hook + component tests, MSW-mocked API
+│   │       ├── useGlobalSearch.test.ts
+│   │       └── GlobalSearch.test.tsx
+│   └── support/
+│       ├── setup.ts                # jest-dom matchers, MSW server lifecycle, ResizeObserver stub for cmdk
+│       └── msw/                    # fixtures.ts + handlers.ts — mocks src/lib/api.ts endpoints
+├── vitest.config.ts                # jsdom is opt-in per file via `// @vitest-environment jsdom`; default env is `node`
 ├── wrangler.toml                  # CF Pages config — keep_vars = true, PUBLIC_API_URL
 ├── astro.config.mjs               # output: 'server', Cloudflare adapter
 ├── tailwind.config.mjs
@@ -329,15 +347,25 @@ Own package — see `docs/adr/0001-apps-layout-scoped-to-js-bun.md` for why this
 HTTP server stands in for `apps/api` since the pages under test fetch data server-side (in Astro
 frontmatter), where Playwright's own request interception can't reach.
 
+The fixture server also needs CORS headers (`Access-Control-Allow-Origin`), even though every
+other route is only ever hit server-side: `GlobalSearch`/`DriverCompareTool`/`TeamCompareTool`
+fetch client-side (the sanctioned exception in the web app's data-fetching rule), so from the
+browser that's a real cross-origin request to the fixture server's port, subject to the same CORS
+enforcement the real Hono API's `cors()` middleware handles in production.
+
 ```
 apps/e2e/
 ├── fixtures/
 │   ├── data.ts                    # Typed fixture objects (Driver, Race, PredictionResponse, ...)
-│   └── server.ts                  # Bun.serve() — serves { data, error: null } for the routes under test
+│   └── server.ts                  # Bun.serve() — serves { data, error: null } + CORS headers for the routes under test
 ├── tests/
 │   └── smoke/
-│       ├── prediction.spec.ts     # /prediction renders against fixture data
-│       └── race-detail.spec.ts    # /races/1 renders against fixture data
+│       ├── prediction.spec.ts      # /prediction renders against fixture data
+│       ├── race-detail.spec.ts     # /races/1 renders against fixture data
+│       ├── driver-detail.spec.ts   # /drivers/10 — stats grid + recent results
+│       ├── team-detail.spec.ts     # /teams/1 — stats + driver roster
+│       ├── global-search.spec.ts   # Cmd/Ctrl+K opens, shows results, Escape closes (client-side fetch)
+│       └── driver-compare.spec.ts  # /drivers/compare — URL-param-driven season comparison (client-side fetch)
 ├── playwright.config.ts           # webServer: [fixture server, `astro dev` in ../web]
 ├── tsconfig.json
 └── package.json
@@ -399,13 +427,18 @@ data-engine/
 │   ├── backfill_all_predictions.py # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
 │   ├── backfill_historical.sh     # Shell loop over sync_schedule/ingest/compute for a year range
 │   └── populate_all.sh            # One-time population run for 2021–2025
-├── tests/                         # pytest — pure-function unit tests only, no DB mocking
-│   ├── conftest.py                # Placeholder DATABASE_URL so importing job modules doesn't need a real .env
-│   ├── test_math_utils.py         # normalize_minmax, softmax, bayesian_win_rate, clamp, weighted_sum
-│   ├── test_quality_utils.py      # health_from_issues + resolve_issue_actions
+├── tests/                          # pytest — pure functions directly; DB-touching functions via a fake-db double
+│   ├── conftest.py                 # Placeholder DATABASE_URL so importing job modules doesn't need a real .env
+│   ├── support/
+│   │   └── fake_db.py              # FakeCursor/FakeConnection — scripted RealDictCursor-shaped rows, no real DB
+│   ├── test_math_utils.py          # normalize_minmax, softmax, bayesian_win_rate, clamp, weighted_sum
+│   ├── test_quality_utils.py       # health_from_issues + resolve_issue_actions
 │   ├── test_feature_helpers_pure.py # car_rank, circuit_adj_start_pos
-│   ├── test_weights.py            # WEIGHTS sum-to-1 + positivity, both models
-│   └── test_prediction_ranking.py # rank_by_probability
+│   ├── test_feature_helpers_db.py  # compute_weather_score, compute_luck_score — via fake_db
+│   ├── test_feature_context.py     # build_feature_context, build_driver_code_map — via fake_db
+│   ├── test_fastf1_helpers.py      # ms_to_int (the one pure function in fastf1_helpers.py)
+│   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, both models
+│   └── test_prediction_ranking.py  # rank_by_probability
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 ├── requirements-dev.txt           # requirements.txt + pytest
