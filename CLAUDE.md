@@ -20,15 +20,27 @@ it's Python, and its jobs run once and exit rather than being a long-running dev
 `docs/adr/0001-apps-layout-scoped-to-js-bun.md`.
 
 ### Where tests live
-- `data-engine/tests/` — pytest, pure-function unit tests only (`math_utils.py`, pure `feature_helpers.py`
-  helpers, model `WEIGHTS` invariants). DB-touching functions are not mocked/tested.
+- `data-engine/tests/` — pytest. Pure functions (`math_utils.py`, pure `feature_helpers.py` helpers, model
+  `WEIGHTS` invariants) are tested directly. DB-touching functions (`compute_weather_score`, `compute_luck_score`,
+  `build_feature_context`, `build_driver_code_map`) are tested via `tests/support/fake_db.py` — a scripted
+  `FakeCursor`/`FakeConnection` double shaped like psycopg2's `RealDictCursor`, no real DB. Deeper ETL
+  orchestration (`ingest_runner.py`, `upsert.py`, `prediction_runner.py`) is still untested.
 - `apps/api/tests/unit/` — `bun test`, mirrors `src/` by domain (e.g. `tests/unit/common/mappers.test.ts`
-  tests `src/common/mappers.ts`). Currently covers the shared `src/common/` mapper/aggregation layer only —
-  full service-layer tests against a real DB are a future addition, not yet started.
-- `apps/web/tests/unit/` — Vitest, pure logic only (feature helpers like `compareStats.ts`, `lib/` lookups).
-  Does not cover React hooks (`useCompareController`, `useGlobalSearch`) or `.astro` component rendering.
+  tests `src/common/mappers.ts`). Covers the shared `src/common/` mapper/aggregation layer.
+- `apps/api/tests/integration/` — `bun test`, real Hono `app.request()` calls against a dedicated Neon test
+  branch (`TEST_DATABASE_URL` in `.env`, separate from `DATABASE_URL` — see `.env.example`). Seeds its own
+  fixtures per file via `tests/support/factories/` and truncates after (`tests/support/db/test-db.ts`).
+  Covers `races`, `drivers`, `teams`, `seasons`, `search`; `predictions`/`sprint`/`quality` are not yet covered.
+- `apps/web/tests/unit/` — Vitest. Pure logic (`compareStats.ts`, `lib/` lookups) runs under the default `node`
+  environment. Hook/component tests (`useCompareController`, `useGlobalSearch`, `GlobalSearch`) opt into `jsdom`
+  per-file via a `// @vitest-environment jsdom` docblock, use Testing Library, and mock `src/lib/api.ts`'s
+  endpoints with MSW (`tests/support/msw/`). `.astro` component rendering is still not covered.
 - `apps/e2e/tests/smoke/` — Playwright, drives a real browser against `astro dev` with a fixture API server
-  (`apps/e2e/fixtures/`) standing in for `apps/api`. Only `/prediction` and `/races/[id]` are covered.
+  (`apps/e2e/fixtures/`) standing in for `apps/api`. Covers `/prediction`, `/races/[id]`, `/drivers/[id]`,
+  `/teams/[id]`, `/drivers/compare`, and the global search command palette. The fixture server sends CORS
+  headers because `GlobalSearch`/`DriverCompareTool`/`TeamCompareTool` fetch client-side (see the data-fetching
+  exception below) — that's a real cross-origin browser request, unlike every other route which is only ever
+  hit server-side from Astro frontmatter.
 
 Test files are never co-located with source — always under the app's `tests/` (or `apps/e2e/tests/`) directory,
 mirroring the source path being tested.
