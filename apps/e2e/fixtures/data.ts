@@ -2,6 +2,8 @@ import type {
   Circuit, Team, Driver, Race, RaceResult, QualifyingResult, LapSummary,
   FeatureScores, DriverPrediction, PredictionResponse, RaceDetailResponse,
   PredictionHistoryItem, IntelStandingRow, SeasonSummary, ModelInfo, CircuitDetailResponse,
+  DriverSeasonStats, DriverYearStats, DriverDetailResponse, TeamSeasonStats, TeamYearStats,
+  TeamDetailResponse, DriverStanding,
 } from '../../web/src/types';
 
 export const circuit: Circuit = {
@@ -107,6 +109,64 @@ export const seasons: SeasonSummary[] = [
 ];
 
 export const modelInfo: ModelInfo = { gpVersion: 'weighted-v3', sprintVersion: 'sprint-v2' };
+
+const driverSeasonStats: DriverSeasonStats = {
+  racesEntered: 16, racesFinished: 15, wins: 8, podiums: 12, poles: 6,
+  totalPoints: '350', championshipPosition: 1, avgFinishPosition: '2.1',
+  winRate: '0.500', avgPositionGain: '1.2', dnfCount: 1, dnfRate: '0.06',
+  avgSector1Ms: null, avgSector2Ms: null, avgSector3Ms: null, topSpeedAvg: null, teammateQualiDelta: null,
+};
+
+const driverBSeasonStats: DriverSeasonStats = {
+  ...driverSeasonStats, wins: 3, podiums: 9, poles: 2, totalPoints: '210', championshipPosition: 2,
+};
+
+export const driverCareer: DriverYearStats[] = [
+  { year: 2026, driverId: 10, driverNumberThatYear: 1, teamName: 'Red Bull Racing', headshotUrl: null, stats: driverSeasonStats },
+];
+
+export const driverBCareer: DriverYearStats[] = [
+  { year: 2026, driverId: 11, driverNumberThatYear: 16, teamName: 'Ferrari', headshotUrl: null, stats: driverBSeasonStats },
+];
+
+export const driverDetailResponse: DriverDetailResponse = {
+  driver,
+  seasonStats: driverSeasonStats,
+  recentResults: [
+    { ...raceResults[0], race: { name: 'Italian Grand Prix', raceDate: '2025-09-07' } },
+  ],
+};
+
+export const driverBDetailResponse: DriverDetailResponse = {
+  driver: driverB,
+  seasonStats: driverBSeasonStats,
+  recentResults: [
+    { ...raceResults[1], race: { name: 'Italian Grand Prix', raceDate: '2025-09-07' } },
+  ],
+};
+
+const teamSeasonStats: TeamSeasonStats = {
+  racesCompleted: 16, wins: 8, podiums: 15, totalPoints: '600',
+  championshipPosition: 1, avgFinishPosition: '3.5', carPerformanceScore: '0.85',
+  dnfCount: 2, reliabilityScore: '0.90',
+};
+
+export const teamCareer: TeamYearStats[] = [
+  { year: 2026, teamId: 1, stats: teamSeasonStats },
+];
+
+export const teamDetailResponse: TeamDetailResponse = {
+  team, seasonStats: teamSeasonStats, drivers: [driver],
+};
+
+export const driverStandingsResponse: DriverStanding[] = [
+  { driver, stats: driverSeasonStats },
+  { driver: driverB, stats: driverBSeasonStats },
+];
+
+export const driversListResponse: Driver[] = [driver, driverB];
+
+export const globalSearchResponse = { drivers: [driver, driverB], teams: [team, teamB], circuits: [circuit] };
 
 export const circuitDetailResponse: CircuitDetailResponse = {
   circuit,
