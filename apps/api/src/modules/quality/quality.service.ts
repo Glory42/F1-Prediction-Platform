@@ -57,14 +57,4 @@ export class QualityService {
       issues,
     };
   }
-
-  async findYears(db: Db): Promise<number[]> {
-    const rows = await db
-      .select({ year: dataQualityRuns.year })
-      .from(dataQualityRuns)
-      .where(isNull(dataQualityRuns.raceId))
-      .groupBy(dataQualityRuns.year)
-      .orderBy(desc(dataQualityRuns.year));
-    return rows.map((r) => r.year);
-  }
 }

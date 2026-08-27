@@ -190,7 +190,7 @@ def _dispatch(job: str, args) -> None:
 
     elif job == "data_quality_audit":
         from src.jobs.data_quality_audit import run
-        run(year=args.year, all_years=args.all)
+        run(year=(args.year or date.today().year), all_years=args.all)
 
     elif job == "data_quality_repair":
         from src.jobs.data_quality_repair import run

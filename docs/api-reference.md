@@ -398,10 +398,6 @@ Returns the latest data-quality audit report for a season (records produced by t
 }
 ```
 
-### `GET /api/quality/years`
-
-Returns the list of years that have at least one audit report.
-
 ---
 
 ## Error Codes

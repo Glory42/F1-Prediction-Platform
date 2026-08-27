@@ -146,9 +146,9 @@ def _backfill_fp2(log_func, conn, race_id: int, year: int, round_number: int) ->
     Each qualifying wait-cycle, if FP2 coverage is still below the model's 0.7
     fallback gate, retry the ingest and refresh features/predictions on success.
     """
-    if _fp2_coverage(conn, race_id) >= 0.7:
-        return
     before = _fp2_coverage(conn, race_id)
+    if before >= 0.7:
+        return
     log_func(f"[auto_runner] FP2 coverage {before:.0%} — retrying FP2 + recompute while waiting for race")
     try:
         ingest_fp2.run(year, round_number)

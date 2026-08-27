@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import type { Bindings } from '../../common/types';
 import { createDb } from '../../config/database';
 import { QualityService } from './quality.service';
-import { CACHE_ACTIVE } from '../../common/cache';
+import { cacheControlForYear } from '../../common/cache';
 
 const service = new QualityService();
 
@@ -13,12 +13,7 @@ export const QualityController = {
     if (!data) {
       return c.json({ data: null, error: { code: 'NOT_FOUND', message: `No quality report for ${year}` } }, 404);
     }
-    c.header('Cache-Control', CACHE_ACTIVE);
-    return c.json({ data, error: null });
-  },
-
-  getYears: async (c: Context<{ Bindings: Bindings }>) => {
-    const data = await service.findYears(createDb(c.env.DATABASE_URL));
+    c.header('Cache-Control', cacheControlForYear(year));
     return c.json({ data, error: null });
   },
 };

@@ -102,9 +102,9 @@ apps/api/
 │           ├── search.controller.ts
 │           └── search.module.ts   # GET /
 │       └── quality/
-│           ├── quality.service.ts # Latest data-quality report + years list (reads data_quality_runs/issues)
+│           ├── quality.service.ts # Latest data-quality report (reads data_quality_runs/issues)
 │           ├── quality.controller.ts
-│           └── quality.module.ts  # GET /, /years — dev-only reporting (no write path)
+│           └── quality.module.ts  # GET / — dev-only reporting (no write path)
 ├── drizzle/
 │   └── migrations/                # Generated SQL migration files + Drizzle metadata
 │       ├── 0000_glamorous_galactus.sql  # Initial schema
