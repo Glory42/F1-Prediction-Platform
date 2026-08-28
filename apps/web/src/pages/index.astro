@@ -27,13 +27,27 @@ const completed = races.filter((r) => r.status === 'completed').sort((a, b) => b
 const upcoming  = races.filter((r) => r.status !== 'completed').sort((a, b) => a.roundNumber - b.roundNumber);
 
 const heroRace = prediction?.race ?? upcoming[0] ?? null;
-const calendarRaces = upcoming.filter((r) => r.id !== heroRace?.id).slice(0, 6);
-// For sprint weekends, show both a sprint entry and a GP entry
+// Sprint weekends get a sprint entry (Saturday) then a GP entry (Sunday) — chronological,
+// matching the soonest-first order of this section.
+const calendarEntries = upcoming
+  .filter((r) => r.id !== heroRace?.id)
+  .slice(0, 6)
+  .flatMap((race) =>
+    race.hasSprint
+      ? [
+          { race, isSprint: true,  date: race.sprintDate ?? race.raceDate, href: `/races/${race.id}/sprint` },
+          { race, isSprint: false, date: race.raceDate,                    href: `/races/${race.id}` },
+        ]
+      : [{ race, isSprint: false, date: race.raceDate, href: `/races/${race.id}` }]
+  )
+  .slice(0, 6);
+// For sprint weekends, show both a GP entry and a sprint entry — GP (Sunday) first
+// to match the newest-first ordering the rest of the list uses.
 const archiveEntries = completed.slice(0, 6).flatMap((race) =>
   race.hasSprint
     ? [
-        { race, isSprint: true,  date: race.sprintDate ?? race.raceDate, href: `/races/${race.id}/sprint` },
         { race, isSprint: false, date: race.raceDate,                    href: `/races/${race.id}` },
+        { race, isSprint: true,  date: race.sprintDate ?? race.raceDate, href: `/races/${race.id}/sprint` },
       ]
     : [{ race, isSprint: false, date: race.raceDate, href: `/races/${race.id}` }]
 ).slice(0, 8);
@@ -202,7 +216,7 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
   )}
 
   <!-- ── UPCOMING ROUNDS ────────────────────────────────────────────── -->
-  {calendarRaces.length > 0 && (
+  {calendarEntries.length > 0 && (
     <section class="mb-12">
       <div class="flex items-center gap-3 mb-5">
         <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><CalendarDays size={11} />./calendar</span>
@@ -214,22 +228,22 @@ const confidence = prediction ? Math.round(Number(podium[0]?.winProbability ?? 0
       <h2 class="text-xl font-bold mb-5">Upcoming Rounds</h2>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/[0.06]">
-        {calendarRaces.map((race) => (
+        {calendarEntries.map(({ race, isSprint, date, href }) => (
           <a
-            href={`/races/${race.id}`}
-            class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group"
+            href={href}
+            class={`bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group ${isSprint ? 'bg-[rgba(249,115,22,0.02)]' : ''}`}
           >
             <div class="flex items-center gap-2 font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase mb-3">
               <span class="flex items-center gap-1.5"><Flag size={10} />R{race.roundNumber.toString().padStart(2, '0')} · {race.circuit.country}</span>
-              {race.hasSprint && (
+              {isSprint && (
                 <span class="font-mono text-[7px] tracking-[0.15em] uppercase px-1.5 py-0.5 border border-orange-500/35 text-orange-400/75">SPRINT</span>
               )}
             </div>
-            <div class="font-semibold text-sm leading-snug mb-2 group-hover:text-[#a855f7] transition-colors duration-150">
-              {race.name}
+            <div class={`font-semibold text-sm leading-snug mb-2 transition-colors duration-150 ${isSprint ? 'group-hover:text-orange-400' : 'group-hover:text-[#a855f7]'}`}>
+              {race.name}{isSprint && ' — Sprint'}
             </div>
             <div class="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground tracking-widest">
-              <CalendarDays size={10} />{formatDate(race.raceDate)}
+              <CalendarDays size={10} />{formatDate(date)}
             </div>
           </a>
         ))}
