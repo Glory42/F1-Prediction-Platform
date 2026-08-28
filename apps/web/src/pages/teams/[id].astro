@@ -148,9 +148,8 @@ const compareRows: CompareRow[] = d1 && d2 ? [
             </div>
 
             {d1 && d2 && compareRows.length > 0 ? (
-              <!-- Comparison layout (2 drivers with stats) -->
               <div class="border border-white/[0.06]">
-                <!-- Driver headers -->
+                {/* Driver headers */}
                 <div class="grid grid-cols-[1fr_90px_1fr] border-b border-white/[0.06]">
                   <a href={`/drivers/${d1.driver.id}?year=${year}`} class="flex items-center gap-3 p-4 hover:bg-white/[0.02] transition-colors group" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
                     {d1.driver.headshotUrl ? (
@@ -212,7 +211,6 @@ const compareRows: CompareRow[] = d1 && d2 ? [
                 })}
               </div>
             ) : (
-              <!-- Fallback: plain driver cards (1 driver or no standings data) -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
                 {data.drivers.map((d) => (
                   <a href={`/drivers/${d.id}?year=${year}`} class="bg-black hover:bg-white/[0.02] p-5 transition-colors duration-150 group flex items-center gap-4" style={`border-left: 2px solid ${getTeamColor(team.teamKey)};`}>
