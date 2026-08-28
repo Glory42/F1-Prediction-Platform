@@ -2,13 +2,14 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from enum import Enum
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import pandas as pd
 import fastf1
 from fastf1.core import DataNotLoadedError, InvalidSessionError, NoLapDataError
 from src.db.client import get_conn
 from src.utils.logging_utils import log_job_failure
+from src.utils.schedule_window import race_weekend_window
 
 # Import jobs
 from src.jobs import (
@@ -40,11 +41,12 @@ class Action:
     job_name: str
 
 
-def _is_ready(session_date_utc: Optional[pd.Timestamp], delay_hours: float, now: datetime) -> bool:
-    if pd.isna(session_date_utc):
+def _is_ready(session_date_utc: Any, delay_hours: float, now: datetime) -> bool:
+    # FastF1 returns timezone-naive pandas Timestamps in UTC; None/NaT collapse to pd.NaT here.
+    session_ts = pd.Timestamp(session_date_utc)
+    if session_ts is pd.NaT:
         return False
-    # FastF1 returns timezone-naive pandas Timestamps in UTC, convert to timezone-aware UTC datetime
-    session_time = session_date_utc.to_pydatetime().replace(tzinfo=timezone.utc)
+    session_time = session_ts.to_pydatetime().replace(tzinfo=timezone.utc)
     return now >= session_time + timedelta(hours=delay_hours)
 
 
@@ -163,9 +165,64 @@ def _backfill_fp2(log_func, conn, race_id: int, year: int, round_number: int) ->
         log_func(f"[auto_runner] FP2 not ready yet: {e}")
 
 
-def run(log_func: Callable[[str], None] = print) -> None:
+ACTIVE_POLL_SECONDS = 20 * 60
+IDLE_POLL_SECONDS = 6 * 60 * 60
+
+
+def _default_schedule_fetcher(now_utc: datetime) -> "pd.DataFrame":
+    return fastf1.get_event_schedule(now_utc.year, include_testing=False)
+
+
+def next_poll_interval_seconds(
+    *,
+    now_utc: Optional[datetime] = None,
+    fetch_schedule: Optional[Callable[[], "pd.DataFrame"]] = None,
+) -> int:
+    """How long the worker loop should sleep before the next auto_runner cycle:
+    ACTIVE during a race-weekend window (or when the schedule can't be fetched —
+    fail-safe), IDLE otherwise."""
+    now_utc = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    fetch = fetch_schedule or (lambda: _default_schedule_fetcher(now_utc))
+    try:
+        window = race_weekend_window(fetch(), now_utc)
+    except Exception:
+        return ACTIVE_POLL_SECONDS
+    if window is not None and window.contains(now_utc):
+        return ACTIVE_POLL_SECONDS
+    return IDLE_POLL_SECONDS
+
+
+def run(
+    log_func: Callable[[str], None] = print,
+    *,
+    now_utc: Optional[datetime] = None,
+    fetch_schedule: Optional[Callable[[], "pd.DataFrame"]] = None,
+    conn_factory: Callable[[], Any] = get_conn,
+) -> None:
     log_func("[auto_runner] Waking up to check for pending F1 sessions...")
-    conn = get_conn()
+
+    now_utc = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    fetch = fetch_schedule or (lambda: _default_schedule_fetcher(now_utc))
+
+    try:
+        gate_schedule = fetch()
+    except Exception as e:
+        # Fail-safe: a transient FastF1 outage must not skip a live race weekend.
+        gate_schedule = None
+        log_func(f"[auto_runner] Race-weekend gate schedule fetch failed ({e}); proceeding without the gate.")
+
+    if gate_schedule is not None:
+        window = race_weekend_window(gate_schedule, now_utc)
+        if window is None or not window.contains(now_utc):
+            detail = (
+                f"next window opens {window.start:%Y-%m-%d %H:%MZ}"
+                if window
+                else "no upcoming race on the calendar"
+            )
+            log_func(f"[auto_runner] Outside a race-weekend window ({detail}); skipping the database check.")
+            return
+
+    conn = conn_factory()
     try:
         with conn.cursor() as cur:
             # Find the most recent active race
@@ -202,8 +259,6 @@ def run(log_func: Callable[[str], None] = print) -> None:
     except Exception as e:
         log_func(f"[auto_runner] Failed to fetch schedule from FastF1: {e}")
         return
-
-    now_utc = datetime.now(timezone.utc)
 
     try:
         action = decide_next_action(status=status, is_sprint=is_sprint, event=event, now=now_utc)

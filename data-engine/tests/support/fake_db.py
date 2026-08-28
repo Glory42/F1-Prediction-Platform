@@ -31,6 +31,14 @@ class FakeConnection:
     def __init__(self, queued_rows: list[list[dict] | dict | None]):
         self._queue = list(queued_rows)
         self.cursors: list[FakeCursor] = []
+        self.closed = False
+        self.commits = 0
+
+    def close(self):
+        self.closed = True
+
+    def commit(self):
+        self.commits += 1
 
     def cursor(self):
         next_rows = self._queue.pop(0) if self._queue else []
