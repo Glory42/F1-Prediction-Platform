@@ -1,0 +1,153 @@
+---
+import { X } from 'lucide-react';
+import { isNavActive, type NavLink } from './navLinks';
+
+interface Props {
+  links: NavLink[];
+  currentPath: string;
+}
+
+const { links, currentPath } = Astro.props;
+---
+
+<!-- Mobile Sidebar Drawer -->
+<div
+  id="mobile-sidebar"
+  class="glass-heavy fixed inset-y-0 left-0 z-50 w-[260px] border-r border-white/[0.08] transform -translate-x-full transition-transform duration-300 ease-spring sm:hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Navigation menu"
+  tabindex="-1"
+>
+  <div class="flex flex-col h-full p-6 space-y-6">
+    <div class="flex items-center justify-between pb-4 border-b border-white/[0.06]">
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-[6px] w-[6px]">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a855f7] opacity-50" />
+          <span class="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#a855f7]" />
+        </span>
+        <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-[#a855f7]">menu</span>
+      </div>
+      <button id="mobile-sidebar-close" class="press text-muted-foreground hover:text-foreground focus:outline-none" aria-label="Close menu">
+        <X size={16} />
+      </button>
+    </div>
+
+    <nav class="flex flex-col space-y-4">
+      {links.map((link) => {
+        const { href, label, icon: Icon, dropdown } = link;
+        const active = isNavActive(currentPath, href, dropdown);
+        if (dropdown) {
+          return (
+            <div class="space-y-2">
+              <button
+                class="w-full flex items-center justify-between font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground hover:text-white py-1.5 text-left mobile-dropdown-toggle focus:outline-none group"
+                data-target={`mobile-dropdown-${label}`}
+              >
+                <span class="flex items-center gap-2.5">
+                  <Icon size={13} className={active ? 'text-[#a855f7]' : ''} />
+                  {label}
+                </span>
+                <span class="text-[7px] text-muted-foreground/60 transition-transform duration-200 group-hover:text-white">▼</span>
+              </button>
+              <div id={`mobile-dropdown-${label}`} class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-spring">
+                <div class="overflow-hidden min-h-0">
+                  <div class="pl-4 border-l border-white/[0.06] flex flex-col space-y-3 mt-1 opacity-0 transition-opacity duration-200 mobile-dropdown-content">
+                    {dropdown.map((sub) => (
+                      <a href={sub.href} class="block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-white py-0.5 transition-colors">
+                        {sub.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <a
+            href={href}
+            class={`flex items-center gap-2.5 font-mono text-[10px] tracking-[0.18em] uppercase py-1.5 transition-colors ${
+              active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-white'
+            }`}
+          >
+            <Icon size={13} />
+            {label}
+          </a>
+        );
+      })}
+    </nav>
+  </div>
+</div>
+
+<div id="mobile-sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-45 hidden sm:hidden transition-opacity duration-300 opacity-0" />
+
+<script>
+  function initMobileMenu() {
+    const toggleBtn = document.getElementById('mobile-menu-toggle');
+    const closeBtn = document.getElementById('mobile-sidebar-close');
+    const sidebar = document.getElementById('mobile-sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+
+    if (!toggleBtn || !sidebar || !backdrop) return;
+
+    const getFocusable = (): HTMLElement[] =>
+      Array.from(sidebar!.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'));
+
+    function trapFocus(e: KeyboardEvent) {
+      if (e.key === 'Escape') return closeMenu();
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    function openMenu() {
+      sidebar!.classList.remove('-translate-x-full');
+      backdrop!.classList.remove('hidden');
+      toggleBtn!.setAttribute('aria-expanded', 'true');
+      setTimeout(() => backdrop!.classList.add('opacity-100'), 10);
+      document.addEventListener('keydown', trapFocus);
+      (getFocusable()[0] ?? sidebar!).focus();
+    }
+
+    function closeMenu() {
+      sidebar!.classList.add('-translate-x-full');
+      backdrop!.classList.remove('opacity-100');
+      toggleBtn!.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('keydown', trapFocus);
+      setTimeout(() => backdrop!.classList.add('hidden'), 300);
+      toggleBtn!.focus();
+    }
+
+    toggleBtn.addEventListener('click', openMenu);
+    closeBtn?.addEventListener('click', closeMenu);
+    backdrop.addEventListener('click', closeMenu);
+
+    document.querySelectorAll('.mobile-dropdown-toggle').forEach((toggle) => {
+      toggle.addEventListener('click', (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const panel = document.getElementById(btn.getAttribute('data-target') || '');
+        if (!panel) return;
+        const content = panel.querySelector('.mobile-dropdown-content');
+        const arrow = btn.querySelector('span:last-child');
+        const collapsed = panel.classList.contains('grid-rows-[0fr]');
+        panel.classList.toggle('grid-rows-[0fr]', !collapsed);
+        panel.classList.toggle('grid-rows-[1fr]', collapsed);
+        content?.classList.toggle('opacity-0', !collapsed);
+        content?.classList.toggle('opacity-100', collapsed);
+        arrow?.classList.toggle('rotate-180', collapsed);
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initMobileMenu);
+</script>

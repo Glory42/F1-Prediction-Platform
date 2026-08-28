@@ -1,0 +1,46 @@
+---
+import { ChevronRight, User } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
+import type { CircuitHistoryItem } from '@/types';
+
+interface Props {
+  history: CircuitHistoryItem[];
+}
+
+const { history } = Astro.props;
+---
+
+<div>
+  <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">Recent Winners</h2>
+  <div class="border border-white/[0.06]">
+    {history.length > 0 ? history.map((race, i) => (
+      <a href={`/races/${race.raceId}`} class={`group flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
+        <div class="flex items-center gap-4">
+          <span class="font-mono text-[10px] text-muted-foreground w-8">{race.year}</span>
+          {race.winner ? (
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 shrink-0 border-b-2 overflow-hidden bg-white/[0.02] flex items-end justify-center" style={`border-color: ${getTeamColor(race.winner.team.teamKey)}`}>
+                {race.winner.headshotUrl ? (
+                  <img src={race.winner.headshotUrl} alt={race.winner.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
+                ) : (
+                  <User size={24} className="text-white/20 mb-1" />
+                )}
+              </div>
+              <div class="flex flex-col">
+                <span class="font-medium text-sm transition-colors group-hover:text-purple-400">{race.winner.fullName}</span>
+                <span class="font-mono text-[9px] tracking-widest uppercase text-muted-foreground mt-0.5">{race.winner.team.name}</span>
+              </div>
+            </div>
+          ) : (
+            <span class="font-medium text-sm text-muted-foreground">N/A</span>
+          )}
+        </div>
+        <ChevronRight size={12} className="text-white/20 shrink-0" />
+      </a>
+    )) : (
+      <div class="p-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
+        No historical races yet
+      </div>
+    )}
+  </div>
+</div>

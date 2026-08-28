@@ -1,78 +1,24 @@
 import { useMemo } from 'react';
 import { api } from '@/lib/api';
-import type { Driver, DriverDetailResponse, DriverSeasonStats, DriverYearStats, SeasonSummary } from '@/types';
+import type { Driver, DriverDetailResponse, DriverYearStats, SeasonSummary } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 import { getNationalityFlag, getDriverFlagByCode } from '@/lib/countryFlags';
-import { aggregateCareerStats, DEFAULT_COMPARE_YEAR, type CareerTotals } from '../compareStats';
+import { aggregateCareerStats, DEFAULT_COMPARE_YEAR } from '../compareStats';
 import { Zap } from 'lucide-react';
 import { useCompareController } from '../useCompareController';
 import { SearchSelect } from '@/components/ui/search-select';
-import { ComparisonRow, type StatRowConfig } from './ComparisonRow';
+import { ComparisonRow } from './ComparisonRow';
 import { CompareModeToggle } from './CompareModeToggle';
 import { CompareYearSelect } from './CompareYearSelect';
 import { CompareStatus } from './CompareStatus';
 import { CompareEntityCard } from './CompareEntityCard';
+import { seasonStatConfig, careerStatConfig } from '../driverCompareConfig';
 
 interface Props {
   allSeasons: SeasonSummary[];
   initialDrivers: Driver[];
   allDrivers: Driver[];
 }
-
-const seasonStatConfig: StatRowConfig<DriverSeasonStats>[] = [
-  {
-    label: 'Championship Points',
-    value: (s) => parseFloat(s.totalPoints),
-    format: (v) => v.toString(),
-  },
-  { label: 'Grand Prix Wins', value: (s) => s.wins },
-  { label: 'Podium Finishes', value: (s) => s.podiums },
-  { label: 'Poles Secured', value: (s) => s.poles },
-  {
-    label: 'Avg Finish Position',
-    value: (s) => parseFloat(s.avgFinishPosition || '20'),
-    format: (v) => `P${v.toFixed(1)}`,
-    lowerBetter: true,
-  },
-  { label: 'Races Entered', value: (s) => s.racesEntered },
-  { label: 'Total DNFs', value: (s) => s.dnfCount, lowerBetter: true },
-  {
-    label: 'Avg Sector 1',
-    value: (s) => s.avgSector1Ms || 99999,
-    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
-    lowerBetter: true,
-    show: (a, b) => !!(a.avgSector1Ms || b.avgSector1Ms),
-  },
-  {
-    label: 'Avg Sector 2',
-    value: (s) => s.avgSector2Ms || 99999,
-    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
-    lowerBetter: true,
-    show: (a, b) => !!(a.avgSector2Ms || b.avgSector2Ms),
-  },
-  {
-    label: 'Avg Sector 3',
-    value: (s) => s.avgSector3Ms || 99999,
-    format: (v) => (v === 99999 ? '—' : `${(v / 1000).toFixed(3)}s`),
-    lowerBetter: true,
-    show: (a, b) => !!(a.avgSector3Ms || b.avgSector3Ms),
-  },
-];
-
-const careerStatConfig: StatRowConfig<CareerTotals>[] = [
-  {
-    label: 'Best Championship Finish',
-    value: (c) => c.bestFin || 20,
-    format: (v) => (v === 20 ? '—' : `P${v}`),
-    lowerBetter: true,
-  },
-  { label: 'Total Points', value: (c) => c.points, format: (v) => v.toFixed(1) },
-  { label: 'Career Wins', value: (c) => c.wins },
-  { label: 'Career Podiums', value: (c) => c.podiums },
-  { label: 'Career Poles', value: (c) => c.poles },
-  { label: 'Career Entries', value: (c) => c.entries },
-  { label: 'Total DNFs', value: (c) => c.dnfs, lowerBetter: true },
-];
 
 export function DriverCompareTool({ allSeasons, initialDrivers, allDrivers }: Props) {
   const years = useMemo(() => allSeasons.map((s) => s.year).sort((a, b) => b - a), [allSeasons]);

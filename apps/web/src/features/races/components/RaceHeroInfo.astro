@@ -1,0 +1,99 @@
+---
+import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer } from 'lucide-react';
+import RaceYearSelect from './RaceYearSelect.astro';
+import type { PredictionAccent } from '@/features/predictions/types';
+
+interface Props {
+  kicker: string;
+  statusIcon: 'check' | 'zap' | 'timer';
+  statusLabel: string;
+  statusToneClass: string;
+  raceName: string;
+  circuit: { name: string; circuitKey: string; city: string; country: string };
+  dateStr: string;
+  lapsLabel: string;
+  lengthKm: string | number;
+  weather?: string | null;
+  conditions: { label: string; val: string | number }[];
+  fastestLap?: { code: string; timeStr: string | null } | null;
+  accent: PredictionAccent;
+  countdown?: { id: string; date: string; borderClass: string; digitClass: string } | null;
+  yearItems: { year: number; href: string }[];
+  currentYear: number;
+  yearVariant?: 'purple' | 'orange';
+}
+
+const {
+  kicker, statusIcon, statusLabel, statusToneClass, raceName, circuit, dateStr,
+  lapsLabel, lengthKm, weather, conditions, fastestLap, accent, countdown,
+  yearItems, currentYear, yearVariant = 'purple',
+} = Astro.props;
+---
+
+<div class="p-6 lg:p-8 space-y-5 border-b lg:border-b-0 lg:border-r border-white/[0.06]">
+
+  <div class="flex items-center gap-3">
+    <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}>{kicker}</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+    {yearItems.length > 1 && (
+      <RaceYearSelect items={yearItems} currentYear={currentYear} variant={yearVariant} />
+    )}
+    <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.15em] uppercase px-2 py-1 border ${statusToneClass}`}>
+      {statusIcon === 'check' ? <CheckCircle2 size={10} /> : statusIcon === 'zap' ? <Zap size={10} /> : <Timer size={10} />}
+      {statusLabel}
+    </span>
+  </div>
+
+  <div>
+    <h1 class="text-3xl sm:text-4xl font-bold leading-tight">{raceName}</h1>
+    <div class="flex items-center gap-1.5 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
+      <MapPin size={11} />
+      <a href={`/circuits/${circuit.circuitKey}`} class="hover:text-white underline decoration-white/30 underline-offset-[3px] transition-all">
+        {circuit.name}
+      </a>
+      <span class="text-white/20 ml-1">• {circuit.city}, {circuit.country}</span>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-4 font-mono text-[10px] text-muted-foreground tracking-[0.1em] uppercase">
+    <span class="flex items-center gap-1.5"><CalendarDays size={11} />{dateStr}</span>
+    <span class="text-white/20">·</span>
+    <span class="flex items-center gap-1.5"><RotateCcw size={11} />{lapsLabel}</span>
+    <span class="text-white/20">·</span>
+    <span class="flex items-center gap-1.5"><Gauge size={11} />{lengthKm} km</span>
+    {weather && <><span class="text-white/20">·</span><span class="flex items-center gap-1.5 capitalize"><CloudSun size={11} />{weather}</span></>}
+  </div>
+
+  {(conditions.length > 0 || fastestLap) && (
+    <div class="inline-flex flex-wrap gap-px bg-white/[0.04]">
+      {conditions.map((c) => (
+        <div class="bg-[#0a0a0a] px-3 py-2">
+          <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">{c.label}</div>
+          <div class="font-bold text-sm">{c.val}</div>
+        </div>
+      ))}
+      {fastestLap && (
+        <div class="px-3 py-2 border-l-2" style={`background:rgba(${accent.rgb},0.06);border-left-color:rgba(${accent.rgb},0.35)`}>
+          <div class="font-mono text-[7px] tracking-widest uppercase mb-0.5" style={`color:rgba(${accent.rgb},0.6)`}>Fastest Lap</div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-sm" style={`color:${accent.hex}`}>{fastestLap.code}</span>
+            {fastestLap.timeStr && <span class="font-mono text-xs font-bold" style={`color:${accent.hex}`}>{fastestLap.timeStr}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+
+  {countdown && (
+    <div class="flex items-center gap-3" id={countdown.id} data-race-date={countdown.date}>
+      {(['Days', 'Hrs', 'Min', 'Sec'] as const).map((unit, i) => (
+        <div class="text-center">
+          <div class={`w-[54px] h-[54px] border ${countdown.borderClass} flex items-center justify-center bg-white/[0.02]`}>
+            <span class={`text-lg font-bold font-mono ${countdown.digitClass}`} data-index={i}>--</span>
+          </div>
+          <div class="font-mono text-[7px] text-muted-foreground tracking-[0.15em] uppercase mt-1">{unit}</div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>

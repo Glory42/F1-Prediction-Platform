@@ -189,8 +189,8 @@ apps/web/
 │   │   └── config.ts              # Astro Content Layer — docs collection via glob('../../docs')
 │   ├── pages/                     # File-based routes
 │   │   ├── index.astro            # Landing page (static)
-│   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged)
-│   │   ├── prediction/[id].astro  # Historical GP prediction by race
+│   │   ├── prediction.astro       # Upcoming prediction + history (GP + sprint merged) + calibration chart + Brier
+│   │   ├── prediction/[id].astro  # Historical GP prediction — contribution breakdown, radar compare, what-if lab
 │   │   ├── health-quality.astro   # Dev-only data-quality dashboard (404-guarded outside DEV)
 │   │   ├── docs/
 │   │   │   ├── index.astro        # Docs index — card grid of all docs
@@ -204,8 +204,11 @@ apps/web/
 │   │   │       ├── index.astro    # Race detail — results, qualifying, lap chart
 │   │   │       └── sprint.astro   # Sprint detail — results, SQ grid, lap chart, conditions
 │   │   ├── prediction/
-│   │   │   └── sprint/
-│   │   │       └── [id].astro     # Sprint prediction detail page
+│   │   │   ├── sprint/
+│   │   │   │   └── [id].astro     # Sprint prediction detail — same feature set as GP, sprint model (8 weights)
+│   │   │   └── recap/
+│   │   │       ├── index.astro    # All-seasons recap landing — accuracy card per season
+│   │   │       └── [year].astro   # Season recap — headline accuracy, best call, worst miss, streak, round strip
 │   │   ├── drivers/
 │   │   │   ├── index.astro        # Driver standings table
 │   │   │   ├── compare.astro      # Driver head-to-head comparison tool
@@ -219,13 +222,16 @@ apps/web/
 │   │   └── LandingLayout.astro    # Landing-specific layout (no navbar chrome)
 │   ├── components/                # Generic, cross-feature only — domain UI lives in features/
 │   │   ├── layout/
-│   │   │   ├── Navbar.astro       # Top navigation bar
+│   │   │   ├── Navbar.astro       # Top bar + desktop nav (hover dropdowns for races/drivers/teams/prediction)
+│   │   │   ├── MobileNav.astro    # Mobile drawer + accordion nav + focus-trap script
+│   │   │   ├── navLinks.ts        # buildNavLinks(isDev) + isNavActive() — shared nav model
 │   │   │   └── Footer.astro       # Shared footer; variant="minimal" (default) | "full" (landing)
 │   │   ├── docs/
 │   │   │   └── OnThisPage.astro   # Sticky right-rail TOC of a doc's h2 sections; scrollspy via IntersectionObserver
 │   │   ├── shared/
 │   │   │   ├── YearSelect.astro       # Year selector; extraParams prop preserves filter/sort on year change
-│   │   │   └── YearSelectLinks.astro  # Year selector using anchor links; used by driver/team profile pages
+│   │   │   ├── YearSelectLinks.astro  # Year selector using anchor links; used by driver/team profile pages
+│   │   │   └── ConfidenceBadge.astro  # LOCK / LIKELY / TOSS-UP badge from the P1−P2 win-probability gap
 │   │   └── ui/                    # Shadcn/ui primitives + generic widgets
 │   │       ├── badge.tsx
 │   │       ├── button.tsx
@@ -233,18 +239,37 @@ apps/web/
 │   │       ├── table.tsx
 │   │       └── search-select.tsx  # Generic autocomplete combobox; shared by Driver/TeamCompareTool
 │   ├── features/
-│   │   ├── races/components/
-│   │   │   ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
-│   │   │   ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
-│   │   │   ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
-│   │   │   └── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
+│   │   ├── predictions/              # Shared prediction UI — GP + sprint pages compose these (accent prop)
+│   │   │   ├── types.ts               # PredictionAccent, GP_ACCENT/SPRINT_ACCENT, view-model interfaces
+│   │   │   └── components/
+│   │   │       ├── PredictionHeader.astro          # Round kicker + title + ConfidenceBadge + circuit/model lines
+│   │   │       ├── PredictionOutcomeBanner.astro   # Predicted → actual winner banner
+│   │   │       ├── ContributionBar.astro           # "why {CODE}" — stacked bar of each feature's weighted-score share
+│   │   │       ├── PredictionDriverTable.astro     # Full ranked driver table (accent via scoped <style define:vars>)
+│   │   │       ├── DriverRadarCompare.astro        # 2-driver radar; bundled <script> reads a JSON payload node
+│   │   │       ├── ModelWeightsGrid.astro          # Feature-weight grid (rendered xl + mobile per page)
+│   │   │       ├── WhatIfLab.astro                 # Re-weight sliders; recompute weightedScore→softmax(0.3) in-browser
+│   │   │       ├── CalibrationChart.astro          # Predicted vs actual win-rate scatter + perfect-calibration diagonal
+│   │   │       └── UpcomingPredictionPanel.astro   # /prediction hero panel (GP + sprint share it)
+│   │   ├── races/
+│   │   │   ├── raceTabs.ts            # initRaceCountdown() + initRaceTabs() — shared by GP + sprint detail scripts
+│   │   │   └── components/
+│   │   │       ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
+│   │   │       ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
+│   │   │       ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
+│   │   │       ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
+│   │   │       ├── RaceHeroInfo.astro     # Hero left column — status badge, meta, conditions strip, countdown (accent prop)
+│   │   │       └── RacePredictionPanel.astro  # Hero right column — predicted winner + podium (accent prop)
 │   │   ├── drivers/components/
 │   │   │   ├── DriverStatsGrid.tsx    # Driver season stats card grid
 │   │   │   └── RecentResultsTable.tsx # Compact recent results table
 │   │   ├── circuits/
 │   │   │   ├── components/
 │   │   │   │   ├── CircuitsGrid.tsx      # React component for circuits grid (filters/sorting)
-│   │   │   │   └── WeatherForecast.tsx   # React weather forecast widget (Open-Meteo API)
+│   │   │   │   ├── WeatherForecast.tsx   # React weather forecast widget (Open-Meteo API)
+│   │   │   │   ├── CircuitTelemetryCard.astro  # Longest straight, corner distribution, track bias bars
+│   │   │   │   ├── CircuitWinnersTable.astro   # Recent-winners list for the circuit
+│   │   │   │   └── DominanceCard.astro         # Era-filtered constructor/driver dominance + tab script
 │   │   │   ├── circuitMetadata.ts     # Track coordinate and telemetry configuration
 │   │   │   └── weather.ts             # Open-Meteo forecast fetch + ForecastDay type
 │   │   ├── compare/
@@ -257,6 +282,7 @@ apps/web/
 │   │   │   │   ├── CompareYearSelect.tsx  # Year selector variant for compare tools
 │   │   │   │   └── CompareStatus.tsx      # Loading/error/empty-stats status display
 │   │   │   ├── compareStats.ts        # aggregateCareerStats() + DEFAULT_COMPARE_YEAR — career stat aggregation
+│   │   │   ├── driverCompareConfig.ts # seasonStatConfig + careerStatConfig — the driver stat rows
 │   │   │   └── useCompareController.ts # Generic compare-tool state hook — URL sync via injectable locationAdapter, discriminated season/career `comparison` result
 │   │   └── search/
 │   │       ├── components/
@@ -267,6 +293,9 @@ apps/web/
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   ├── countryFlags.ts        # country → emoji flag helper
+│   │   ├── predictionMath.ts      # weightedScore, softmax(0.3), contributions, confidenceTier, brierScore,
+│   │   │                          #   calibrationBuckets, driverPredictionRecord, bestCall/worstMiss/longestStreak,
+│   │   │                          #   GP_WEIGHTS/SPRINT_WEIGHTS + *_FEATURE_META (hand-copy of the Python model weights)
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,
@@ -291,7 +320,8 @@ apps/web/
 │   │   │   └── useCompareController.test.ts  # jsdom — URL hydration, career mode, location-adapter seam
 │   │   ├── lib/
 │   │   │   ├── teamColors.test.ts            # pure, `node` env
-│   │   │   └── teamLogos.test.ts             # pure, `node` env
+│   │   │   ├── teamLogos.test.ts             # pure, `node` env
+│   │   │   └── predictionMath.test.ts        # pure, `node` env — all predictionMath exports
 │   │   └── features/search/                  # jsdom — hook + component tests, MSW-mocked API
 │   │       ├── useGlobalSearch.test.ts
 │   │       └── GlobalSearch.test.tsx
@@ -299,6 +329,7 @@ apps/web/
 │       ├── setup.ts                # jest-dom matchers, MSW server lifecycle, ResizeObserver stub for cmdk
 │       └── msw/                    # fixtures.ts + handlers.ts — mocks src/lib/api.ts endpoints
 ├── vitest.config.ts                # jsdom is opt-in per file via `// @vitest-environment jsdom`; default env is `node`
+├── eslint.config.js              # Flat config — tiered `max-lines` (pages 300 / components 250 / lib 200), run via `bun run lint`
 ├── wrangler.toml                  # CF Pages config — keep_vars = true, PUBLIC_API_URL
 ├── astro.config.mjs               # output: 'server', Cloudflare adapter
 ├── tailwind.config.mjs
@@ -313,8 +344,11 @@ apps/web/
 | `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
 | `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav + on-this-page rail |
 | `/` | Static | Landing — no API call |
-| `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` + `/api/predictions/accuracy` | GP + sprint upcoming; history merged; season-by-season accuracy table |
-| `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction |
+| `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` + `/api/predictions/accuracy` | GP + sprint upcoming; history merged; accuracy table; calibration chart + Brier when ≥5 races done |
+| `/prediction/[id]` | `GET /api/predictions/race/:id` | Historical GP prediction — contribution breakdown, radar compare, in-browser what-if lab |
+| `/prediction/sprint/[id]` | `GET /api/sprint/race/:id` | Sprint prediction detail — same feature set, sprint model |
+| `/prediction/recap` | `GET /api/predictions/accuracy` | All-seasons recap landing — accuracy card per season |
+| `/prediction/recap/[year]` | `GET /api/predictions/history?year=N` | Season recap — best call, worst miss, longest streak, round strip |
 | `/races` | `GET /api/races?year=N` | Race calendar — filter (ALL/SPRINT/GP), sort (ASC/DESC), sprint weekends as two cards |
 | `/races/[id]` | `GET /api/races/:id` | GP results, qualifying, lap chart |
 | `/races/[id]/sprint` | `GET /api/sprint/race/:id` | Sprint results, SQ grid, sprint lap chart, conditions |

@@ -1,0 +1,39 @@
+---
+import { formatDate } from '@/lib/utils';
+import ConfidenceBadge from '@/components/shared/ConfidenceBadge.astro';
+import type { PredictionAccent } from '../types';
+
+interface Props {
+  title: string;
+  kicker: string;
+  city: string;
+  country: string;
+  date: string;
+  modelVersion: string;
+  computedAt: string;
+  p1: number;
+  p2?: number | null;
+  accent: PredictionAccent;
+}
+
+const { title, kicker, city, country, date, modelVersion, computedAt, p1, p2, accent } = Astro.props;
+---
+
+<div>
+  <div class="flex items-center gap-3 mb-2">
+    <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}>
+      {kicker}
+    </span>
+    <div class="h-px w-12 bg-white/[0.05]" />
+  </div>
+  <div class="flex items-center gap-3 flex-wrap">
+    <h1 class="text-3xl font-bold">{title}</h1>
+    <ConfidenceBadge p1={p1} p2={p2} />
+  </div>
+  <p class="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mt-1">
+    {city}, {country} · {formatDate(date)}
+  </p>
+  <p class="font-mono text-[9px] text-muted-foreground mt-0.5">
+    Model: {modelVersion} · Computed: {new Date(computedAt).toLocaleString()}
+  </p>
+</div>

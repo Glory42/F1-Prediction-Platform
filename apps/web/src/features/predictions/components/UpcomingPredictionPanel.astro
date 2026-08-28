@@ -1,0 +1,82 @@
+---
+import { Zap } from 'lucide-react';
+import ConfidenceBadge from '@/components/shared/ConfidenceBadge.astro';
+import type { PredictionAccent } from '../types';
+
+interface DriverRow {
+  driver: { code: string };
+  winProbability: string;
+}
+
+interface Props {
+  winnerName: string;
+  teamName: string;
+  drivers: DriverRow[];
+  modelVersion: string;
+  accent: PredictionAccent;
+  kicker: string;
+  showZap?: boolean;
+  detailHref: string;
+  detailLabel: string;
+  winnerLabel: string;
+  confidenceLabel: string;
+  topBorder?: boolean;
+}
+
+const {
+  winnerName, teamName, drivers, modelVersion, accent,
+  kicker, showZap = false, detailHref, detailLabel,
+  winnerLabel, confidenceLabel, topBorder = false,
+} = Astro.props;
+
+const p1 = Number(drivers[0]?.winProbability);
+const p2 = drivers[1] ? Number(drivers[1].winProbability) : null;
+const confidence = Math.round(p1 * 100);
+---
+
+<div class={`panel p-6 ${topBorder ? 'border-t-2' : ''}`} style={topBorder ? `border-top-color: rgba(${accent.rgb},0.4)` : ''}>
+  <div class="flex items-center gap-3 mb-5">
+    <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.6)`}>
+      {showZap && <Zap size={10} className="inline mr-1" />}{kicker}
+    </span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+    <a href={detailHref} class="detail-link font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground transition-colors duration-150">
+      {detailLabel}
+    </a>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <div class="sm:col-span-2 space-y-4">
+      <div>
+        <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">{winnerLabel}</div>
+        <div class="text-2xl font-bold">{winnerName}</div>
+        <div class="font-mono text-[9px] text-muted-foreground">{teamName} · {confidence}% win probability</div>
+      </div>
+      <div class="space-y-2">
+        {drivers.slice(0, 5).map((d, i) => {
+          const pct = Math.round(Number(d.winProbability) * 100);
+          return (
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[9px] text-muted-foreground w-4">P{i + 1}</span>
+              <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
+              <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
+                <div class="h-full bar-fill absolute inset-y-0 left-0" style={`width:${pct}%;background:${accent.hex}`} />
+              </div>
+              <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+    <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">{confidenceLabel}</div>
+      <div class="text-5xl font-bold" style={`color:${accent.hex}`}>{confidence}</div>
+      <div class="font-mono text-[8px] text-muted-foreground">%</div>
+      <ConfidenceBadge p1={p1} p2={p2} class="mt-1" />
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{modelVersion}</div>
+    </div>
+  </div>
+</div>
+
+<style define:vars={{ accent: accent.hex }}>
+  .detail-link:hover { color: var(--accent); }
+</style>

@@ -1,0 +1,90 @@
+---
+import { Zap } from 'lucide-react';
+import type { PredictionAccent } from '@/features/predictions/types';
+
+interface PodiumRow {
+  driver: { code: string };
+  winProbability: string;
+}
+
+interface Props {
+  accent: PredictionAccent;
+  heading: string;
+  fullHref: string;
+  hasPrediction: boolean;
+  predictedWinnerName?: string;
+  winnerLabel: string;
+  confidence: number;
+  podium: PodiumRow[];
+  showAccuracy: boolean;
+  predCorrect: boolean | null;
+  actualWinnerName?: string | null;
+  actualLabel: string;
+  emptyText: string;
+}
+
+const {
+  accent, heading, fullHref, hasPrediction, predictedWinnerName, winnerLabel,
+  confidence, podium, showAccuracy, predCorrect, actualWinnerName, actualLabel, emptyText,
+} = Astro.props;
+---
+
+<div class="p-6 flex flex-col gap-4 bg-white/[0.01]">
+  <div class="flex items-center gap-3">
+    <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}><Zap size={11} />{heading}</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+    {hasPrediction && (
+      <a href={fullHref} class="full-link font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground transition-colors duration-150">full →</a>
+    )}
+  </div>
+
+  {hasPrediction ? (
+    <>
+      {showAccuracy && predCorrect !== null && (
+        <div class={`flex items-center gap-2 px-3 py-2 border-l-2 ${predCorrect ? 'border-l-green-500 bg-green-500/[0.04]' : 'border-l-red-500 bg-red-500/[0.04]'}`}>
+          <span class={`font-mono text-[9px] font-bold tracking-widest ${predCorrect ? 'text-green-400' : 'text-red-400'}`}>
+            {predCorrect ? '✓ CORRECT' : '✗ INCORRECT'}
+          </span>
+        </div>
+      )}
+
+      <div>
+        <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">{winnerLabel}</div>
+        <div class="font-bold text-lg leading-tight">{predictedWinnerName}</div>
+        <div class="font-mono text-[9px]" style={`color:${accent.hex}`}>{confidence}% confidence</div>
+      </div>
+
+      {actualWinnerName && (
+        <div>
+          <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">{actualLabel}</div>
+          <div class="font-semibold">{actualWinnerName}</div>
+        </div>
+      )}
+
+      <div class="space-y-2 mt-1">
+        {podium.map((d, i) => {
+          const pct = Math.round(Number(d.winProbability) * 100);
+          return (
+            <div class="flex items-center gap-2.5">
+              <span class="font-mono text-[8px] text-muted-foreground w-4 shrink-0">P{i + 1}</span>
+              <span class="font-mono text-[9px] font-bold w-7 shrink-0">{d.driver.code}</span>
+              <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
+                <div class="h-full bar-fill absolute inset-y-0 left-0" style={`width:${pct}%;background:${accent.hex}`} />
+              </div>
+              <span class="font-mono text-[8px] text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  ) : (
+    <div class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
+      <Zap size={18} className="text-muted-foreground opacity-30" />
+      <p class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">{emptyText}</p>
+    </div>
+  )}
+</div>
+
+<style define:vars={{ accent: accent.hex }}>
+  .full-link:hover { color: var(--accent); }
+</style>

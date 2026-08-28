@@ -1,0 +1,40 @@
+---
+import { Sliders } from 'lucide-react';
+import type { FeatureMeta, PredictionAccent } from '../types';
+
+interface Props {
+  heading: string;
+  featureMeta: FeatureMeta;
+  accent: PredictionAccent;
+  gridClass?: string;
+  note?: string;
+  class?: string;
+}
+
+const {
+  heading,
+  featureMeta,
+  accent,
+  gridClass = 'grid-cols-2',
+  note,
+  class: className = '',
+} = Astro.props;
+---
+
+<div class={`border border-white/[0.06] p-5 ${className}`}>
+  <div class="flex items-center gap-3 mb-4">
+    <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}><Sliders size={11} />{heading}</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+  </div>
+  <div class={`grid ${gridClass} gap-2`}>
+    {Object.values(featureMeta).map((meta) => (
+      <div class="flex items-center justify-between gap-2 border border-white/[0.06] px-3 py-2">
+        <span class="font-mono text-[9px] text-muted-foreground">{meta.label}</span>
+        <span class="font-mono text-[9px] font-bold" style={`color:${accent.hex}`}>{meta.weight}%</span>
+      </div>
+    ))}
+  </div>
+  {note && (
+    <p class="font-mono text-[7px] text-muted-foreground/50 mt-3 leading-relaxed">{note}</p>
+  )}
+</div>

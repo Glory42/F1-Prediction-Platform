@@ -1,0 +1,104 @@
+---
+import { Users } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
+import type { PredictionAccent, PredictionDriverVM, PredictionResultRow } from '../types';
+
+interface Props {
+  drivers: PredictionDriverVM[];
+  results?: PredictionResultRow[];
+  predictedWinnerId: number;
+  actualWinnerId?: number | null;
+  raceYear: number;
+  accent: PredictionAccent;
+  gridColLabel: string;
+  actualWinnerLabel: string;
+}
+
+const {
+  drivers,
+  results,
+  predictedWinnerId,
+  actualWinnerId,
+  raceYear,
+  accent,
+  gridColLabel,
+  actualWinnerLabel,
+} = Astro.props;
+
+const hasResults = !!results && results.length > 0;
+const cols = hasResults
+  ? 'sm:grid-cols-[32px_1fr_80px_100px_100px_80px]'
+  : 'sm:grid-cols-[32px_1fr_80px_100px_100px]';
+---
+
+<div>
+  <div class="flex items-center gap-3 mb-4">
+    <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}><Users size={11} />./all drivers</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+  </div>
+  <div class="border border-white/[0.06]">
+    <div class={`grid grid-cols-[32px_1fr_80px] ${cols} gap-0 px-4 py-2.5 border-b border-white/[0.06]`}>
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Pos</div>
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">Driver</div>
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase text-right">Win %</div>
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-center">Car</div>
+      <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-center">{gridColLabel}</div>
+      {hasResults && (
+        <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase hidden sm:block text-right">Actual Pos</div>
+      )}
+    </div>
+    {drivers.map((d, i) => {
+      const pct = Math.round(Number(d.winProbability) * 100);
+      const isActualWinner = actualWinnerId === d.driver.id;
+      const isPredWinner = predictedWinnerId === d.driver.id;
+      const actualResult = results?.find((r) => r.driver.id === d.driver.id);
+      const actualPosText = actualResult?.finishPosition ? `P${actualResult.finishPosition}` : (actualResult?.status ?? '—');
+      const gridPos = Math.round((1 - Number(d.features.startingPosition ?? 0)) * 19) + 1;
+      const carPct = Math.round(Number(d.features.carPerformance ?? 0) * 100);
+      return (
+        <div class={`row grid grid-cols-[32px_1fr_80px] ${cols} gap-0 items-start sm:items-center px-4 py-3 ${i !== 0 ? 'border-t border-white/[0.04]' : ''} ${isPredWinner ? 'is-winner' : ''}`} style={`border-left: 2px solid ${getTeamColor(d.driver.team.teamKey)};`}>
+          <div class={`pos font-mono text-sm font-bold pt-1 sm:pt-0 ${isPredWinner ? '' : 'text-muted-foreground'}`}>
+            {String(i + 1).padStart(2, '0')}
+          </div>
+          <div class="flex items-start sm:items-center gap-2 min-w-0">
+            <a href={`/drivers/${d.driver.id}?year=${raceYear}`} class="drv-code font-mono text-[8px] tracking-[0.1em] uppercase text-muted-foreground border border-white/[0.06] px-1.5 py-0.5 shrink-0 mt-0.5 transition-colors duration-150">{d.driver.code}</a>
+            <div class="min-w-0">
+              <a href={`/drivers/${d.driver.id}?year=${raceYear}`} class="drv-name font-medium text-sm leading-none block transition-colors duration-150 truncate">{d.driver.fullName}</a>
+              {isActualWinner && <span class="font-mono text-[8px] text-green-400 block mt-1">✓ {actualWinnerLabel}</span>}
+              <div class="flex items-center gap-2 mt-1 sm:hidden font-mono text-[8px] text-muted-foreground">
+                <span>Car {carPct}</span>
+                <span class="text-white/20">·</span>
+                <span>P{gridPos}</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right pt-1 sm:pt-0">
+            <div class="win-pct font-bold text-sm">{pct}%</div>
+            <div class="w-full h-0.5 bg-white/[0.06] mt-1">
+              <div class="h-full bar-fill" style={`width:${pct}%;background:${accent.hex}`} />
+            </div>
+          </div>
+          <div class="font-mono text-[9px] text-muted-foreground text-center hidden sm:block">{carPct}</div>
+          <div class="font-mono text-[9px] text-muted-foreground text-center hidden sm:block">P{gridPos}</div>
+          {hasResults && (
+            <div class="font-mono text-[9px] text-muted-foreground text-right hidden sm:block">
+              {actualResult?.finishPosition === i + 1 ? (
+                <span class="text-green-400 font-bold">{actualPosText}</span>
+              ) : (
+                actualPosText
+              )}
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+<style define:vars={{ accent: accent.hex, accentSoft: `rgba(${accent.rgb},0.05)`, accentBorder: `rgba(${accent.rgb},0.4)` }}>
+  .row.is-winner { background: var(--accentSoft); }
+  .row.is-winner .pos,
+  .row.is-winner .win-pct { color: var(--accent); }
+  .drv-code:hover { color: var(--accent); border-color: var(--accentBorder); }
+  .drv-name:hover { color: var(--accent); }
+</style>

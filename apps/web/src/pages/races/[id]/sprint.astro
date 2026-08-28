@@ -3,12 +3,14 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { RaceResultsTable } from '@/features/races/components/RaceResultsTable';
 import { QualifyingGrid } from '@/features/races/components/QualifyingGrid';
 import LapChart from '@/features/races/components/LapChart.astro';
+import RaceHeroInfo from '@/features/races/components/RaceHeroInfo.astro';
+import RacePredictionPanel from '@/features/races/components/RacePredictionPanel.astro';
 import { api } from '@/lib/api';
 import { formatDate, formatMs } from '@/lib/utils';
 import type { SprintDetailResponse, RaceResult, QualifyingResult, CircuitHistoryItem } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer, Flag, CornerDownRight, Wind } from 'lucide-react';
+import { RotateCcw, Gauge, Zap, Flag, CornerDownRight, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import RaceYearSelect from '@/features/races/components/RaceYearSelect.astro';
+import { SPRINT_ACCENT } from '@/features/predictions/types';
 
 const { id } = Astro.params;
 
@@ -22,30 +24,30 @@ try {
   error = e instanceof Error ? e.message : 'Failed to load sprint data';
 }
 
-const race       = sprintData?.race ?? null;
+const race = sprintData?.race ?? null;
 const prediction = sprintData?.prediction ?? null;
 const rawResults = sprintData?.results ?? [];
-const results    = rawResults.filter((r) => r.status !== 'grid_set');
-const laps       = sprintData?.laps ?? [];
+const results = rawResults.filter((r) => r.status !== 'grid_set');
+const laps = sprintData?.laps ?? [];
 
 if (race) {
   try {
-    const details = await api.getCircuitDetails(race.circuit.circuitKey);
-    circuitHistory = details.history;
-  } catch {}
+    circuitHistory = (await api.getCircuitDetails(race.circuit.circuitKey)).history;
+  } catch {
+    circuitHistory = [];
+  }
 }
 
 const isSprintDone = race != null && ['sprint_done', 'qualifying_done', 'completed'].includes(race.status);
-const isUpcoming   = race != null && !isSprintDone;
+const isUpcoming = race != null && !isSprintDone;
 
-const hasResults    = results.length > 0;
-const hasLaps       = laps.length > 0;
+const hasResults = results.length > 0;
+const hasLaps = laps.length > 0;
 const hasPrediction = prediction != null;
 
-const sprintWinner  = hasResults ? results.find((r) => r.finishPosition === 1) : null;
-const flResult      = hasResults ? results.find((r) => r.fastestLap) : null;
-const flLapMs       = flResult ? (laps.find((l) => l.driverId === flResult.driver.id)?.fastestLapMs ?? null) : null;
-const flLapStr      = flLapMs ? formatMs(flLapMs) : null;
+const sprintWinner = hasResults ? results.find((r) => r.finishPosition === 1) : null;
+const flResult = hasResults ? results.find((r) => r.fastestLap) : null;
+const flLapMs = flResult ? (laps.find((l) => l.driverId === flResult.driver.id)?.fastestLapMs ?? null) : null;
 
 const predCorrect = prediction && sprintWinner
   ? prediction.predictedWinner.id === sprintWinner.driver.id
@@ -73,39 +75,45 @@ const sqGrid: QualifyingResult[] = [...rawResults]
   }));
 const hasGrid = sqGrid.length > 0;
 
-// ── Tabs ────────────────────────────────────────────────────────────────────
 type Tab = { id: string; label: string };
 const tabs: Tab[] = [];
-if (isSprintDone && hasResults) tabs.push({ id: 'results',    label: 'Results'       });
-if (hasGrid)                    tabs.push({ id: 'qualifying', label: 'Sprint Quali'  });
-if (isSprintDone && hasLaps)    tabs.push({ id: 'laps',       label: 'Lap Chart'     });
-                                tabs.push({ id: 'circuit',    label: 'Circuit'       });
+if (isSprintDone && hasResults) tabs.push({ id: 'results', label: 'Results' });
+if (hasGrid) tabs.push({ id: 'qualifying', label: 'Sprint Quali' });
+if (isSprintDone && hasLaps) tabs.push({ id: 'laps', label: 'Lap Chart' });
+tabs.push({ id: 'circuit', label: 'Circuit' });
 
 const defaultTab = tabs[0]?.id ?? 'circuit';
-const raceYear   = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
+const raceYear = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
 
-// Year selector — only years this circuit hosted a sprint
 const circuitYearItems = circuitHistory
   .filter((h) => h.hasSprint)
   .sort((a, b) => b.year - a.year)
   .map((h) => ({ year: h.year, href: `/races/${h.raceId}/sprint` }));
 
 const sprintDistKm = race ? (17 * Number(race.circuit.trackLengthKm)).toFixed(1) : null;
-const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
-  { Icon: RotateCcw,       label: 'Sprint Laps',   val: '~17' },
-  { Icon: Gauge,           label: 'Length',        val: `${race.circuit.trackLengthKm} km` },
-  { Icon: Flag,            label: 'Sprint Dist',   val: `${sprintDistKm} km` },
-  { Icon: CornerDownRight, label: 'Corners',       val: race.circuit.numberOfCorners ?? '—' },
-  { Icon: Wind,            label: 'DRS Zones',     val: race.circuit.drsZones ?? '—' },
-  { Icon: Zap,             label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate)*100)}%` : '—' },
-] : [];
 
+const conditions: { label: string; val: string | number }[] = [];
+if (race) {
+  if (race.sprintSafetyCarLaps != null) conditions.push({ label: 'SC Laps', val: race.sprintSafetyCarLaps });
+  if (race.sprintVscLaps != null) conditions.push({ label: 'VSC', val: race.sprintVscLaps });
+  if (race.sprintAirTempAvg) conditions.push({ label: 'Air', val: `${Math.round(Number(race.sprintAirTempAvg))}°C` });
+  if (race.sprintTrackTempAvg) conditions.push({ label: 'Track', val: `${Math.round(Number(race.sprintTrackTempAvg))}°C` });
+  if (race.sprintHumidityAvg) conditions.push({ label: 'Humidity', val: `${Math.round(Number(race.sprintHumidityAvg))}%` });
+}
+
+const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
+  { Icon: RotateCcw, label: 'Sprint Laps', val: '~17' },
+  { Icon: Gauge, label: 'Length', val: `${race.circuit.trackLengthKm} km` },
+  { Icon: Flag, label: 'Sprint Dist', val: `${sprintDistKm} km` },
+  { Icon: CornerDownRight, label: 'Corners', val: race.circuit.numberOfCorners ?? '—' },
+  { Icon: Wind, label: 'DRS Zones', val: race.circuit.drsZones ?? '—' },
+  { Icon: Zap, label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
+] : [];
 ---
 
 <BaseLayout title={race ? `Sprint · ${race.name}` : 'Sprint Race'}>
   <div class="mt-7 space-y-8">
 
-    <!-- Back -->
     <a href="/races" class="inline-block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
       ← all races
     </a>
@@ -116,186 +124,51 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
       </div>
     ) : sprintData && race ? (
       <>
-
-        {/* ── HERO ─────────────────────────────────────────────────── */}
+        {/* ── HERO ── */}
         <div class="panel">
           <div class="grid lg:grid-cols-[1fr_320px]">
+            <RaceHeroInfo
+              kicker={`./round-${race.roundNumber.toString().padStart(2, '0')} · sprint`}
+              statusIcon={isSprintDone ? 'check' : 'timer'}
+              statusLabel={isSprintDone ? 'sprint done' : 'sprint upcoming'}
+              statusToneClass={isSprintDone ? 'border-orange-500/30 text-orange-400/70' : 'border-white/[0.08] text-muted-foreground'}
+              raceName={race.name}
+              circuit={race.circuit}
+              dateStr={formatDate(race.sprintDate ?? race.raceDate)}
+              lapsLabel="~17 laps"
+              lengthKm={race.circuit.trackLengthKm}
+              weather={race.weather}
+              conditions={conditions}
+              fastestLap={flResult ? { code: flResult.driver.code, timeStr: flLapMs ? formatMs(flLapMs) : null } : null}
+              accent={SPRINT_ACCENT}
+              countdown={isUpcoming ? { id: 'sprint-countdown', date: race.sprintDate ?? race.raceDate, borderClass: 'border-orange-500/20', digitClass: 'sprint-cd' } : null}
+              yearItems={circuitYearItems}
+              currentYear={raceYear}
+              yearVariant="orange"
+            />
 
-            {/* Left */}
-            <div class="p-6 lg:p-8 space-y-5 border-b lg:border-b-0 lg:border-r border-white/[0.06]">
-
-              {/* Label row + year selector + status badge */}
-              <div class="flex items-center gap-3">
-                <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
-                  ./round-{race.roundNumber.toString().padStart(2,'0')} · sprint
-                </span>
-                <div class="h-px flex-1 bg-white/[0.05]" />
-                {circuitYearItems.length > 1 && (
-                  <RaceYearSelect items={circuitYearItems} currentYear={raceYear} variant="orange" />
-                )}
-                <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.15em] uppercase px-2 py-1 border ${
-                  isSprintDone
-                    ? 'border-orange-500/30 text-orange-400/70'
-                    : 'border-white/[0.08] text-muted-foreground'
-                }`}>
-                  {isSprintDone ? <CheckCircle2 size={10} /> : <Timer size={10} />}
-                  {isSprintDone ? 'sprint done' : 'sprint upcoming'}
-                </span>
-              </div>
-
-              {/* Race name */}
-              <div>
-                <h1 class="text-3xl sm:text-4xl font-bold leading-tight">{race.name}</h1>
-                <div class="flex items-center gap-1.5 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-                  <MapPin size={11} />
-                  <a href={`/circuits/${race.circuit.circuitKey}`} class="hover:text-white underline decoration-white/30 underline-offset-[3px] transition-all">
-                    {race.circuit.name}
-                  </a>
-                  <span class="text-white/20 ml-1">• {race.circuit.city}, {race.circuit.country}</span>
-                </div>
-              </div>
-
-              {/* Meta row */}
-              <div class="flex flex-wrap items-center gap-4 font-mono text-[10px] text-muted-foreground tracking-[0.1em] uppercase">
-                <span class="flex items-center gap-1.5"><CalendarDays size={11} />{formatDate(race.sprintDate ?? race.raceDate)}</span>
-                <span class="text-white/20">·</span>
-                <span class="flex items-center gap-1.5"><RotateCcw size={11} />~17 laps</span>
-                <span class="text-white/20">·</span>
-                <span class="flex items-center gap-1.5"><Gauge size={11} />{race.circuit.trackLengthKm} km</span>
-                {race.weather && <><span class="text-white/20">·</span><span class="flex items-center gap-1.5 capitalize"><CloudSun size={11} />{race.weather}</span></>}
-              </div>
-
-              {/* Conditions strip — sprint-specific SC/VSC/temps/humidity/fastest lap */}
-              {(race.sprintSafetyCarLaps != null || race.sprintVscLaps != null || race.sprintAirTempAvg || race.sprintTrackTempAvg || race.sprintHumidityAvg || flResult) && (
-                <div class="inline-flex flex-wrap gap-px bg-white/[0.04]">
-                  {race.sprintSafetyCarLaps != null && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">SC Laps</div>
-                      <div class="font-bold text-sm">{race.sprintSafetyCarLaps}</div>
-                    </div>
-                  )}
-                  {race.sprintVscLaps != null && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">VSC</div>
-                      <div class="font-bold text-sm">{race.sprintVscLaps}</div>
-                    </div>
-                  )}
-                  {race.sprintAirTempAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Air</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.sprintAirTempAvg))}°C</div>
-                    </div>
-                  )}
-                  {race.sprintTrackTempAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Track</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.sprintTrackTempAvg))}°C</div>
-                    </div>
-                  )}
-                  {race.sprintHumidityAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Humidity</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.sprintHumidityAvg))}%</div>
-                    </div>
-                  )}
-                  {flResult && (
-                    <div class="bg-[rgba(249,115,22,0.06)] border-l-2 border-orange-500/40 px-3 py-2">
-                      <div class="font-mono text-[7px] tracking-widest uppercase mb-0.5 text-orange-400/60">Fastest Lap</div>
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-sm" style="color:#fb923c">{flResult.driver.code}</span>
-                        {flLapStr && <span class="font-mono text-xs font-bold" style="color:#fb923c">{flLapStr}</span>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Countdown for upcoming */}
-              {isUpcoming && (
-                <div class="flex items-center gap-3" id="sprint-countdown" data-sprint-date={race.sprintDate ?? race.raceDate}>
-                  {(['Days','Hrs','Min','Sec'] as const).map((unit) => (
-                    <div class="text-center">
-                      <div class="w-[54px] h-[54px] border border-orange-500/20 flex items-center justify-center bg-white/[0.02]">
-                        <span class="text-lg font-bold font-mono sprint-cd">--</span>
-                      </div>
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-[0.15em] uppercase mt-1">{unit}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-
-            {/* Right: prediction panel */}
-            <div class="p-6 flex flex-col gap-4 bg-white/[0.01]">
-              <div class="flex items-center gap-3">
-                <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(249,115,22,0.55)">
-                  <Zap size={11} />./sprint prediction
-                </span>
-                <div class="h-px flex-1 bg-white/[0.05]" />
-                {hasPrediction && (
-                  <a href={`/prediction/sprint/${id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-orange-400 transition-colors duration-150">
-                    full →
-                  </a>
-                )}
-              </div>
-
-              {prediction ? (
-                <>
-                  {isSprintDone && predCorrect !== null && (
-                    <div class={`flex items-center gap-2 px-3 py-2 border-l-2 ${predCorrect ? 'border-l-green-500 bg-green-500/[0.04]' : 'border-l-red-500 bg-red-500/[0.04]'}`}>
-                      <span class={`font-mono text-[9px] font-bold tracking-widest ${predCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                        {predCorrect ? '✓ CORRECT' : '✗ INCORRECT'}
-                      </span>
-                    </div>
-                  )}
-
-                  <div>
-                    <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">predicted sprint winner</div>
-                    <div class="font-bold text-lg leading-tight">{prediction.predictedWinner.fullName}</div>
-                    <div class="font-mono text-[9px]" style="color:#fb923c">{Math.round(Number(podium[0]?.winProbability ?? 0) * 100)}% confidence</div>
-                  </div>
-
-                  {isSprintDone && sprintWinner && sprintWinner.driver.id !== prediction.predictedWinner.id && (
-                    <div>
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">actual sprint winner</div>
-                      <div class="font-semibold">{sprintWinner.driver.fullName}</div>
-                    </div>
-                  )}
-
-                  <div class="space-y-2 mt-1">
-                    {podium.map((d, i) => {
-                      const pct = Math.round(Number(d.winProbability) * 100);
-                      return (
-                        <div class="flex items-center gap-2.5">
-                          <span class="font-mono text-[8px] text-muted-foreground w-4 shrink-0">P{i+1}</span>
-                          <span class="font-mono text-[9px] font-bold w-7 shrink-0">{d.driver.code}</span>
-                          <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                            <div class="h-full absolute inset-y-0 left-0 bg-orange-500 bar-fill" style={`width:${pct}%`} />
-                          </div>
-                          <span class="font-mono text-[8px] text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
-                  <Zap size={18} className="text-muted-foreground opacity-30" />
-                  <p class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">
-                    {isSprintDone ? 'No prediction data' : 'Available after sprint qualifying'}
-                  </p>
-                </div>
-              )}
-            </div>
-
+            <RacePredictionPanel
+              accent={SPRINT_ACCENT}
+              heading="./sprint prediction"
+              fullHref={`/prediction/sprint/${id}`}
+              hasPrediction={hasPrediction}
+              predictedWinnerName={prediction?.predictedWinner.fullName}
+              winnerLabel="predicted sprint winner"
+              confidence={Math.round(Number(podium[0]?.winProbability ?? 0) * 100)}
+              podium={podium}
+              showAccuracy={isSprintDone}
+              predCorrect={predCorrect}
+              actualWinnerName={isSprintDone && sprintWinner && sprintWinner.driver.id !== prediction?.predictedWinner.id ? sprintWinner.driver.fullName : null}
+              actualLabel="actual sprint winner"
+              emptyText={isSprintDone ? 'No prediction data' : 'Available after sprint qualifying'}
+            />
           </div>
         </div>
 
-        {/* ── TAB BAR ──────────────────────────────────────────────── */}
+        {/* ── TABS ── */}
         {tabs.length > 0 && (
           <div>
-            <div class="flex items-center gap-1.5 mb-6" id="sprint-tab-bar" role="tablist">
+            <div class="flex items-center gap-1.5 mb-6" role="tablist">
               {tabs.map((t) => (
                 <button
                   type="button"
@@ -316,7 +189,6 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
               ))}
             </div>
 
-            {/* Results */}
             {isSprintDone && hasResults && (
               <div id="sprint-panel-results" role="tabpanel" aria-labelledby="sprint-tab-results" class={`sprint-tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -325,8 +197,6 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
               </div>
             )}
 
-
-            {/* Sprint Qualifying (SQ times) */}
             {hasGrid && (
               <div id="sprint-panel-qualifying" role="tabpanel" aria-labelledby="sprint-tab-qualifying" class={`sprint-tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -335,7 +205,6 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
               </div>
             )}
 
-            {/* Sprint Lap Chart */}
             {isSprintDone && hasLaps && (
               <div id="sprint-panel-laps" role="tabpanel" aria-labelledby="sprint-tab-laps" class={`sprint-tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -344,12 +213,11 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
               </div>
             )}
 
-            {/* Circuit */}
             <div id="sprint-panel-circuit" role="tabpanel" aria-labelledby="sprint-tab-circuit" class={`sprint-tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
                 {sprintStats.map(({ Icon, label, val }) => (
                   <div class="bg-black p-5">
-                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
+                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">
                       <Icon size={10} />{label}
                     </div>
                     <div class="font-bold text-xl">{val}</div>
@@ -357,7 +225,6 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
@@ -368,73 +235,24 @@ const sprintStats: Array<{ Icon: LucideIcon; label: string; val: string | number
             <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">Run ingest_sprint_qualifying → compute_sprint_features → compute_sprint_predictions</p>
           </div>
         )}
-
       </>
     ) : null}
   </div>
 </BaseLayout>
 
 <script>
-  // ── Countdown ──
-  let cdInterval: ReturnType<typeof setInterval> | null = null;
-  function initCountdown() {
-    if (cdInterval) clearInterval(cdInterval);
-    const el = document.getElementById('sprint-countdown');
-    if (!el) return;
-    const rawDate = el.dataset.sprintDate ?? '';
-    const target = new Date(rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`);
-    const digits = document.querySelectorAll<HTMLElement>('.sprint-cd');
-    function tick() {
-      if (isNaN(target.getTime()) || digits.length < 4) return;
-      const diff = target.getTime() - Date.now();
-      if (diff <= 0) { digits.forEach((d) => d.textContent = '00'); return; }
-      const vals = [
-        Math.floor(diff / 86400000),
-        Math.floor((diff % 86400000) / 3600000),
-        Math.floor((diff % 3600000) / 60000),
-        Math.floor((diff % 60000) / 1000),
-      ];
-      digits.forEach((d, i) => d.textContent = String(vals[i]).padStart(2, '0'));
-    }
-    tick();
-    cdInterval = setInterval(tick, 1000);
-  }
-
-  // ── Tabs ──
-  function activateTab(target: string) {
-    document.querySelectorAll<HTMLButtonElement>('.sprint-tab-btn').forEach((b) => {
-      const active = b.dataset.tab === target;
-      b.setAttribute('aria-selected', String(active));
-      b.tabIndex = active ? 0 : -1;
-      b.style.borderColor = active ? 'rgba(249,115,22,0.5)' : '';
-      b.style.color       = active ? '#fb923c' : '';
-      b.style.background  = active ? 'rgba(249,115,22,0.08)' : '';
-      // Strip SSR-rendered Tailwind active classes so they don't linger on inactive tabs
-      b.classList.remove('border-orange-500/50', 'text-orange-400', 'bg-orange-500/[0.08]');
-    });
-    document.querySelectorAll<HTMLElement>('.sprint-tab-panel').forEach((p) => {
-      p.classList.toggle('hidden', p.id !== `sprint-panel-${target}`);
-    });
-  }
-
-  function initTabs() {
-    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('.sprint-tab-btn'));
-    btns.forEach((btn, i) => {
-      btn.addEventListener('click', () => activateTab(btn.dataset.tab!));
-      btn.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-        e.preventDefault();
-        const next = btns[e.key === 'ArrowRight' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length];
-        next.focus();
-        activateTab(next.dataset.tab!);
-      });
-    });
-    // "full →" in prediction panel jumps to the Prediction tab
-    document.getElementById('goto-prediction')?.addEventListener('click', () => activateTab('prediction'));
-  }
+  import { initRaceCountdown, initRaceTabs } from '@/features/races/raceTabs';
 
   document.addEventListener('astro:page-load', () => {
-    initCountdown();
-    initTabs();
+    initRaceCountdown('sprint-countdown', 'raceDate', 'sprint-cd');
+    initRaceTabs({
+      btnClass: 'sprint-tab-btn',
+      panelClass: 'sprint-tab-panel',
+      panelIdPrefix: 'sprint-panel-',
+      activeBorder: 'rgba(249,115,22,0.5)',
+      activeColor: '#fb923c',
+      activeBg: 'rgba(249,115,22,0.08)',
+      strippedClasses: ['border-orange-500/50', 'text-orange-400', 'bg-orange-500/[0.08]'],
+    });
   });
 </script>

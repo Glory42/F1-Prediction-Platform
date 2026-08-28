@@ -1,12 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
-import { getTeamColor } from '@/lib/teamColors';
-import { getTeamLogo } from '@/lib/teamLogos';
-import { MapPin, ChevronRight, Zap, User, Shield, AlertTriangle } from 'lucide-react';
+import { MapPin, Zap, AlertTriangle } from 'lucide-react';
 import { getCountryFlag } from '@/lib/countryFlags';
 import { getCircuitMetadata } from '@/features/circuits/circuitMetadata';
 import { WeatherForecast } from '@/features/circuits/components/WeatherForecast';
+import CircuitTelemetryCard from '@/features/circuits/components/CircuitTelemetryCard.astro';
+import CircuitWinnersTable from '@/features/circuits/components/CircuitWinnersTable.astro';
+import DominanceCard from '@/features/circuits/components/DominanceCard.astro';
 import { getWeatherForecast, type ForecastDay } from '@/features/circuits/weather';
 
 const { key } = Astro.params;
@@ -195,100 +196,12 @@ function formatLapTime(ms: number) {
 
           </div>
 
-          <!-- History Table -->
-          <div>
-            <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">Recent Winners</h2>
-            <div class="border border-white/[0.06]">
-              {history.length > 0 ? history.map((race, i) => (
-                <a href={`/races/${race.raceId}`} class={`flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors ${i !== 0 ? 'border-t border-white/[0.04]' : ''}`}>
-                  <div class="flex items-center gap-4">
-                    <span class="font-mono text-[10px] text-muted-foreground w-8">{race.year}</span>
-                    {race.winner ? (
-                      <div class="flex items-center gap-3">
-                        <div
-                          class="w-10 h-10 shrink-0 border-b-2 overflow-hidden bg-white/[0.02] flex items-end justify-center"
-                          style={`border-color: ${getTeamColor(race.winner.team.teamKey)}`}
-                        >
-                          {race.winner.headshotUrl ? (
-                            <img src={race.winner.headshotUrl} alt={race.winner.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
-                          ) : (
-                            <User size={24} className="text-white/20 mb-1" />
-                          )}
-                        </div>
-                        <div class="flex flex-col">
-                          <span class="font-medium text-sm transition-colors group-hover:text-purple-400">{race.winner.fullName}</span>
-                          <span class="font-mono text-[9px] tracking-widest uppercase text-muted-foreground mt-0.5">{race.winner.team.name}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span class="font-medium text-sm text-muted-foreground">N/A</span>
-                    )}
-                  </div>
-                  <ChevronRight size={12} className="text-white/20 shrink-0" />
-                </a>
-              )) : (
-                <div class="p-8 text-center text-muted-foreground font-mono text-[9px] tracking-widest uppercase">
-                  No historical races yet
-                </div>
-              )}
-            </div>
-          </div>
+          <CircuitWinnersTable history={history} />
         </div>
 
         <!-- Right Column: Context & Records -->
         <div class="space-y-6">
-          <!-- Telemetry & Track Bias -->
-          <div class="border border-white/[0.06] bg-black p-5">
-            <h2 class="font-mono text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-4">Telemetry & Bias</h2>
-            <div class="space-y-4">
-              <div class="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
-                <span class="font-mono text-[9px] tracking-wider text-muted-foreground uppercase">Longest Straight</span>
-                <span class="font-mono text-xs font-semibold text-white">{meta.longestStraightM} m</span>
-              </div>
-
-              <div>
-                <span class="block font-mono text-[9px] tracking-wider text-muted-foreground uppercase mb-2">Corner Distribution</span>
-                <div class="grid grid-cols-3 gap-2">
-                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
-                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">Low Speed</span>
-                    <span class="font-mono text-xs font-semibold text-white">{meta.lowSpeedCorners}</span>
-                  </div>
-                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
-                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">Medium</span>
-                    <span class="font-mono text-xs font-semibold text-white">{meta.medSpeedCorners}</span>
-                  </div>
-                  <div class="bg-white/[0.01] border border-white/[0.04] p-2 text-center">
-                    <span class="block font-mono text-[8px] text-muted-foreground/60 uppercase">High Speed</span>
-                    <span class="font-mono text-xs font-semibold text-white">{meta.highSpeedCorners}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <span class="block font-mono text-[9px] tracking-wider text-muted-foreground uppercase">Track Bias</span>
-                <div class="space-y-1.5">
-                  <div>
-                    <div class="flex justify-between font-mono text-[8px] text-muted-foreground/80 mb-0.5">
-                      <span>Straight-Line Power</span>
-                      <span>{meta.powerWeight}%</span>
-                    </div>
-                    <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                      <div class="h-full bg-purple-500 bar-fill" style={`width: ${meta.powerWeight}%`} />
-                    </div>
-                  </div>
-                  <div>
-                    <div class="flex justify-between font-mono text-[8px] text-muted-foreground/80 mb-0.5">
-                      <span>Aerodynamic Downforce</span>
-                      <span>{meta.downforceWeight}%</span>
-                    </div>
-                    <div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                      <div class="h-full bg-purple-500 bar-fill" style={`width: ${meta.downforceWeight}%`} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CircuitTelemetryCard meta={meta} />
 
           <!-- Live Weather Forecast Widget -->
           {isUpcomingCircuit && (
@@ -357,106 +270,7 @@ function formatLapTime(ms: number) {
             )}
           </div>
 
-          <!-- Dominance Card with Era Selector -->
-          <div class="border border-white/[0.06] bg-black p-5 space-y-6">
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h2>
-                <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-purple-400/60 bg-purple-500/[0.03] px-1.5 py-0.5 border border-purple-500/10">Era Filter</span>
-              </div>
-
-              <!-- Era selector tabs -->
-              <div class="flex border-b border-white/[0.06] mb-4 pb-1 gap-1 overflow-x-auto select-none">
-                {[
-                  { id: 'all', label: 'All-Time' },
-                  { id: 'modern', label: 'Modern (18+)' },
-                  { id: 'legacy', label: 'Legacy (00-17)' },
-                  { id: 'nineties', label: '90s (90-99)' }
-                ].map((era) => (
-                  <button
-                    class="era-tab px-2.5 py-1 font-mono text-[8px] tracking-wider uppercase border border-white/[0.05] hover:bg-white/[0.02] transition-colors shrink-0 text-muted-foreground bg-white/[0.01]"
-                    data-era={era.id}
-                  >
-                    {era.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <!-- Constructor Dominance Lists -->
-            <div>
-              <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h3>
-              <div class="constructor-dominance-container">
-                {['all', 'modern', 'legacy', 'nineties'].map((era) => (
-                  <div class={`era-constructor-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
-                    {dominance[era as keyof typeof dominance].constructors.length > 0 ? (
-                      dominance[era as keyof typeof dominance].constructors.slice(0, 5).map((dom) => {
-                        const logo = getTeamLogo(dom.team.teamKey);
-                        const color = getTeamColor(dom.team.teamKey);
-                        return (
-                          <a href={`/teams/${dom.team.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${color}`}>
-                            <div class="flex items-center gap-3">
-                              <div class="w-7 h-7 flex items-center justify-center shrink-0 bg-white/[0.01]">
-                                {logo ? (
-                                  <img src={logo} alt={dom.team.name} class="max-w-full max-h-full object-contain p-0.5" />
-                                ) : (
-                                  <Shield size={14} className="text-white/20" />
-                                )}
-                              </div>
-                              <span class="text-xs font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
-                            </div>
-                            <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
-                          </a>
-                        );
-                      })
-                    ) : (
-                      <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
-                        No wins in this era
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <!-- Driver Dominance Lists -->
-            <div>
-              <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h3>
-              <div class="driver-dominance-container">
-                {['all', 'modern', 'legacy', 'nineties'].map((era) => (
-                  <div class={`era-driver-list era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
-                    {dominance[era as keyof typeof dominance].drivers.length > 0 ? (
-                      dominance[era as keyof typeof dominance].drivers.slice(0, 5).map((dom) => {
-                        const color = getTeamColor(dom.driver.team.teamKey);
-                        return (
-                          <a href={`/drivers/${dom.driver.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${color}`}>
-                            <div class="flex items-center gap-3">
-                              <div class="w-7 h-7 flex items-end justify-center shrink-0 overflow-hidden bg-white/[0.01]">
-                                {dom.driver.headshotUrl ? (
-                                  <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
-                                ) : (
-                                  <User size={16} className="text-white/20 mb-0.5" />
-                                )}
-                              </div>
-                              <div class="flex flex-col justify-center">
-                                <span class="text-xs font-medium leading-none group-hover:text-white transition-colors">{dom.driver.fullName}</span>
-                              </div>
-                            </div>
-                            <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
-                          </a>
-                        );
-                      })
-                    ) : (
-                      <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
-                        No wins in this era
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
+          <DominanceCard dominance={dominance} />
 
         </div>
       </div>
@@ -465,44 +279,8 @@ function formatLapTime(ms: number) {
 </BaseLayout>
 
 <script>
-  // Simple vanilla JS era tabs filter logic (compatible with Astro ClientRouter transitions)
+  // Belt-and-braces for images already cached broken before the inline onerror wired up.
   document.addEventListener('astro:page-load', () => {
-    const tabs = document.querySelectorAll('.era-tab');
-    if (tabs.length === 0) return;
-
-    function setEra(selectedEra: string) {
-      tabs.forEach(tab => {
-        const era = tab.getAttribute('data-era');
-        if (era === selectedEra) {
-          tab.classList.remove('text-muted-foreground', 'bg-white/[0.01]');
-          tab.classList.add('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
-        } else {
-          tab.classList.remove('bg-purple-500/10', 'border-purple-500/30', 'text-purple-400');
-          tab.classList.add('text-muted-foreground', 'bg-white/[0.01]');
-        }
-      });
-
-      const allContent = document.querySelectorAll('[class*="era-content-"]');
-      allContent.forEach(content => {
-        if (content.classList.contains(`era-content-${selectedEra}`)) {
-          content.classList.remove('hidden');
-        } else {
-          content.classList.add('hidden');
-        }
-      });
-    }
-
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const era = tab.getAttribute('data-era');
-        if (era) setEra(era);
-      });
-    });
-
-    // Initialize with All-Time selected
-    setEra('all');
-
-    // Handle image error fallback cleanly
     const img = document.getElementById('circuit-img') as HTMLImageElement | null;
     if (img) {
       if (img.complete && img.naturalWidth === 0) {

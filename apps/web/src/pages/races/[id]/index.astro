@@ -3,13 +3,14 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { RaceResultsTable } from '@/features/races/components/RaceResultsTable';
 import { QualifyingGrid } from '@/features/races/components/QualifyingGrid';
 import LapChart from '@/features/races/components/LapChart.astro';
+import RaceHeroInfo from '@/features/races/components/RaceHeroInfo.astro';
+import RacePredictionPanel from '@/features/races/components/RacePredictionPanel.astro';
 import { api } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatMs } from '@/lib/utils';
 import type { PredictionResponse, CircuitHistoryItem } from '@/types';
-import { MapPin, CalendarDays, RotateCcw, Gauge, CloudSun, Zap, CheckCircle2, Timer, Flag, CornerDownRight, Wind } from 'lucide-react';
+import { RotateCcw, Gauge, Zap, Flag, CornerDownRight, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import RaceYearSelect from '@/features/races/components/RaceYearSelect.astro';
-import { formatMs } from '@/lib/utils';
+import { GP_ACCENT } from '@/features/predictions/types';
 
 const { id } = Astro.params;
 
@@ -35,24 +36,21 @@ if (race) {
   if (histResult.status === 'fulfilled') circuitHistory = histResult.value.history;
 }
 
-const isCompleted     = race?.status === 'completed';
-const isQualiDone     = race?.status === 'qualifying_done';
-const isSprintDone    = race?.status === 'sprint_done';
-const isSprintQualiDone = race?.status === 'sprint_qualifying_done';
+const isCompleted = race?.status === 'completed';
+const isQualiDone = race?.status === 'qualifying_done';
+const isSprintish = race?.status === 'sprint_done' || race?.status === 'sprint_qualifying_done';
 
-const hasResults   = (raceData?.results?.length ?? 0) > 0;
+const hasResults = (raceData?.results?.length ?? 0) > 0;
 const hasQualifying = (raceData?.qualifying?.length ?? 0) > 0;
-const hasLaps      = (raceData?.laps?.length ?? 0) > 0;
+const hasLaps = (raceData?.laps?.length ?? 0) > 0;
 
-// Build tab list — ordered by importance for the current status
 type Tab = { id: string; label: string };
 const tabs: Tab[] = [];
-if (isCompleted && hasResults)   tabs.push({ id: 'results',    label: 'Results'    });
-if (hasQualifying)               tabs.push({ id: 'qualifying', label: 'Qualifying' });
-if (isCompleted && hasLaps)      tabs.push({ id: 'laps',       label: 'Lap Chart'  });
-                                 tabs.push({ id: 'circuit',    label: 'Circuit'    });
+if (isCompleted && hasResults) tabs.push({ id: 'results', label: 'Results' });
+if (hasQualifying) tabs.push({ id: 'qualifying', label: 'Qualifying' });
+if (isCompleted && hasLaps) tabs.push({ id: 'laps', label: 'Lap Chart' });
+tabs.push({ id: 'circuit', label: 'Circuit' });
 
-// Year selector items — all years this circuit has appeared, newest first
 const circuitYearItems = [...circuitHistory]
   .sort((a, b) => b.year - a.year)
   .map((h) => ({ year: h.year, href: `/races/${h.raceId}` }));
@@ -69,28 +67,44 @@ const flResult = hasResults ? raceData!.results.find((r) => r.fastestLap) : null
 const flLapMs = flResult && raceData?.laps
   ? raceData.laps.find((l) => l.driverId === flResult.driver.id)?.fastestLapMs ?? null
   : null;
-const flLapStr = flLapMs ? formatMs(flLapMs) : null;
-const predCorrect  = prediction && actualWinner
+const predCorrect = prediction && actualWinner
   ? prediction.predictedWinner.id === actualWinner.driver.id
   : null;
 
 const raceDistanceKm = race
   ? (race.circuit.lapCount * Number(race.circuit.trackLengthKm)).toFixed(1)
   : null;
+
+const conditions: { label: string; val: string | number }[] = [];
+if (race) {
+  if (race.safetyCarLaps != null) conditions.push({ label: 'SC Laps', val: race.safetyCarLaps });
+  if (race.vscLaps != null) conditions.push({ label: 'VSC', val: race.vscLaps });
+  if (race.airTempAvg) conditions.push({ label: 'Air', val: `${Math.round(Number(race.airTempAvg))}°C` });
+  if (race.trackTempAvg) conditions.push({ label: 'Track', val: `${Math.round(Number(race.trackTempAvg))}°C` });
+  if (race.humidityAvg) conditions.push({ label: 'Humidity', val: `${Math.round(Number(race.humidityAvg))}%` });
+}
+
+const statusToneClass = isCompleted
+  ? 'border-[rgba(168,85,247,0.3)] text-[rgba(168,85,247,0.7)]'
+  : isQualiDone
+  ? 'border-yellow-500/30 text-yellow-400/70'
+  : isSprintish
+  ? 'border-orange-500/30 text-orange-400/70'
+  : 'border-white/[0.08] text-muted-foreground';
+
 const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | number }> = race ? [
-  { Icon: RotateCcw,        label: 'Laps',          val: race.circuit.lapCount },
-  { Icon: Gauge,            label: 'Length',         val: `${race.circuit.trackLengthKm} km` },
-  { Icon: Flag,             label: 'Race Dist',      val: `${raceDistanceKm} km` },
-  { Icon: CornerDownRight,  label: 'Corners',        val: race.circuit.numberOfCorners ?? '—' },
-  { Icon: Wind,             label: 'DRS Zones',      val: race.circuit.drsZones ?? '—' },
-  { Icon: Zap,              label: 'Overtake Rate',  val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
+  { Icon: RotateCcw, label: 'Laps', val: race.circuit.lapCount },
+  { Icon: Gauge, label: 'Length', val: `${race.circuit.trackLengthKm} km` },
+  { Icon: Flag, label: 'Race Dist', val: `${raceDistanceKm} km` },
+  { Icon: CornerDownRight, label: 'Corners', val: race.circuit.numberOfCorners ?? '—' },
+  { Icon: Wind, label: 'DRS Zones', val: race.circuit.drsZones ?? '—' },
+  { Icon: Zap, label: 'Overtake Rate', val: race.circuit.overtakeRate ? `${Math.round(Number(race.circuit.overtakeRate) * 100)}%` : '—' },
 ] : [];
 ---
 
 <BaseLayout title={race?.name ?? 'Race'}>
   <div class="mt-7 space-y-8">
 
-    <!-- Back -->
     <a href="/races" class="inline-block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
       ← all races
     </a>
@@ -101,190 +115,50 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
       </div>
     ) : raceData && race ? (
       <>
-
-        {/* ── HERO ──────────────────────────────────────────────────── */}
+        {/* ── HERO ── */}
         <div class="panel">
           <div class="grid lg:grid-cols-[1fr_320px]">
+            <RaceHeroInfo
+              kicker={`./round-${race.roundNumber.toString().padStart(2, '0')}`}
+              statusIcon={isCompleted ? 'check' : (isQualiDone || isSprintish) ? 'zap' : 'timer'}
+              statusLabel={race.status.replace(/_/g, ' ')}
+              statusToneClass={statusToneClass}
+              raceName={race.name}
+              circuit={race.circuit}
+              dateStr={formatDate(race.raceDate)}
+              lapsLabel={`${race.circuit.lapCount} laps`}
+              lengthKm={race.circuit.trackLengthKm}
+              weather={race.weather}
+              conditions={conditions}
+              fastestLap={flResult ? { code: flResult.driver.code, timeStr: flLapMs ? formatMs(flLapMs) : null } : null}
+              accent={GP_ACCENT}
+              countdown={!isCompleted ? { id: 'race-countdown', date: race.raceDateUtc || race.raceDate, borderClass: 'border-white/[0.08]', digitClass: 'countdown-d' } : null}
+              yearItems={circuitYearItems}
+              currentYear={raceYear}
+            />
 
-            {/* Left: race info */}
-            <div class="p-6 lg:p-8 space-y-5 border-b lg:border-b-0 lg:border-r border-white/[0.06]">
-
-              {/* Label + status */}
-              <div class="flex items-center gap-3">
-                <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">
-                  ./round-{race.roundNumber.toString().padStart(2,'0')}
-                </span>
-                <div class="h-px flex-1 bg-white/[0.05]" />
-                {circuitYearItems.length > 1 && (
-                  <RaceYearSelect items={circuitYearItems} currentYear={raceYear} />
-                )}
-                <span class={`flex items-center gap-1 font-mono text-[9px] tracking-[0.15em] uppercase px-2 py-1 border ${
-                  isCompleted
-                    ? 'border-[rgba(168,85,247,0.3)] text-[rgba(168,85,247,0.7)]'
-                    : isQualiDone
-                    ? 'border-yellow-500/30 text-yellow-400/70'
-                    : (isSprintDone || isSprintQualiDone)
-                    ? 'border-orange-500/30 text-orange-400/70'
-                    : 'border-white/[0.08] text-muted-foreground'
-                }`}>
-                  {isCompleted ? <CheckCircle2 size={10} /> : (isQualiDone || isSprintDone || isSprintQualiDone) ? <Zap size={10} /> : <Timer size={10} />}
-                  {race.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              {/* Race name */}
-              <div>
-                <h1 class="text-3xl sm:text-4xl font-bold leading-tight">{race.name}</h1>
-                <div class="flex items-center gap-1.5 mt-2 font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-                  <MapPin size={11} />
-                  <a href={`/circuits/${race.circuit.circuitKey}`} class="hover:text-white underline decoration-white/30 underline-offset-[3px] transition-all">
-                    {race.circuit.name}
-                  </a>
-                  <span class="text-white/20 ml-1">• {race.circuit.city}, {race.circuit.country}</span>
-                </div>
-              </div>
-
-              {/* Meta row */}
-              <div class="flex flex-wrap items-center gap-4 font-mono text-[10px] text-muted-foreground tracking-[0.1em] uppercase">
-                <span class="flex items-center gap-1.5"><CalendarDays size={11} />{formatDate(race.raceDate)}</span>
-                <span class="text-white/20">·</span>
-                <span class="flex items-center gap-1.5"><RotateCcw size={11} />{race.circuit.lapCount} laps</span>
-                <span class="text-white/20">·</span>
-                <span class="flex items-center gap-1.5"><Gauge size={11} />{race.circuit.trackLengthKm} km</span>
-                {race.weather && <><span class="text-white/20">·</span><span class="flex items-center gap-1.5 capitalize"><CloudSun size={11} />{race.weather}</span></>}
-              </div>
-
-              {/* Conditions strip + fastest lap */}
-              {(race.safetyCarLaps != null || race.vscLaps != null || race.airTempAvg || race.trackTempAvg || race.humidityAvg || flResult) && (
-              <div class="inline-flex flex-wrap gap-px bg-white/[0.04]">
-                  {race.safetyCarLaps != null && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">SC Laps</div>
-                      <div class="font-bold text-sm">{race.safetyCarLaps}</div>
-                    </div>
-                  )}
-                  {race.vscLaps != null && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">VSC</div>
-                      <div class="font-bold text-sm">{race.vscLaps}</div>
-                    </div>
-                  )}
-                  {race.airTempAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Air</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.airTempAvg))}°C</div>
-                    </div>
-                  )}
-                  {race.trackTempAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Track</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.trackTempAvg))}°C</div>
-                    </div>
-                  )}
-                  {race.humidityAvg && (
-                    <div class="bg-[#0a0a0a] px-3 py-2">
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">Humidity</div>
-                      <div class="font-bold text-sm">{Math.round(Number(race.humidityAvg))}%</div>
-                    </div>
-                  )}
-                  {flResult && (
-                    <div class="bg-[rgba(168,85,247,0.06)] border-l-2 border-[rgba(168,85,247,0.3)] px-3 py-2">
-                      <div class="font-mono text-[7px] tracking-widest uppercase mb-0.5" style="color:rgba(168,85,247,0.55)">Fastest Lap</div>
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-sm" style="color:#a855f7">{flResult.driver.code}</span>
-                        {flLapStr && <span class="font-mono text-xs font-bold" style="color:#a855f7">{flLapStr}</span>}
-                      </div>
-                    </div>
-                  )}
-              </div>
-              )}
-
-              {/* Countdown for upcoming */}
-              {!isCompleted && (
-                <div class="flex items-center gap-3" id="race-countdown" data-race-date={race.raceDateUtc || race.raceDate}>
-                  {(['Days','Hrs','Min','Sec'] as const).map((unit, i) => (
-                    <div class="text-center">
-                      <div class="w-[54px] h-[54px] border border-white/[0.08] flex items-center justify-center bg-white/[0.02]">
-                        <span class="text-lg font-bold font-mono countdown-d" data-index={i}>--</span>
-                      </div>
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-[0.15em] uppercase mt-1">{unit}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-
-            {/* Right: prediction panel */}
-            <div class="p-6 flex flex-col gap-4 bg-white/[0.01]">
-              <div class="flex items-center gap-3">
-                <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><Zap size={11} />./prediction</span>
-                <div class="h-px flex-1 bg-white/[0.05]" />
-                {prediction && (
-                  <a href={`/prediction/${race.id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150">
-                    full →
-                  </a>
-                )}
-              </div>
-
-              {prediction ? (
-                <>
-                  {/* Accuracy badge for completed */}
-                  {isCompleted && predCorrect !== null && (
-                    <div class={`flex items-center gap-2 px-3 py-2 border-l-2 ${predCorrect ? 'border-l-green-500 bg-green-500/[0.04]' : 'border-l-red-500 bg-red-500/[0.04]'}`}>
-                      <span class={`font-mono text-[9px] font-bold tracking-widest ${predCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                        {predCorrect ? '✓ CORRECT' : '✗ INCORRECT'}
-                      </span>
-                    </div>
-                  )}
-
-                  <div>
-                    <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">predicted winner</div>
-                    <div class="font-bold text-lg leading-tight">{prediction.predictedWinner.fullName}</div>
-                    <div class="font-mono text-[9px] text-[#a855f7]">{Math.round(Number(podium[0]?.winProbability ?? 0) * 100)}% confidence</div>
-                  </div>
-
-                  {isCompleted && actualWinner && actualWinner.driver.id !== prediction.predictedWinner.id && (
-                    <div>
-                      <div class="font-mono text-[7px] text-muted-foreground tracking-widest uppercase mb-0.5">actual winner</div>
-                      <div class="font-semibold">{actualWinner.driver.fullName}</div>
-                    </div>
-                  )}
-
-                  <div class="space-y-2 mt-1">
-                    {podium.map((d, i) => {
-                      const pct = Math.round(Number(d.winProbability) * 100);
-                      return (
-                        <div class="flex items-center gap-2.5">
-                          <span class="font-mono text-[8px] text-muted-foreground w-4 shrink-0">P{i+1}</span>
-                          <span class="font-mono text-[9px] font-bold w-7 shrink-0">{d.driver.code}</span>
-                          <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                            <div class="h-full bg-[#a855f7] bar-fill absolute inset-y-0 left-0" style={`width:${pct}%`} />
-                          </div>
-                          <span class="font-mono text-[8px] text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
-                  <Zap size={18} className="text-muted-foreground opacity-30" />
-                  <p class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">
-                    {isCompleted ? 'No prediction data' : 'Available after qualifying'}
-                  </p>
-                </div>
-              )}
-            </div>
-
+            <RacePredictionPanel
+              accent={GP_ACCENT}
+              heading="./prediction"
+              fullHref={`/prediction/${race.id}`}
+              hasPrediction={!!prediction}
+              predictedWinnerName={prediction?.predictedWinner.fullName}
+              winnerLabel="predicted winner"
+              confidence={Math.round(Number(podium[0]?.winProbability ?? 0) * 100)}
+              podium={podium}
+              showAccuracy={isCompleted}
+              predCorrect={predCorrect}
+              actualWinnerName={isCompleted && actualWinner && actualWinner.driver.id !== prediction?.predictedWinner.id ? actualWinner.driver.fullName : null}
+              actualLabel="actual winner"
+              emptyText={isCompleted ? 'No prediction data' : 'Available after qualifying'}
+            />
           </div>
         </div>
 
-
-        {/* ── TAB BAR ───────────────────────────────────────────────── */}
+        {/* ── TABS ── */}
         {tabs.length > 0 && (
           <div>
-            <div class="flex items-center gap-1.5 mb-6" id="tab-bar" role="tablist">
+            <div class="flex items-center gap-1.5 mb-6" role="tablist">
               {tabs.map((t) => (
                 <button
                   type="button"
@@ -305,9 +179,6 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               ))}
             </div>
 
-            {/* ── TAB PANELS ──────────────────────────────────────────── */}
-
-            {/* Results */}
             {hasResults && (
               <div id="panel-results" role="tabpanel" aria-labelledby="tab-results" class={`tab-panel ${defaultTab !== 'results' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -316,7 +187,6 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               </div>
             )}
 
-            {/* Qualifying */}
             {hasQualifying && (
               <div id="panel-qualifying" role="tabpanel" aria-labelledby="tab-qualifying" class={`tab-panel ${defaultTab !== 'qualifying' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -325,7 +195,6 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               </div>
             )}
 
-            {/* Lap Chart */}
             {hasLaps && (
               <div id="panel-laps" role="tabpanel" aria-labelledby="tab-laps" class={`tab-panel ${defaultTab !== 'laps' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
@@ -334,12 +203,11 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               </div>
             )}
 
-            {/* Circuit */}
             <div id="panel-circuit" role="tabpanel" aria-labelledby="tab-circuit" class={`tab-panel ${defaultTab !== 'circuit' ? 'hidden' : ''}`}>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06]">
                 {circuitStats.map(({ Icon, label, val }) => (
                   <div class="bg-black p-5">
-                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widests uppercase mb-2">
+                    <div class="flex items-center gap-1 font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-2">
                       <Icon size={10} />{label}
                     </div>
                     <div class="font-bold text-xl">{val}</div>
@@ -347,79 +215,26 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
                 ))}
               </div>
             </div>
-
-
           </div>
         )}
-
       </>
     ) : null}
   </div>
 </BaseLayout>
 
 <script>
-  // ── Countdown ──
-  let cdInterval: ReturnType<typeof setInterval> | null = null;
-  function initCountdown() {
-    if (cdInterval) clearInterval(cdInterval);
-    const el = document.getElementById('race-countdown');
-    if (!el) return;
-    const rawDate = el.dataset.raceDate ?? '';
-    const raceDate = new Date(rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`);
-    const digits = document.querySelectorAll<HTMLElement>('.countdown-d');
-    function tick() {
-      if (isNaN(raceDate.getTime()) || digits.length < 4) return;
-      const diff = raceDate.getTime() - Date.now();
-      if (diff <= 0) { digits.forEach((d) => d.textContent = '00'); return; }
-      const vals = [
-        Math.floor(diff / 86400000),
-        Math.floor((diff % 86400000) / 3600000),
-        Math.floor((diff % 3600000) / 60000),
-        Math.floor((diff % 60000) / 1000),
-      ];
-      digits.forEach((d, i) => d.textContent = String(vals[i]).padStart(2, '0'));
-    }
-    tick();
-    cdInterval = setInterval(tick, 1000);
-  }
-
-  // ── Tabs ──
-  function initTabs() {
-    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>('.tab-btn'));
-    const panels = document.querySelectorAll<HTMLElement>('.tab-panel');
-
-    function activate(btn: HTMLButtonElement) {
-      const target = btn.dataset.tab!;
-      btns.forEach((b) => {
-        const active = b.dataset.tab === target;
-        b.setAttribute('aria-selected', String(active));
-        b.tabIndex = active ? 0 : -1;
-        b.style.borderColor = active ? 'rgba(168,85,247,0.5)' : '';
-        b.style.color = active ? '#a855f7' : '';
-        b.style.background = active ? 'rgba(168,85,247,0.08)' : '';
-        if (!active) {
-          b.classList.remove('border-[rgba(168,85,247,0.5)]', 'text-[#a855f7]', 'bg-[rgba(168,85,247,0.08)]');
-        }
-      });
-      panels.forEach((p) => {
-        p.classList.toggle('hidden', p.id !== `panel-${target}`);
-      });
-    }
-
-    btns.forEach((btn, i) => {
-      btn.addEventListener('click', () => activate(btn));
-      btn.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-        e.preventDefault();
-        const next = btns[e.key === 'ArrowRight' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length];
-        next.focus();
-        activate(next);
-      });
-    });
-  }
+  import { initRaceCountdown, initRaceTabs } from '@/features/races/raceTabs';
 
   document.addEventListener('astro:page-load', () => {
-    initCountdown();
-    initTabs();
+    initRaceCountdown('race-countdown', 'raceDate', 'countdown-d');
+    initRaceTabs({
+      btnClass: 'tab-btn',
+      panelClass: 'tab-panel',
+      panelIdPrefix: 'panel-',
+      activeBorder: 'rgba(168,85,247,0.5)',
+      activeColor: '#a855f7',
+      activeBg: 'rgba(168,85,247,0.08)',
+      strippedClasses: ['border-[rgba(168,85,247,0.5)]', 'text-[#a855f7]', 'bg-[rgba(168,85,247,0.08)]'],
+    });
   });
 </script>

@@ -1,75 +1,18 @@
 ---
-import { Home, Flag, Users, Building2, Cpu, Search, Menu, X, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { GlobalSearch } from '@/features/search/components/GlobalSearch';
+import MobileNav from './MobileNav.astro';
+import { buildNavLinks, isNavActive } from './navLinks';
 
 const currentPath = Astro.url.pathname;
-// The data-quality dashboard reads development reporting tables — keep it out of
-// the production bundle entirely, only wiring the nav link when running locally.
-const isDev = import.meta.env.DEV;
-
-interface NavDropdownItem {
-  href: string;
-  label: string;
-}
-
-interface NavLink {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  dropdown?: NavDropdownItem[];
-}
-
-const links: NavLink[] = [
-  { href: '/',           label: 'home',       icon: Home       },
-  {
-    href: '/races',
-    label: 'races',
-    icon: Flag,
-    dropdown: [
-      { href: '/races',    label: 'seasons'  },
-      { href: '/circuits', label: 'circuits' },
-    ]
-  },
-  {
-    href: '/drivers',
-    label: 'drivers',
-    icon: Users,
-    dropdown: [
-      { href: '/drivers',         label: 'standings' },
-      { href: '/drivers/compare', label: 'comparison' },
-    ]
-  },
-  {
-    href: '/teams',
-    label: 'teams',
-    icon: Building2,
-    dropdown: [
-      { href: '/teams',         label: 'standings' },
-      { href: '/teams/compare', label: 'comparison' },
-    ]
-  },
-  { href: '/prediction', label: 'prediction', icon: Cpu        },
-];
-
-// Dev-only nav link — appended in local builds so it never ships to production.
-if (isDev) {
-  links.push({ href: '/health-quality', label: 'data quality', icon: ShieldCheck });
-}
-
-function isActive(href: string, dropdown?: NavDropdownItem[]) {
-  if (href === '/') return currentPath === '/';
-  if (currentPath.startsWith(href)) return true;
-  if (dropdown && dropdown.some((sub) => currentPath.startsWith(sub.href))) return true;
-  return false;
-}
+const links = buildNavLinks(import.meta.env.DEV);
 ---
 
 <!-- Desktop & Mobile Top Bar -->
 <header class="glass fixed top-0 left-0 right-0 z-50 h-[48px] border-b border-white/[0.06]">
-
   <div class="h-full flex items-center justify-between sm:justify-center px-5 sm:px-0 relative">
 
-    <!-- Mobile menu toggle & Logo container -->
+    <!-- Mobile menu toggle & Logo -->
     <div class="flex items-center gap-3 sm:hidden">
       <button
         id="mobile-menu-toggle"
@@ -81,7 +24,6 @@ function isActive(href: string, dropdown?: NavDropdownItem[]) {
         <Menu size={18} />
       </button>
 
-      <!-- F1 Logo -->
       <a href="/" class="flex items-center gap-2">
         <svg width="32" height="12" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <g fill="rgba(168,85,247,0.85)">
@@ -117,29 +59,23 @@ function isActive(href: string, dropdown?: NavDropdownItem[]) {
     <nav class="hidden sm:flex items-center gap-5 h-full">
       {links.map((link) => {
         const { href, label, icon: Icon, dropdown } = link;
-        const active = isActive(href, dropdown);
+        const active = isNavActive(currentPath, href, dropdown);
+        const linkClass = `flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
+          active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-foreground'
+        }`;
         if (dropdown) {
           return (
             <div class="relative group h-full flex items-center">
-              <a
-                href={href}
-                class={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
-                  active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
+              <a href={href} class={linkClass}>
                 <Icon size={12} />
                 {label}
                 <span class="text-[7px] ml-0.5 opacity-65 group-hover:rotate-180 transition-transform duration-200">▼</span>
               </a>
-
               {/* Dropdown panel — core nav, checked many times a day: kept to a fast, opacity-only cue */}
               <div class="absolute top-[44px] pt-1.5 left-1/2 -translate-x-1/2 z-50 min-w-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto">
                 <div class="glass border border-white/[0.08] py-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
                   {dropdown.map((sub) => (
-                    <a
-                      href={sub.href}
-                      class="block px-4 py-2 font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-100"
-                    >
+                    <a href={sub.href} class="block px-4 py-2 font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-100">
                       {sub.label}
                     </a>
                   ))}
@@ -149,12 +85,7 @@ function isActive(href: string, dropdown?: NavDropdownItem[]) {
           );
         }
         return (
-          <a
-            href={href}
-            class={`flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase transition-colors duration-150 ${
-              active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
+          <a href={href} class={linkClass}>
             <Icon size={12} />
             {label}
           </a>
@@ -176,175 +107,6 @@ function isActive(href: string, dropdown?: NavDropdownItem[]) {
   </div>
 </header>
 
-<!-- Mobile Sidebar Drawer -->
-<div
-  id="mobile-sidebar"
-  class="glass-heavy fixed inset-y-0 left-0 z-50 w-[260px] border-r border-white/[0.08] transform -translate-x-full transition-transform duration-300 ease-spring sm:hidden"
-  role="dialog"
-  aria-modal="true"
-  aria-label="Navigation menu"
-  tabindex="-1"
->
-  <div class="flex flex-col h-full p-6 space-y-6">
-    <!-- Header with Close Button -->
-    <div class="flex items-center justify-between pb-4 border-b border-white/[0.06]">
-      <div class="flex items-center gap-2">
-        <span class="relative flex h-[6px] w-[6px]">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a855f7] opacity-50" />
-          <span class="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#a855f7]" />
-        </span>
-        <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-[#a855f7]">menu</span>
-      </div>
-      <button id="mobile-sidebar-close" class="press text-muted-foreground hover:text-foreground focus:outline-none" aria-label="Close menu">
-        <X size={16} />
-      </button>
-    </div>
-
-    <!-- Nav Links -->
-    <nav class="flex flex-col space-y-4">
-      {links.map((link) => {
-        const { href, label, icon: Icon, dropdown } = link;
-        const active = isActive(href, dropdown);
-        if (dropdown) {
-          return (
-            <div class="space-y-2">
-              <button
-                class="w-full flex items-center justify-between font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground hover:text-white py-1.5 text-left mobile-dropdown-toggle focus:outline-none group"
-                data-target={`mobile-dropdown-${label}`}
-              >
-                <span class="flex items-center gap-2.5">
-                  <Icon size={13} className={active ? 'text-[#a855f7]' : ''} />
-                  {label}
-                </span>
-                <span class="text-[7px] text-muted-foreground/60 transition-transform duration-200 group-hover:text-white">▼</span>
-              </button>
-              <div id={`mobile-dropdown-${label}`} class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-spring">
-                <div class="overflow-hidden min-h-0">
-                  <div class="pl-4 border-l border-white/[0.06] flex flex-col space-y-3 mt-1 opacity-0 transition-opacity duration-200 mobile-dropdown-content">
-                    {dropdown.map((sub) => (
-                      <a
-                        href={sub.href}
-                        class="block font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-white py-0.5 transition-colors"
-                      >
-                        {sub.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return (
-          <a
-            href={href}
-            class={`flex items-center gap-2.5 font-mono text-[10px] tracking-[0.18em] uppercase py-1.5 transition-colors ${
-              active ? 'text-[#a855f7]' : 'text-muted-foreground hover:text-white'
-            }`}
-          >
-            <Icon size={13} />
-            {label}
-          </a>
-        );
-      })}
-    </nav>
-  </div>
-</div>
-
-<!-- Backdrop overlay -->
-<div id="mobile-sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-45 hidden sm:hidden transition-opacity duration-300 opacity-0" />
+<MobileNav links={links} currentPath={currentPath} />
 
 <GlobalSearch client:idle />
-
-<script>
-  function initMobileMenu() {
-    const toggleBtn = document.getElementById('mobile-menu-toggle');
-    const closeBtn = document.getElementById('mobile-sidebar-close');
-    const sidebar = document.getElementById('mobile-sidebar');
-    const backdrop = document.getElementById('mobile-sidebar-backdrop');
-    
-    if (!toggleBtn || !sidebar || !backdrop) return;
-
-    function getFocusable(): HTMLElement[] {
-      return Array.from(
-        sidebar!.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
-      );
-    }
-
-    function trapFocus(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeMenu();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const focusable = getFocusable();
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-
-    function openMenu() {
-      sidebar!.classList.remove('-translate-x-full');
-      backdrop!.classList.remove('hidden');
-      toggleBtn!.setAttribute('aria-expanded', 'true');
-      setTimeout(() => {
-        backdrop!.classList.add('opacity-100');
-      }, 10);
-      document.addEventListener('keydown', trapFocus);
-      (getFocusable()[0] ?? sidebar!).focus();
-    }
-
-    function closeMenu() {
-      sidebar!.classList.add('-translate-x-full');
-      backdrop!.classList.remove('opacity-100');
-      toggleBtn!.setAttribute('aria-expanded', 'false');
-      document.removeEventListener('keydown', trapFocus);
-      setTimeout(() => {
-        backdrop!.classList.add('hidden');
-      }, 300);
-      toggleBtn!.focus();
-    }
-
-    toggleBtn.addEventListener('click', openMenu);
-    if (closeBtn) closeBtn.addEventListener('click', closeMenu);
-    backdrop.addEventListener('click', closeMenu);
-
-    // Handle accordion expands inside mobile menu
-    const dropdownToggles = document.querySelectorAll('.mobile-dropdown-toggle');
-    dropdownToggles.forEach(toggle => {
-      toggle.addEventListener('click', (e) => {
-        const btn = e.currentTarget as HTMLButtonElement;
-        const targetId = btn.getAttribute('data-target');
-        const dropdownPanel = document.getElementById(targetId || '');
-        const arrow = btn.querySelector('span:last-child');
-        
-        if (dropdownPanel) {
-          const content = dropdownPanel.querySelector('.mobile-dropdown-content');
-          const isCollapsed = dropdownPanel.classList.contains('grid-rows-[0fr]');
-          if (isCollapsed) {
-            dropdownPanel.classList.remove('grid-rows-[0fr]');
-            dropdownPanel.classList.add('grid-rows-[1fr]');
-            content?.classList.remove('opacity-0');
-            content?.classList.add('opacity-100');
-            if (arrow) arrow.classList.add('rotate-180');
-          } else {
-            dropdownPanel.classList.remove('grid-rows-[1fr]');
-            dropdownPanel.classList.add('grid-rows-[0fr]');
-            content?.classList.remove('opacity-100');
-            content?.classList.add('opacity-0');
-            if (arrow) arrow.classList.remove('rotate-180');
-          }
-        }
-      });
-    });
-  }
-
-  document.addEventListener('astro:page-load', initMobileMenu);
-</script>

@@ -1,0 +1,145 @@
+---
+import { Sliders } from 'lucide-react';
+import type { FeatureMeta, PredictionAccent, PredictionDriverVM } from '../types';
+
+interface Props {
+  drivers: PredictionDriverVM[];
+  featureMeta: FeatureMeta;
+  weights: Record<string, number>;
+  accent: PredictionAccent;
+  sliderMax: number;
+  blurb: string;
+}
+
+const { drivers, featureMeta, weights, accent, sliderMax, blurb } = Astro.props;
+
+const payload = JSON.stringify({
+  drivers: drivers.map((d) => ({
+    id: d.driver.id,
+    code: d.driver.code,
+    fullName: d.driver.fullName,
+    winProbability: d.winProbability,
+    features: d.features,
+  })),
+  weights,
+}).replace(/</g, '\\u003c');
+---
+
+<div class="whatif-lab border border-white/[0.06] p-5" data-whatif>
+  <script type="application/json" is:inline data-whatif-payload set:html={payload} />
+  <div class="flex items-center gap-3 mb-1">
+    <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}><Sliders size={11} />./what-if lab</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+    <button type="button" data-role="reset" class="reset-btn font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground transition-colors duration-150">reset to model</button>
+  </div>
+  <p class="font-mono text-[9px] text-muted-foreground mb-4">{blurb}</p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,320px)_1fr] gap-6">
+    <div class="space-y-2">
+      {Object.entries(featureMeta).map(([key, meta]) => (
+        <label class="flex items-center gap-3">
+          <span class="font-mono text-[9px] text-muted-foreground w-28 shrink-0 truncate">{meta.label}</span>
+          <input type="range" min="0" max={sliderMax} step="1" value={meta.weight} data-key={key} class="whatif-slider flex-1" />
+          <span class="whatif-val font-mono text-[9px] font-bold w-7 text-right" data-key={key}>{meta.weight}</span>
+        </label>
+      ))}
+      <div class="flex items-center justify-between border-t border-white/[0.06] pt-2 mt-2">
+        <span class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">total weight</span>
+        <span data-role="total" class="font-mono text-[9px] font-bold">100</span>
+      </div>
+    </div>
+
+    <div data-role="results" class="border border-white/[0.06] divide-y divide-white/[0.04]"></div>
+  </div>
+</div>
+
+<style define:vars={{ accent: accent.hex }}>
+  .whatif-lab .whatif-slider { accent-color: var(--accent); }
+  .whatif-lab .whatif-val { color: var(--accent); }
+  .whatif-lab .reset-btn:hover { color: var(--accent); }
+</style>
+
+<script>
+  function escapeHtml(str: string) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function softmax(scores: number[]) {
+    const scaled = scores.map((s) => s / 0.3);
+    const max = Math.max(...scaled);
+    const exps = scaled.map((s) => Math.exp(s - max));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map((e) => e / sum);
+  }
+
+  function initWhatIfLabs() {
+    document.querySelectorAll<HTMLElement>('[data-whatif]').forEach((lab) => {
+      const payloadEl = lab.querySelector('[data-whatif-payload]');
+      if (!payloadEl?.textContent) return;
+      const { drivers, weights: modelWeights } = JSON.parse(payloadEl.textContent);
+      if (!drivers.length) return;
+
+      const accent = getComputedStyle(lab).getPropertyValue('--accent').trim() || '#a855f7';
+      const sliders = Array.from(lab.querySelectorAll<HTMLInputElement>('.whatif-slider'));
+      const resultsEl = lab.querySelector<HTMLElement>('[data-role="results"]');
+      const totalEl = lab.querySelector<HTMLElement>('[data-role="total"]');
+      const resetBtn = lab.querySelector<HTMLElement>('[data-role="reset"]');
+      const modelOrder: number[] = drivers.map((d: any) => d.id);
+
+      function render() {
+        const weights: Record<string, number> = {};
+        for (const s of sliders) weights[s.dataset.key!] = Number(s.value);
+        const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+        if (totalEl) totalEl.textContent = String(totalWeight);
+
+        const scored = drivers.map((d: any) => {
+          let score = 0;
+          for (const key of Object.keys(weights)) score += weights[key] * Number(d.features[key] ?? 0);
+          return { d, prob: 0, score: totalWeight > 0 ? score / totalWeight : 0 };
+        });
+        const probs = softmax(scored.map((s: any) => s.score));
+        scored.forEach((s: any, i: number) => { s.prob = probs[i]; });
+        scored.sort((a: any, b: any) => b.prob - a.prob);
+
+        resultsEl!.innerHTML = scored.map((s: any, newRank: number) => {
+          const delta = modelOrder.indexOf(s.d.id) - newRank;
+          const pct = Math.round(s.prob * 100);
+          const move = delta === 0
+            ? '<span style="color:rgba(255,255,255,0.25)">–</span>'
+            : delta > 0
+              ? '<span style="color:#4ade80">▲' + delta + '</span>'
+              : '<span style="color:#f87171">▼' + (-delta) + '</span>';
+          return '<div style="display:flex;align-items:center;gap:12px;padding:8px 12px">'
+            + '<span style="font-family:monospace;font-size:11px;font-weight:bold;width:22px;color:' + (newRank === 0 ? accent : 'rgba(255,255,255,0.35)') + '">' + String(newRank + 1).padStart(2, '0') + '</span>'
+            + '<span style="font-family:monospace;font-size:10px;font-weight:bold;width:34px">' + escapeHtml(s.d.code) + '</span>'
+            + '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(s.d.fullName) + '</span>'
+            + '<span style="font-family:monospace;font-size:9px;width:32px;text-align:right">' + move + '</span>'
+            + '<span style="font-family:monospace;font-size:11px;font-weight:bold;width:36px;text-align:right;' + (newRank === 0 ? 'color:' + accent : '') + '">' + pct + '%</span>'
+            + '</div>';
+        }).join('');
+      }
+
+      for (const s of sliders) {
+        s.addEventListener('input', () => {
+          const val = lab.querySelector<HTMLElement>('.whatif-val[data-key="' + s.dataset.key + '"]');
+          if (val) val.textContent = s.value;
+          render();
+        });
+      }
+      resetBtn?.addEventListener('click', () => {
+        for (const s of sliders) {
+          s.value = String(modelWeights[s.dataset.key!] ?? 0);
+          const val = lab.querySelector<HTMLElement>('.whatif-val[data-key="' + s.dataset.key + '"]');
+          if (val) val.textContent = s.value;
+        }
+        render();
+      });
+
+      render();
+    });
+  }
+
+  document.addEventListener('astro:page-load', initWhatIfLabs);
+</script>

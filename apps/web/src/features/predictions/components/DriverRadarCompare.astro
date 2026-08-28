@@ -1,0 +1,187 @@
+---
+import { GitCompare } from 'lucide-react';
+import type { PredictionAccent, PredictionDriverVM } from '../types';
+
+interface Props {
+  drivers: PredictionDriverVM[];
+  features: [string, string][];
+  accent: PredictionAccent;
+}
+
+const { drivers, features, accent } = Astro.props;
+
+const options = drivers.map((d) => ({
+  code: d.driver.code,
+  lastName: d.driver.lastName,
+  fullName: d.driver.fullName,
+  winProbability: d.winProbability,
+  features: d.features,
+}));
+const payload = JSON.stringify({ options, features, accent }).replace(/</g, '\\u003c');
+---
+
+<div>
+  <div class="flex items-center gap-3 mb-4">
+    <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style={`color: rgba(${accent.rgb},0.55)`}><GitCompare size={11} />./compare drivers</span>
+    <div class="h-px flex-1 bg-white/[0.05]" />
+  </div>
+  <div class="radar-compare panel p-5 space-y-4" data-radar>
+    <script type="application/json" is:inline data-radar-payload set:html={payload} />
+    <div class="grid grid-cols-2 gap-3">
+      {(['a', 'b'] as const).map((slot, slotIdx) => (
+        <div>
+          <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">Driver {slot === 'a' ? 'Alpha' : 'Beta'}</div>
+          <div class="relative">
+            <button type="button" data-role={`btn-${slot}`} class="w-full bg-black border border-white/[0.08] px-2 py-2 font-mono text-[10px] tracking-wider text-left text-foreground focus:outline-none flex items-center justify-between">
+              <span data-role={`label-${slot}`}>{drivers[slotIdx]?.driver.code} – {drivers[slotIdx]?.driver.lastName}</span>
+              <span class="text-muted-foreground ml-2">▾</span>
+            </button>
+            <div data-role={`panel-${slot}`} class="absolute z-50 w-full border border-white/[0.12] hidden" style="max-height:180px;overflow-y:auto;top:100%;left:0;background:#080808">
+              {drivers.map((d, i) => (
+                <div class="dd-opt px-2 py-[7px] font-mono text-[10px] tracking-wider cursor-pointer hover:bg-white/[0.05]" data-idx={i} data-selected={i === slotIdx ? 'true' : null}>
+                  {d.driver.code} – {d.driver.lastName}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div data-role="bars" class="space-y-3"></div>
+  </div>
+</div>
+
+<style define:vars={{ accent: accent.hex, accentBorder: `rgba(${accent.rgb},0.3)`, accentSoft: `rgba(${accent.rgb},0.08)` }}>
+  .radar-compare [data-role^='btn-']:hover { border-color: var(--accentBorder); }
+  .radar-compare .dd-opt[data-selected] { background: var(--accentSoft); color: var(--accent); }
+</style>
+
+<script>
+  function escapeHtml(str: string) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function initRadarCompare() {
+    document.querySelectorAll<HTMLElement>('[data-radar]').forEach((root) => {
+      const payloadEl = root.querySelector('[data-radar-payload]');
+      if (!payloadEl?.textContent) return;
+      const { options, features, accent } = JSON.parse(payloadEl.textContent);
+      const barsEl = root.querySelector<HTMLElement>('[data-role="bars"]');
+      if (!barsEl) return;
+
+      const N = features.length;
+      const BLUE = '#60a5fa';
+      let idxA = 0;
+      let idxB = Math.min(1, options.length - 1);
+
+      function render() {
+        const dA = options[idxA];
+        const dB = options[idxB];
+        if (!dA || !dB) return;
+
+        const width = 440;
+        const height = 360;
+        const cx = width / 2;
+        const cy = height / 2;
+        const R = 110;
+
+        let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;max-width:${width}px;margin:0 auto;display:block;">`;
+        for (let lvl = 1; lvl <= 5; lvl++) {
+          const r = R * (lvl / 5);
+          let points = '';
+          for (let i = 0; i < N; i++) {
+            const theta = (i * 2 * Math.PI) / N - Math.PI / 2;
+            points += `${cx + r * Math.cos(theta)},${cy + r * Math.sin(theta)} `;
+          }
+          svg += `<polygon points="${points}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
+        }
+
+        for (let i = 0; i < N; i++) {
+          const theta = (i * 2 * Math.PI) / N - Math.PI / 2;
+          const x = cx + R * Math.cos(theta);
+          const y = cy + R * Math.sin(theta);
+          svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
+
+          const labelX = cx + (R + 25) * Math.cos(theta);
+          const labelY = cy + (R + 15) * Math.sin(theta);
+          let anchor = 'middle';
+          if (Math.cos(theta) > 0.1) anchor = 'start';
+          if (Math.cos(theta) < -0.1) anchor = 'end';
+          let baseline = 'middle';
+          if (Math.sin(theta) > 0.1) baseline = 'hanging';
+          if (Math.sin(theta) < -0.1) baseline = 'baseline';
+          svg += `<text x="${labelX}" y="${labelY}" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9px" text-anchor="${anchor}" dominant-baseline="${baseline}" letter-spacing="0.05em">${features[i][0]}</text>`;
+        }
+
+        const drawPolygon = (d: any, color: string) => {
+          let points = '';
+          for (let i = 0; i < N; i++) {
+            const val = Number(d.features[features[i][1]] ?? 0);
+            const theta = (i * 2 * Math.PI) / N - Math.PI / 2;
+            points += `${cx + val * R * Math.cos(theta)},${cy + val * R * Math.sin(theta)} `;
+          }
+          svg += `<polygon points="${points}" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2"/>`;
+          for (let i = 0; i < N; i++) {
+            const val = Number(d.features[features[i][1]] ?? 0);
+            const theta = (i * 2 * Math.PI) / N - Math.PI / 2;
+            svg += `<circle cx="${cx + val * R * Math.cos(theta)}" cy="${cy + val * R * Math.sin(theta)}" r="3" fill="#000" stroke="${color}" stroke-width="1.5"/>`;
+          }
+        };
+
+        drawPolygon(dB, BLUE);
+        drawPolygon(dA, accent.hex);
+        svg += `</svg>`;
+        barsEl!.innerHTML = svg;
+
+        const pA = Math.round(Number(dA.winProbability) * 100);
+        const pB = Math.round(Number(dB.winProbability) * 100);
+        barsEl!.innerHTML += `
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
+            <div style="text-align:center">
+              <div style="font-family:monospace;font-size:8px;color:rgba(${accent.rgb},0.6);text-transform:uppercase;letter-spacing:0.15em">${escapeHtml(dA.code)}</div>
+              <div style="font-size:24px;font-weight:bold;color:${accent.hex}">${pA}%</div>
+            </div>
+            <div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3)">win prob</div>
+            <div style="text-align:center">
+              <div style="font-family:monospace;font-size:8px;color:rgba(96,165,250,0.6);text-transform:uppercase;letter-spacing:0.15em">${escapeHtml(dB.code)}</div>
+              <div style="font-size:24px;font-weight:bold;color:${BLUE}">${pB}%</div>
+            </div>
+          </div>`;
+      }
+
+      const wireDropdown = (slot: 'a' | 'b', onSelect: (i: number) => void) => {
+        const btn = root.querySelector<HTMLElement>(`[data-role="btn-${slot}"]`);
+        const panel = root.querySelector<HTMLElement>(`[data-role="panel-${slot}"]`);
+        const label = root.querySelector<HTMLElement>(`[data-role="label-${slot}"]`);
+        btn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const other = root.querySelector<HTMLElement>(`[data-role="panel-${slot === 'a' ? 'b' : 'a'}"]`);
+          other?.classList.add('hidden');
+          panel?.classList.toggle('hidden');
+        });
+        panel?.querySelectorAll<HTMLElement>('.dd-opt').forEach((opt) => {
+          opt.addEventListener('click', () => {
+            const idx = Number(opt.dataset.idx);
+            if (label) label.textContent = opt.textContent?.trim() ?? '';
+            panel.querySelectorAll<HTMLElement>('.dd-opt').forEach((o) => o.removeAttribute('data-selected'));
+            opt.setAttribute('data-selected', 'true');
+            panel.classList.add('hidden');
+            onSelect(idx);
+          });
+        });
+      };
+
+      document.addEventListener('click', () => {
+        root.querySelectorAll<HTMLElement>('[data-role^="panel-"]').forEach((p) => p.classList.add('hidden'));
+      });
+
+      wireDropdown('a', (i) => { idxA = i; render(); });
+      wireDropdown('b', (i) => { idxB = i; render(); });
+      render();
+    });
+  }
+
+  document.addEventListener('astro:page-load', initRadarCompare);
+</script>

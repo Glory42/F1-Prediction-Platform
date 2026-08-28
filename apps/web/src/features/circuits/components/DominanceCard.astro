@@ -1,0 +1,118 @@
+---
+import { Shield, User } from 'lucide-react';
+import { getTeamColor } from '@/lib/teamColors';
+import { getTeamLogo } from '@/lib/teamLogos';
+import type { CircuitDetailResponse } from '@/types';
+
+interface Props {
+  dominance: CircuitDetailResponse['dominance'];
+}
+
+const { dominance } = Astro.props;
+const eras = ['all', 'modern', 'legacy', 'nineties'] as const;
+const eraTabs = [
+  { id: 'all', label: 'All-Time' },
+  { id: 'modern', label: 'Modern (18+)' },
+  { id: 'legacy', label: 'Legacy (00-17)' },
+  { id: 'nineties', label: '90s (90-99)' },
+];
+---
+
+<div class="border border-white/[0.06] bg-black p-5 space-y-6">
+  <div>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Dominance Rankings</h2>
+      <span class="font-mono text-[8px] tracking-[0.15em] uppercase text-purple-400/60 bg-purple-500/[0.03] px-1.5 py-0.5 border border-purple-500/10">Era Filter</span>
+    </div>
+    <div class="flex border-b border-white/[0.06] mb-4 pb-1 gap-1 overflow-x-auto select-none">
+      {eraTabs.map((era) => (
+        <button
+          class="era-tab px-2.5 py-1 font-mono text-[8px] tracking-wider uppercase border border-white/[0.05] hover:bg-white/[0.02] transition-colors shrink-0 text-muted-foreground bg-white/[0.01]"
+          data-era={era.id}
+        >
+          {era.label}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <div>
+    <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Constructors</h3>
+    {eras.map((era) => (
+      <div class={`era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
+        {dominance[era].constructors.length > 0 ? (
+          dominance[era].constructors.slice(0, 5).map((dom) => (
+            <a href={`/teams/${dom.team.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${getTeamColor(dom.team.teamKey)}`}>
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 flex items-center justify-center shrink-0 bg-white/[0.01]">
+                  {getTeamLogo(dom.team.teamKey) ? (
+                    <img src={getTeamLogo(dom.team.teamKey)} alt={dom.team.name} class="max-w-full max-h-full object-contain p-0.5" />
+                  ) : (
+                    <Shield size={14} className="text-white/20" />
+                  )}
+                </div>
+                <span class="text-xs font-medium group-hover:text-white transition-colors">{dom.team.name}</span>
+              </div>
+              <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+            </a>
+          ))
+        ) : (
+          <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">No wins in this era</div>
+        )}
+      </div>
+    ))}
+  </div>
+
+  <div>
+    <h3 class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground/60 mb-3">Top Drivers</h3>
+    {eras.map((era) => (
+      <div class={`era-content-${era} space-y-3 ${era !== 'all' ? 'hidden' : ''}`}>
+        {dominance[era].drivers.length > 0 ? (
+          dominance[era].drivers.slice(0, 5).map((dom) => (
+            <a href={`/drivers/${dom.driver.id}`} class="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] border-l-2 hover:bg-white/[0.03] transition-colors group" style={`border-left-color: ${getTeamColor(dom.driver.team.teamKey)}`}>
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 flex items-end justify-center shrink-0 overflow-hidden bg-white/[0.01]">
+                  {dom.driver.headshotUrl ? (
+                    <img src={dom.driver.headshotUrl} alt={dom.driver.fullName} class="w-full h-full object-cover object-top" loading="lazy" />
+                  ) : (
+                    <User size={16} className="text-white/20 mb-0.5" />
+                  )}
+                </div>
+                <span class="text-xs font-medium leading-none group-hover:text-white transition-colors">{dom.driver.fullName}</span>
+              </div>
+              <span class="font-mono text-[9px] text-muted-foreground px-2">{dom.wins} win{dom.wins !== 1 && 's'}</span>
+            </a>
+          ))
+        ) : (
+          <div class="py-4 text-center text-[10px] text-muted-foreground font-mono uppercase tracking-widest">No wins in this era</div>
+        )}
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  function initEraTabs() {
+    const tabs = document.querySelectorAll<HTMLButtonElement>('.era-tab');
+    if (tabs.length === 0) return;
+
+    const setEra = (selected: string) => {
+      tabs.forEach((tab) => {
+        const on = tab.dataset.era === selected;
+        tab.classList.toggle('text-muted-foreground', !on);
+        tab.classList.toggle('bg-white/[0.01]', !on);
+        tab.classList.toggle('bg-purple-500/10', on);
+        tab.classList.toggle('border-purple-500/30', on);
+        tab.classList.toggle('text-purple-400', on);
+      });
+      document.querySelectorAll('[class*="era-content-"]').forEach((c) => {
+        c.classList.toggle('hidden', !c.classList.contains(`era-content-${selected}`));
+      });
+    };
+
+    tabs.forEach((tab) => tab.addEventListener('click', () => tab.dataset.era && setEra(tab.dataset.era)));
+    setEra('all');
+  }
+
+  document.addEventListener('astro:page-load', initEraTabs);
+</script>

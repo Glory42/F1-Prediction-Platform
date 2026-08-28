@@ -3,9 +3,13 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { PredictionHistoryItem, IntelStandingRow, SeasonSummary, SprintPredictionResponse, ModelInfo, SeasonAccuracy } from '@/types';
-import { Cpu, BarChart2, History, Zap, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { Cpu, BarChart2, History, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
 import YearSelect from '@/components/shared/YearSelect.astro';
 import { getTeamColor } from '@/lib/teamColors';
+import { brierScore } from '@/lib/predictionMath';
+import { GP_ACCENT, SPRINT_ACCENT } from '@/features/predictions/types';
+import CalibrationChart from '@/features/predictions/components/CalibrationChart.astro';
+import UpcomingPredictionPanel from '@/features/predictions/components/UpcomingPredictionPanel.astro';
 
 const year = Number(Astro.url.searchParams.get('year') ?? new Date().getFullYear());
 
@@ -48,6 +52,9 @@ const completedCount = history.filter((h) => h.correct !== null).length;
 const top3Count = history.filter((h) => h.actualWinnerPredictedPosition !== null && h.actualWinnerPredictedPosition <= 3).length;
 const top5Count = history.filter((h) => h.actualWinnerPredictedPosition !== null && h.actualWinnerPredictedPosition <= 5).length;
 
+const brier = brierScore(history);
+const brierText = brier === null ? null : brier.toFixed(3);
+
 const accuracy = completedCount > 0 ? Math.round((correctCount / completedCount) * 100) : null;
 const top3Accuracy = completedCount > 0 ? Math.round((top3Count / completedCount) * 100) : null;
 const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount) * 100) : null;
@@ -74,97 +81,36 @@ const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount
     <!-- Upcoming prediction hero -->
     {(upcoming || upcomingSprint) && (
       <div class={`grid gap-4 ${upcoming && upcomingSprint ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-
-        <!-- Sprint prediction panel -->
         {upcomingSprint && (
-          <div class="panel p-6 border-t-2 border-t-orange-500/40">
-            <div class="flex items-center gap-3 mb-5">
-              <span class="font-mono text-[9px] tracking-[0.25em] uppercase text-orange-400/60">
-                <Zap size={10} className="inline mr-1" />./sprint · {upcomingSprint.race.name}
-              </span>
-              <div class="h-px flex-1 bg-white/[0.05]" />
-              <a href={`/races/${upcomingSprint.race.id}/sprint`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-orange-400 transition-colors duration-150">
-                detail →
-              </a>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div class="sm:col-span-2 space-y-4">
-                <div>
-                  <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted sprint winner</div>
-                  <div class="text-2xl font-bold">{upcomingSprint.predictedWinner.fullName}</div>
-                  <div class="font-mono text-[9px] text-muted-foreground">{upcomingSprint.predictedWinner.team.name} · {Math.round(Number(upcomingSprint.drivers[0]?.winProbability)*100)}% win probability</div>
-                </div>
-                <div class="space-y-2">
-                  {upcomingSprint.drivers.slice(0, 5).map((d, i) => {
-                    const pct = Math.round(Number(d.winProbability) * 100);
-                    return (
-                      <div class="flex items-center gap-3">
-                        <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
-                        <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
-                        <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                          <div class="h-full bg-orange-500 bar-fill absolute inset-y-0 left-0" style={`width:${pct}%`} />
-                        </div>
-                        <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">sprint confidence</div>
-                <div class="text-5xl font-bold text-orange-400">{Math.round(Number(upcomingSprint.drivers[0]?.winProbability)*100)}</div>
-                <div class="font-mono text-[8px] text-muted-foreground">%</div>
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcomingSprint.modelVersion}</div>
-              </div>
-            </div>
-          </div>
+          <UpcomingPredictionPanel
+            winnerName={upcomingSprint.predictedWinner.fullName}
+            teamName={upcomingSprint.predictedWinner.team.name}
+            drivers={upcomingSprint.drivers}
+            modelVersion={upcomingSprint.modelVersion}
+            accent={SPRINT_ACCENT}
+            kicker={`./sprint · ${upcomingSprint.race.name}`}
+            showZap
+            detailHref={`/races/${upcomingSprint.race.id}/sprint`}
+            detailLabel="detail →"
+            winnerLabel="predicted sprint winner"
+            confidenceLabel="sprint confidence"
+            topBorder
+          />
         )}
-
-        <!-- Grand Prix prediction panel -->
         {upcoming && (
-          <div class="panel p-6">
-            <div class="flex items-center gap-3 mb-5">
-              <span class="font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)">
-                {upcoming.race.hasSprint ? '⬟ grand prix · ' : './next race · '}{upcoming.race.name}
-              </span>
-              <div class="h-px flex-1 bg-white/[0.05]" />
-              <a href={`/prediction/${upcoming.race.id}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150">
-                full prediction →
-              </a>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div class="sm:col-span-2 space-y-4">
-                <div>
-                  <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase mb-1">predicted winner</div>
-                  <div class="text-2xl font-bold">{upcoming.predictedWinner.fullName}</div>
-                  <div class="font-mono text-[9px] text-muted-foreground">{upcoming.predictedWinner.team.name} · {Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}% win probability</div>
-                </div>
-                <div class="space-y-2">
-                  {upcoming.drivers.slice(0, 5).map((d, i) => {
-                    const pct = Math.round(Number(d.winProbability) * 100);
-                    return (
-                      <div class="flex items-center gap-3">
-                        <span class="font-mono text-[9px] text-muted-foreground w-4">P{i+1}</span>
-                        <span class="font-mono text-[10px] font-bold w-8">{d.driver.code}</span>
-                        <div class="flex-1 h-px bg-white/[0.06] relative overflow-visible">
-                          <div class="h-full bg-[#a855f7] bar-fill absolute inset-y-0 left-0" style={`width:${pct}%`} />
-                        </div>
-                        <span class="font-mono text-[9px] text-muted-foreground w-8 text-right">{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div class="flex flex-col items-center justify-center gap-2 border-l border-white/[0.06] pl-6">
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest uppercase">model confidence</div>
-                <div class="text-5xl font-bold text-[#a855f7]">{Math.round(Number(upcoming.drivers[0]?.winProbability)*100)}</div>
-                <div class="font-mono text-[8px] text-muted-foreground">%</div>
-                <div class="font-mono text-[8px] text-muted-foreground tracking-widest mt-2">{upcoming.modelVersion}</div>
-              </div>
-            </div>
-          </div>
+          <UpcomingPredictionPanel
+            winnerName={upcoming.predictedWinner.fullName}
+            teamName={upcoming.predictedWinner.team.name}
+            drivers={upcoming.drivers}
+            modelVersion={upcoming.modelVersion}
+            accent={GP_ACCENT}
+            kicker={`${upcoming.race.hasSprint ? '⬟ grand prix · ' : './next race · '}${upcoming.race.name}`}
+            detailHref={`/prediction/${upcoming.race.id}`}
+            detailLabel="full prediction →"
+            winnerLabel="predicted winner"
+            confidenceLabel="model confidence"
+          />
         )}
-
       </div>
     )}
 
@@ -241,6 +187,11 @@ const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount
               <span class="font-mono text-[8px] text-muted-foreground" title="Winner landed in predicted Top 5">
                 Top 5 Hit: <span class="text-[#a855f7]">{top5Accuracy}%</span>
               </span>
+              {brierText !== null && (
+                <span class="font-mono text-[8px] text-muted-foreground" title="Brier score — mean squared error of the win probabilities; 0 is perfect, lower is better">
+                  Brier: <span class="text-[#a855f7]">{brierText}</span>
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -259,7 +210,10 @@ const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount
                 <div class="font-mono text-[9px] text-muted-foreground mt-0.5">
                   Predicted: <span class="text-foreground">{h.predictedWinner.code}</span>
                   {h.actualWinner && (
-                    <> · Actual: <span class="text-foreground">{h.actualWinner.code}</span></>
+                    <> · Actual: <span class={h.correct === false ? 'text-red-400' : 'text-foreground'}>{h.actualWinner.code}</span></>
+                  )}
+                  {h.correct === false && h.actualWinnerPredictedPosition !== null && (
+                    <span class="text-muted-foreground/60"> · model had them P{h.actualWinnerPredictedPosition}</span>
                   )}
                 </div>
               </div>
@@ -281,12 +235,32 @@ const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount
 
     </div>{/* end side-by-side grid */}
 
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+    <!-- Model calibration -->
+    {completedCount >= 5 && (
+      <div>
+        <div class="flex items-center gap-3 mb-4">
+          <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><TrendingUp size={11} />./calibration</span>
+          <div class="h-px flex-1 bg-white/[0.05]" />
+        </div>
+        <div class="border border-white/[0.06] p-5">
+          <CalibrationChart items={history} />
+        </div>
+      </div>
+    )}
+
     <!-- Season-by-season accuracy -->
     {seasonAccuracy.length > 0 && (
       <div>
         <div class="flex items-center gap-3 mb-4">
           <span class="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.25em] uppercase" style="color: rgba(168,85,247,0.55)"><TrendingUp size={11} />./accuracy by season</span>
           <div class="h-px flex-1 bg-white/[0.05]" />
+          {completedCount > 0 && (
+            <a href={`/prediction/recap/${year}`} class="font-mono text-[8px] tracking-[0.15em] uppercase text-muted-foreground hover:text-[#a855f7] transition-colors duration-150 shrink-0">
+              {year} recap →
+            </a>
+          )}
         </div>
         <div class="border border-white/[0.06] overflow-x-auto">
           <div class="min-w-[420px]">
@@ -319,6 +293,8 @@ const top5Accuracy = completedCount > 0 ? Math.round((top5Count / completedCount
         </div>
       </div>
     )}
+
+    </div>{/* end calibration + accuracy grid */}
 
     {history.length === 0 && standings.length === 0 && !upcoming && (
       <div class="border border-white/[0.06] p-10 text-center">
