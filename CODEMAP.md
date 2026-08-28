@@ -380,8 +380,10 @@ Python 3.11+ batch jobs. Fetches F1 data via FastF1, computes predictions, write
 ```
 data-engine/
 ├── src/
-│   ├── auto_runner.py             # Orchestrates ETL jobs via state machine; reverts status on failure
-│   ├── server.py                  # HTTP server exposing a live dashboard and /health for UptimeRobot
+│   ├── auto_runner.py             # Orchestrates ETL jobs via state machine; reverts status on failure.
+│   │                              # Schedule-gated: skips the DB entirely outside a race-weekend window
+│   ├── server.py                  # HTTP server exposing a live dashboard and /health for UptimeRobot;
+│   │                              # worker loop polls ~20 min in-window, ~6 h otherwise
 │   ├── main.py                    # CLI entry point — --job, --year, --round, --race_id
 │   │                              # Also auto-detects current race if year/round omitted
 │   ├── config.py                  # FastF1 cache setup, environment loading
@@ -416,9 +418,10 @@ data-engine/
 │       ├── ingest_runner.py       # run_ingest_job(...) — shared headshot/results/lap-time/conditions logic for ingest_race + ingest_sprint
 │       ├── feature_helpers.py     # Shared scoring math for GP + sprint models — compute_weather_score(),
 │       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
-│       └── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
+│       ├── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
 │       │                          # grid map, start_pos, driver/team season stats) behind both feature jobs
-│       └── quality_utils.py        # health_from_issues() + resolve_issue_actions() — pure audit/repair scoring logic
+│       ├── quality_utils.py       # health_from_issues() + resolve_issue_actions() — pure audit/repair scoring logic
+│       └── schedule_window.py     # race_weekend_window() — pure race-weekend window from the FastF1 calendar, no DB
 ├── scripts/                       # One-off/operational scripts — not imported by src/
 │   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
 │   ├── backfill_full.py           # Full historical backfill: sync + ingest + sprint + predictions
@@ -438,7 +441,9 @@ data-engine/
 │   ├── test_feature_context.py     # build_feature_context, build_driver_code_map — via fake_db
 │   ├── test_fastf1_helpers.py      # ms_to_int (the one pure function in fastf1_helpers.py)
 │   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, both models
-│   └── test_prediction_ranking.py  # rank_by_probability
+│   ├── test_prediction_ranking.py  # rank_by_probability
+│   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
+│   └── test_auto_runner.py         # run() schedule gate + next_poll_interval_seconds
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 ├── requirements-dev.txt           # requirements.txt + pytest
@@ -475,6 +480,7 @@ data-engine/
 | `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
 | `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |
 | `prediction_runner.py` | `run_prediction_job(...)` — shared softmax/rank/upsert logic for GP + sprint predictions; `rank_by_probability(driver_ids, probabilities)` — pure position-ranking + winner-pick, extracted so it's unit-testable without a DB connection |
+| `schedule_window.py` | `race_weekend_window(schedule, now)` → `RaceWeekendWindow \| None` — the current/next GP's window (FP1−1h … race+24h) derived purely from the FastF1 calendar, no DB; `RaceWeekendWindow.contains(now)`. Used by `auto_runner` to gate all DB access and to size the worker's poll interval |
 
 ---
 

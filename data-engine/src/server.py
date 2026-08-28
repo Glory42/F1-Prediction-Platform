@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from src import auto_runner
 from src.auto_runner import run as auto_runner_run
 from src.utils.logging_utils import log_job_failure
 
@@ -120,7 +121,10 @@ def start_server():
     server.serve_forever()
 
 def start_worker():
-    log_update("[worker] Background worker started. Will run auto_runner every 15 minutes.")
+    log_update(
+        "[worker] Background worker started. Polls ~every 20 min during a race weekend, "
+        "~every 6 h otherwise — outside a race weekend it never opens a DB connection."
+    )
     while True:
         try:
             STATE["status"] = "Running checks..."
@@ -137,8 +141,9 @@ def start_worker():
             STATE["status"] = "Error"
             STATE["last_error"] = str(e)
             
-        log_update("[worker] Checks finished. Sleeping for 15 minutes...")
-        time.sleep(900)
+        sleep_seconds = auto_runner.next_poll_interval_seconds()
+        log_update(f"[worker] Checks finished. Sleeping for {sleep_seconds // 60} minutes...")
+        time.sleep(sleep_seconds)
 
 def main():
     server_thread = threading.Thread(target=start_server, daemon=True)
