@@ -25,6 +25,38 @@ function isIgnorableMigrationError(err: unknown): boolean {
   return false;
 }
 
+function splitSqlStatements(sqlContent: string): string[] {
+  // First split by drizzle statement-breakpoint
+  const chunks = sqlContent
+    .split('--> statement-breakpoint')
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+
+  const statements: string[] = [];
+
+  for (const chunk of chunks) {
+    // If chunk contains a PL/pgSQL block (DO $$ ... $$), execute it as a single statement
+    if (chunk.includes('DO $$') || chunk.includes('DO $') || chunk.startsWith('CREATE OR REPLACE FUNCTION')) {
+      statements.push(chunk);
+      continue;
+    }
+
+    // Split on semicolons that are outside single quotes
+    const parts = chunk
+      .split(/;\s*(?=(?:[^']*'[^']*')*[^']*$)/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    for (const part of parts) {
+      if (part.length > 0) {
+        statements.push(part);
+      }
+    }
+  }
+
+  return statements;
+}
+
 async function migrate() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
@@ -72,12 +104,9 @@ async function migrate() {
     }
 
     const sqlContent = fs.readFileSync(migrationFile, 'utf8');
-    const statements = sqlContent
-      .split('--> statement-breakpoint')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    const statements = splitSqlStatements(sqlContent);
 
-    console.log(`Applying migration: ${entry.tag}...`);
+    console.log(`Applying migration: ${entry.tag} (${statements.length} statement(s))...`);
     for (const stmt of statements) {
       try {
         await db.execute(sql.raw(stmt));
