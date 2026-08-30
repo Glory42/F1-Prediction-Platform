@@ -12,7 +12,7 @@
     "test:integration": "bun test tests/integration --timeout 30000",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "bun run src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "bun run src/db/seed.ts"
   },
