@@ -1,6 +1,4 @@
 import { sql } from 'drizzle-orm';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
-import path from 'path';
 import { createDb, type Db } from '../../../src/config/database';
 import {
   seasons, circuits, teams, drivers, races, raceResults, qualifyingResults,
@@ -47,16 +45,6 @@ export const getTestDb = (): Db => {
   return cachedDb;
 };
 
-let migrationPromise: Promise<void> | null = null;
-
-export const ensureTestDbMigrated = async (db: Db): Promise<void> => {
-  if (!migrationPromise) {
-    const migrationsFolder = path.resolve(import.meta.dir, '../../../drizzle/migrations');
-    migrationPromise = migrate(db, { migrationsFolder });
-  }
-  await migrationPromise;
-};
-
 const ALL_TABLES = [
   dataQualityIssues, dataQualityRuns,
   driverPredictionFeatures, driverSprintFeatures,
@@ -68,7 +56,6 @@ const ALL_TABLES = [
 ];
 
 export const truncateAll = async (db: Db): Promise<void> => {
-  await ensureTestDbMigrated(db);
   // CASCADE handles FK ordering for us — one statement covering every table.
   const tableList = sql.join(ALL_TABLES.map((t) => sql`${t}`), sql.raw(', '));
   await db.execute(sql`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
