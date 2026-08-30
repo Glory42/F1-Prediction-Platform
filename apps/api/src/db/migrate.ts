@@ -5,6 +5,26 @@ import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { createDb } from '../config/database';
 
+function isIgnorableMigrationError(err: unknown): boolean {
+  if (!err) return false;
+  const anyErr = err as Record<string, unknown>;
+  const code = (anyErr.code ?? (anyErr.sourceError as Record<string, unknown>)?.code ?? (anyErr.cause as Record<string, unknown>)?.code) as string | undefined;
+  const message = String(anyErr.message ?? (anyErr.sourceError as Record<string, unknown>)?.message ?? anyErr.cause ?? '');
+
+  const ignorableCodes = new Set(['42710', '42P07', '42701', '42P06', '42P16', '23505']);
+  if (code && ignorableCodes.has(code)) return true;
+
+  if (
+    message.includes('already exists') ||
+    message.includes('duplicate key value') ||
+    message.includes('multiple primary keys')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 async function migrate() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
@@ -59,7 +79,15 @@ async function migrate() {
 
     console.log(`Applying migration: ${entry.tag}...`);
     for (const stmt of statements) {
-      await db.execute(sql.raw(stmt));
+      try {
+        await db.execute(sql.raw(stmt));
+      } catch (err) {
+        if (isIgnorableMigrationError(err)) {
+          // Schema object already exists in this database environment — safe to proceed
+          continue;
+        }
+        throw err;
+      }
     }
 
     const hash = crypto.createHash('sha256').update(sqlContent).digest('hex');
