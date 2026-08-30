@@ -1,4 +1,5 @@
 from src.db.client import get_conn
+from src.utils.feature_helpers import compute_compressed_car_perf
 from src.utils.math_utils import normalize_minmax
 from src.utils.upsert import upsert
 
@@ -238,7 +239,9 @@ def _compute_team_stats(conn, season_id: int) -> None:
                 COUNT(rr.id) FILTER (WHERE rr.status NOT IN ('Finished') AND rr.status NOT LIKE '+%%') AS dnf_count,
                 COUNT(rr.id) AS total_entries,
                 COALESCE(SUM(rr.points::numeric), 0) AS total_points,
-                AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_finish
+                AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_finish,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rr.finish_position) AS median_finish,
+                AVG(rr.grid_position) FILTER (WHERE rr.grid_position IS NOT NULL) AS avg_grid
             FROM teams t
             JOIN drivers d ON d.team_id = t.id AND d.season_id = t.season_id
             JOIN races r ON r.season_id = t.season_id AND r.status = 'completed'
@@ -277,9 +280,20 @@ def _compute_team_stats(conn, season_id: int) -> None:
     sorted_teams = sorted(team_aggs, key=lambda x: float(x["total_points"]), reverse=True)
     position_map = {row["team_id"]: i + 1 for i, row in enumerate(sorted_teams)}
 
-    avg_finishes = [float(t["avg_finish"]) if t["avg_finish"] is not None else 20.0 for t in team_aggs]
-    inverted = [21.0 - f for f in avg_finishes]
-    car_perf_normalized = normalize_minmax(inverted)
+    # ── Car performance score: blend of robust race pace + qualifying pace ─────
+    # A single AVG(finish) is outlier-sensitive (one DNF drags a dominant car),
+    # and ignores one-lap speed entirely. Blend:
+    #   pace_signal  = 21 - median_finish   (robust central tendency)
+    #   quali_signal = 21 - avg_grid        (raw car speed)
+    # Compressed scoring combines 50% relative field min-max and 50% absolute scale,
+    # preventing artificial runaway 1.0 vs 0.74 gaps between top constructors.
+    fmt_median = lambda t: float(t["median_finish"]) if t["median_finish"] is not None else 21.0
+    pace_signal = [21.0 - fmt_median(t) for t in team_aggs]
+    grid_signal = [
+        21.0 - (float(t["avg_grid"]) if t["avg_grid"] is not None else 21.0)
+        for t in team_aggs
+    ]
+    car_perf_blend = compute_compressed_car_perf(pace_signal, grid_signal)
 
     rows_to_upsert = []
     for i, t in enumerate(team_aggs):
@@ -298,7 +312,7 @@ def _compute_team_stats(conn, season_id: int) -> None:
             "total_points": float(t["total_points"]),
             "championship_position": position_map.get(team_id),
             "avg_finish_position": round(float(t["avg_finish"]), 2) if t["avg_finish"] is not None else None,
-            "car_performance_score": round(car_perf_normalized[i], 5),
+            "car_performance_score": round(car_perf_blend[i], 5),
             "dnf_count": dnf_count,
             "reliability_score": round(reliability, 5),
             "sprint_wins": int(sprint["sprint_wins"]) if sprint else 0,

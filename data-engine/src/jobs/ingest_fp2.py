@@ -12,6 +12,28 @@ COMPOUND_OFFSET_MS = {
     "HARD":   -400,
 }
 
+SPRINT_FORMATS = ("sprint", "sprint_qualifying", "sprint_shootout")
+
+
+def select_practice_session(event_format: str | None) -> str:
+    """Which practice session supplies long-run pace for a race weekend.
+
+    Sprint weekends have no FP2 session — the only full practice slot is FP1,
+    so the engine falls back to it. Conventional weekends keep FP2 as primary.
+    """
+    return "FP1" if (event_format or "conventional") in SPRINT_FORMATS else "FP2"
+
+
+def _load_practice_session(year: int, round_num: int, event_format: str):
+    """
+    Load FP2 long-run data, falling back to FP1 on sprint weekends (which have no
+    FP2 session). Returns (session, session_type) where session_type is 'FP2' or
+    'FP1'. Raises on unexpected load errors; returns None early when no laps data.
+    """
+    session_type = select_practice_session(event_format)
+    session = get_session(year, round_num, session_type)
+    return session, session_type
+
 
 def run(year: int, round_num: int) -> None:
     print(f"[ingest_fp2] year={year} round={round_num}")
@@ -20,7 +42,7 @@ def run(year: int, round_num: int) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT r.id, r.season_id FROM races r "
+                "SELECT r.id, r.season_id, r.event_format FROM races r "
                 "JOIN seasons s ON r.season_id = s.id "
                 "WHERE s.year = %s AND r.round_number = %s",
                 (year, round_num),
@@ -35,12 +57,14 @@ def run(year: int, round_num: int) -> None:
         driver_map = build_driver_code_map(conn, season_id)
 
         try:
-            session = get_session(year, round_num, "FP2")
+            session, session_type = _load_practice_session(
+                year, round_num, race_row.get("event_format") or "conventional"
+            )
             if session.laps is None or session.laps.empty:
-                print(f"  [SKIP] FP2 laps not available for {year} round {round_num}")
+                print(f"  [SKIP] {session_type} laps not available for {year} round {round_num}")
                 return
         except Exception as e:
-            print(f"  [SKIP] FP2 session could not be loaded (likely a sprint weekend without FP2): {e}")
+            print(f"  [SKIP] {session_type} practice session could not be loaded: {e}")
             return
 
         laps = session.laps
@@ -54,13 +78,13 @@ def run(year: int, round_num: int) -> None:
             if not driver_id:
                 continue
 
-            # FP2 single fastest lap (best raw time across all compounds)
-            fp2_best_ms: int | None = None
+            # Single fastest lap (best raw time across all compounds)
+            session_best_ms: int | None = None
             try:
                 valid_times = driver_laps["LapTime"].dropna()
                 valid_times = valid_times[valid_times > pd.Timedelta(0)]
                 if not valid_times.empty:
-                    fp2_best_ms = int(valid_times.min().total_seconds() * 1000)
+                    session_best_ms = int(valid_times.min().total_seconds() * 1000)
             except Exception:
                 pass
 
@@ -100,9 +124,10 @@ def run(year: int, round_num: int) -> None:
                     "race_id": race_id,
                     "driver_id": driver_id,
                     "compound": compound,
+                    "session_type": session_type,
                     "median_lap_ms": median_ms,
                     "stint_length": len(trimmed),
-                    "fp2_best_lap_ms": fp2_best_ms,
+                    "fp2_best_lap_ms": session_best_ms,
                 })
 
         # Per (race, driver, compound) keep the best (shortest) median
@@ -117,9 +142,9 @@ def run(year: int, round_num: int) -> None:
         if final_rows:
             upsert(conn, "fp2_long_run_times", final_rows, ["race_id", "driver_id", "compound"])
             drivers_covered = len({r["driver_id"] for r in final_rows})
-            print(f"  Upserted {len(final_rows)} FP2 long-run rows for {drivers_covered} drivers")
+            print(f"  Upserted {len(final_rows)} {session_type} long-run rows for {drivers_covered} drivers")
         else:
-            print("  No qualifying FP2 long-run stints found (stints < 5 laps or no data)")
+            print(f"  No {session_type} long-run stints found (stints < 5 laps or no data)")
 
         conn.commit()
     finally:

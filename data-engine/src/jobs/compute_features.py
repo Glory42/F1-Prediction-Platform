@@ -8,6 +8,8 @@ from src.utils.feature_helpers import (
     compute_luck_score,
     circuit_adj_start_pos as calc_circuit_adj_start_pos,
     compute_rolling_teammate_delta,
+    compute_team_circuit_perf,
+    blend_car_perf,
 )
 
 
@@ -50,7 +52,7 @@ def run(race_id: int) -> None:
 
         luck_map        = compute_luck_score(conn, driver_ids, race_id, team_perf, stats_rows)
         weather_map     = compute_weather_score(conn, driver_ids, weather)
-        long_run_map, long_run_used_fp2 = _compute_long_run_pace(conn, driver_ids, race_id, ctx.circuit_id)
+        long_run_map, long_run_used_fp = _compute_long_run_pace(conn, driver_ids, race_id, ctx.circuit_id)
         reliability_map = _compute_reliability(driver_ids, stats_rows, team_data)
         quali_delta_map = compute_rolling_teammate_delta(
             conn, driver_ids, race_id,
@@ -61,11 +63,20 @@ def run(race_id: int) -> None:
         sector_map      = _compute_sector_strength(conn, driver_ids, race_id)
         tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, ctx.circuit_id)
 
+        # Circuit-category car performance (cross-season) — used to nudge the season
+        # car_perf toward a car's strength at this kind of circuit (e.g. McLaren on
+        # high-downforce tracks). None => no history at this category -> season signal.
+        cat_perf_map = compute_team_circuit_perf(
+            conn, driver_ids, race_id, ctx.circuit_category
+        ) if ctx.circuit_category else {d: {"score": None, "n": 0} for d in driver_ids}
+
         rows_to_upsert = []
         for driver_id in driver_ids:
             stat = stats_rows.get(driver_id)
             team_id = stat["team_id"] if stat else None
-            car_perf = team_perf.get(team_id, 0.5) if team_id else 0.5
+            car_perf_season = team_perf.get(team_id, 0.5) if team_id else 0.5
+            cat_stat = cat_perf_map.get(driver_id) or {"score": None, "n": 0}
+            car_perf = blend_car_perf(car_perf_season, cat_stat.get("score"), cat_stat.get("n") or 0)
 
             if stat:
                 races_entered = int(stat["races_entered"])
@@ -121,7 +132,7 @@ def run(race_id: int) -> None:
                 "track_overtake_score":           None,
                 "position_gain_score":            round(position_gain, 5),
                 "long_run_pace_score":            round(long_run, 5),
-                "long_run_used_fp2":              long_run_used_fp2,
+                "long_run_used_fp":               long_run_used_fp,
                 "reliability_score":              round(reliability, 5),
                 "qualifying_delta_score":         round(quali_delta, 5),
                 "sector_strength_score":          round(sector_strength, 5),
@@ -144,10 +155,13 @@ def run(race_id: int) -> None:
 
 def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> tuple[dict[int, float], bool]:
     """
-    Primary: FP2 MEDIUM-normalised median lap time from fp2_long_run_times.
+    Primary: practice-session long-run median from fp2_long_run_times. On sprint
+    weekends the ingest falls back to FP1 (no FP2 session exists), stored in the
+    same table with session_type='FP1', so this reads whichever practice data landed.
     Fallback: historical circuit median from lap_times (last 6 completed races).
-    Returns (pace_map, used_fp2) — used_fp2 records whether the feature came from
-    FP2 data or the weaker historical fallback, surfaced by the data-quality audit.
+    Returns (pace_map, used_fp) — used_fp records whether the feature came from a
+    practice session (FP2 or FP1) rather than the weaker historical fallback,
+    surfaced by the data-quality audit.
     """
     with conn.cursor() as cur:
         cur.execute(

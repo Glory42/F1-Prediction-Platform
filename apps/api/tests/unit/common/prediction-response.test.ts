@@ -19,7 +19,7 @@ const driver: typeof drivers.$inferSelect = {
 const circuit: typeof circuits.$inferSelect = {
   id: 5, circuitKey: 'monza', name: 'Autodromo Nazionale Monza', country: 'Italy', city: 'Monza',
   lapCount: 53, trackLengthKm: '5.793', overtakeRate: '0.850', numberOfCorners: 11, drsZones: 2,
-  scProbability: '0.300', imageUrl: null, createdAt: new Date('2025-01-01T00:00:00Z'),
+  scProbability: '0.300', imageUrl: null, trackCategory: 'high_speed', createdAt: new Date('2025-01-01T00:00:00Z'),
 };
 
 const race: typeof races.$inferSelect = {

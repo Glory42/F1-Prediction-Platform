@@ -22,6 +22,7 @@ class FeatureContext:
     event_format: str | None
     overtake_rate: float
     sc_probability: float
+    circuit_category: str | None
     driver_ids: list[int]
     grid_map: dict[int, int]
     start_pos_map: dict[int, float]
@@ -54,7 +55,7 @@ def build_feature_context(
     with conn.cursor() as cur:
         cur.execute(
             "SELECT r.id, r.season_id, r.weather, r.sprint_weather, r.circuit_id, r.event_format, "
-            "       c.overtake_rate, c.sc_probability "
+            "       c.overtake_rate, c.sc_probability, c.track_category "
             "FROM races r JOIN circuits c ON r.circuit_id = c.id "
             "WHERE r.id = %s",
             (race_id,),
@@ -123,6 +124,7 @@ def build_feature_context(
         event_format=race["event_format"],
         overtake_rate=overtake_rate,
         sc_probability=sc_probability,
+        circuit_category=race.get("track_category"),
         driver_ids=driver_ids,
         grid_map=grid_map,
         start_pos_map=start_pos_map,

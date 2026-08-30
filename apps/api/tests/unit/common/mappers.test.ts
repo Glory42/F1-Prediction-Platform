@@ -42,6 +42,7 @@ const circuit: CircuitRow = {
   drsZones: 2,
   scProbability: '0.300',
   imageUrl: null,
+  trackCategory: 'high_speed',
   createdAt: new Date('2025-01-01T00:00:00Z'),
 };
 

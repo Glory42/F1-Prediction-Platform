@@ -1,6 +1,138 @@
 from collections import defaultdict
 from src.utils.math_utils import normalize_minmax, clamp
 
+# How much the circuit-category performance signal weighs vs the season-level
+# car_performance_score when blended at feature time. Ramps in as more same-category
+# races are observed (w = 0 until a team has >=2 category races).
+CAR_CIRCUIT_BLEND_MAX = 0.35
+CAR_CIRCUIT_MIN_RACES = 2
+CAR_CIRCUIT_RAMP_RACES = 6
+
+
+def compute_compressed_car_perf(
+    pace_signals: list[float],
+    grid_signals: list[float],
+    rel_weight: float = 0.5,
+) -> list[float]:
+    """Compute a compressed car performance score across teams in a season.
+
+    Combines 60% race pace signal (21 - median_finish) and 40% qualifying speed signal (21 - avg_grid).
+    Normalizes using a 50/50 blend of relative field min-max and absolute grid scale (1..20).
+    This prevents extreme runaway 1.0 vs 0.74 gaps among close top-tier constructors.
+    """
+    if not pace_signals or not grid_signals:
+        return []
+    raw = [0.6 * p + 0.4 * g for p, g in zip(pace_signals, grid_signals)]
+    rel_norm = normalize_minmax(raw)
+    abs_norm = [clamp((s - 1.0) / 19.0, 0.0, 1.0) for s in raw]
+    return [clamp(rel_weight * r + (1.0 - rel_weight) * a) for r, a in zip(rel_norm, abs_norm)]
+
+
+def blend_car_perf(season: float, category: float | None, category_races: int) -> float:
+    """Blend season-level car performance with circuit-category-specific performance.
+
+    ``category`` is None when a team has no historical races at this circuit category,
+    in which case the season signal is used unchanged. The category weight ramps 0→max
+    as sample size grows (2..6 races) so early-season the season signal dominates.
+    """
+    if category is None or category_races < CAR_CIRCUIT_MIN_RACES:
+        return clamp(season)
+    ramp = (category_races - CAR_CIRCUIT_MIN_RACES) / max(CAR_CIRCUIT_RAMP_RACES - CAR_CIRCUIT_MIN_RACES, 1)
+    w = CAR_CIRCUIT_BLEND_MAX * min(1.0, ramp)
+    return clamp(season * (1 - w) + category * w)
+
+
+def compute_team_circuit_perf(conn, driver_ids: list[int], race_id: int, circuit_category: str) -> dict[int, dict]:
+    """
+    Per-team performance at circuits of this category, cross-season via driver.code.
+    For each current-season driver, average their finish position at completed races
+    whose circuit has the same track_category (excluding the target race), then
+    min-max normalize (21 - avg_finish) across the field so the category score is a
+    0-1 value comparable to the season-level car_performance_score. On high_speed tracks,
+    also blends in speed trap telemetry (70% finish + 30% speed). Returns
+    {driver_id: {"score": 0-1 | None, "n": count}}: score is None when the driver has
+    < CAR_CIRCUIT_MIN_RACES such races (blend falls back to season signal).
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT race_date FROM races WHERE id = %s", (race_id,))
+        race_info = cur.fetchone()
+    if not race_info:
+        return {d: {"score": None, "n": 0} for d in driver_ids}
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT d_cur.id AS driver_id,
+                   AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS cat_avg,
+                   COUNT(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS cat_n
+            FROM drivers d_cur
+            JOIN drivers d_hist ON d_hist.code = d_cur.code
+            JOIN race_results rr ON rr.driver_id = d_hist.id
+            JOIN races r ON rr.race_id = r.id
+            JOIN circuits c ON r.circuit_id = c.id
+            WHERE d_cur.id = ANY(%s)
+              AND r.status = 'completed'
+              AND r.id != %s
+              AND r.race_date <= %s
+              AND c.track_category = %s
+            GROUP BY d_cur.id
+            """,
+            (driver_ids, race_id, race_info["race_date"], circuit_category),
+        )
+        rows = {r["driver_id"]: r for r in cur.fetchall()}
+
+    valid = {
+        d: 21.0 - float(r["cat_avg"])
+        for d, r in rows.items()
+        if r["cat_n"] and int(r["cat_n"]) >= CAR_CIRCUIT_MIN_RACES
+    }
+
+    # For high-speed circuits, straight-line power & speed trap pace provides an additional signal
+    speed_rows: dict[int, float] = {}
+    if circuit_category == "high_speed" and valid:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT d_cur.id AS driver_id,
+                       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lt.speed_st::numeric) AS med_speed
+                FROM drivers d_cur
+                JOIN drivers d_hist ON d_hist.code = d_cur.code
+                JOIN lap_times lt ON lt.driver_id = d_hist.id
+                JOIN races r ON lt.race_id = r.id
+                JOIN circuits c ON r.circuit_id = c.id
+                WHERE d_cur.id = ANY(%s)
+                  AND r.status = 'completed'
+                  AND r.id != %s
+                  AND r.race_date <= %s
+                  AND c.track_category = 'high_speed'
+                  AND lt.speed_st IS NOT NULL AND lt.speed_st > 0
+                  AND lt.is_pit_lap = false
+                GROUP BY d_cur.id
+                """,
+                (driver_ids, race_id, race_info["race_date"]),
+            )
+            speed_rows = {
+                r["driver_id"]: float(r["med_speed"])
+                for r in cur.fetchall()
+                if r["med_speed"] is not None
+            }
+
+    if speed_rows and all(d in speed_rows for d in valid):
+        speed_norm = normalize_minmax([speed_rows[d] for d in valid])
+        finish_norm = normalize_minmax(list(valid.values()))
+        normalized = [0.7 * f + 0.3 * s for f, s in zip(finish_norm, speed_norm)]
+    else:
+        normalized = normalize_minmax(list(valid.values())) if valid else []
+
+    out: dict[int, dict] = {}
+    for idx, d in enumerate(valid):
+        out[d] = {"score": normalized[idx], "n": int(rows[d]["cat_n"])}
+    for d in driver_ids:
+        if d not in out:
+            row = rows.get(d)
+            out[d] = {"score": None, "n": int(row["cat_n"]) if row else 0}
+    return out
+
 
 def compute_weather_score(conn, driver_ids: list[int], weather: str) -> dict[int, float]:
     """Historical wet-race finish position (cross-season via driver.code), normalized. Neutral (0.5) if dry."""

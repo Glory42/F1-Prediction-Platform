@@ -432,7 +432,7 @@ data-engine/
 │   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
 │   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
 │   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
-│   │   ├── ingest_fp2.py               # FP2 long-run stint data → fp2_long_run_times
+│   │   ├── ingest_fp2.py               # Practice long-run stint data → fp2_long_run_times (FP2 primary; FP1 fallback on sprint weekends)
 │   │   ├── ingest_sprint.py            # Sprint results + sprint_lap_times + sprint conditions
 │   │   ├── compute_season_stats.py     # Aggregate driver/team stats including sprint aggregates
 │   │   ├── compute_features.py         # 12 feature scores per driver per GP
@@ -496,7 +496,7 @@ data-engine/
 | `ingest_race` | `--year --round` | Race results + per-lap timing + conditions — 2018+ |
 | `ingest_race_legacy` | `--year --round` | Race results only via Ergast — pre-2018 |
 | `ingest_sprint_qualifying` | `--year --round` | SQ session → sprint_results (sq1/sq2/sq3 + sector times + speed); date guard rejects future rounds |
-| `ingest_fp2` | `--year --round` | FP2 long-run stints → `fp2_long_run_times`; used as primary long-run pace signal |
+| `ingest_fp2` | `--year --round` | Practice long-run stints → `fp2_long_run_times` (FP2 primary, FP1 fallback on sprint weekends); used as primary long-run pace signal |
 | `ingest_sprint` | `--year --round` | Sprint results + sprint_lap_times + sprint conditions; sprint weekends only |
 | `compute_season_stats` | `--year` | Rolling aggregates for drivers and teams, including sprint stats |
 | `compute_features` | `--race_id` | 12 feature scores per driver for a GP |
