@@ -18,7 +18,7 @@ All jobs live in `data-engine/src/jobs/`. They are invoked via `src/main.py --jo
 | `sync_season` | Populates `teams` and `drivers` for a season from FastF1 |
 | `ingest_qualifying` | Ingests Q1/Q2/Q3 qualifying session data and sector times — 2018+ |
 | `ingest_qualifying_legacy` | Ingests qualifying from Ergast — pre-2018 |
-| `ingest_fp2` | Ingests FP2 long-run stints into `fp2_long_run_times` |
+| `ingest_fp2` | Ingests practice long-run stints into `fp2_long_run_times` — FP2 primary, **FP1 fallback on sprint weekends** (recorded in `session_type`) |
 | `ingest_race` | Ingests race results, lap times, and race conditions (weather, SC/VSC, temps) — 2018+ |
 | `ingest_race_legacy` | Ingests race results from Ergast (no lap data) — pre-2018 |
 | `compute_season_stats` | Aggregates `driver_season_stats` and `team_season_stats` for a year (includes sprint aggregates) |

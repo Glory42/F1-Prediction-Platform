@@ -9,6 +9,8 @@ from src.utils.feature_helpers import (
     compute_luck_score,
     circuit_adj_start_pos as calc_circuit_adj_start_pos,
     compute_rolling_teammate_delta,
+    compute_team_circuit_perf,
+    blend_car_perf,
 )
 
 # Sprint races are ~17 laps with no pit stop strategy variance.
@@ -64,11 +66,17 @@ def run(race_id: int) -> None:
             status_filter=("sprint_qualifying_done", "sprint_done", "qualifying_done", "completed"),
         )
 
+        cat_perf_map = compute_team_circuit_perf(
+            conn, driver_ids, race_id, ctx.circuit_category
+        ) if ctx.circuit_category else {d: {"score": None, "n": 0} for d in driver_ids}
+
         rows_to_upsert = []
         for driver_id in driver_ids:
             stat = stats_rows.get(driver_id)
             team_id = stat["team_id"] if stat else None
-            car_perf = team_perf.get(team_id, 0.5) if team_id else 0.5
+            car_perf_season = team_perf.get(team_id, 0.5) if team_id else 0.5
+            cat_stat = cat_perf_map.get(driver_id) or {"score": None, "n": 0}
+            car_perf = blend_car_perf(car_perf_season, cat_stat.get("score"), cat_stat.get("n") or 0)
 
             if stat:
                 sprint_races = int(stat["sprint_races_entered"] or 0)

@@ -13,5 +13,6 @@ export const circuits = pgTable('circuits', {
   drsZones: integer('drs_zones'),
   scProbability: numeric('sc_probability', { precision: 4, scale: 3 }),
   imageUrl: varchar('image_url', { length: 512 }),
+  trackCategory: varchar('track_category', { length: 30 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

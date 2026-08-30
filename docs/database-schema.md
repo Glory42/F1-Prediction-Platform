@@ -78,6 +78,7 @@ Static track data, seeded once. Not season-scoped.
 | `drs_zones` | integer | null for pre-DRS-era circuits |
 | `sc_probability` | numeric(4,3) | Historical SC deployment rate (completed races); null for circuits with no completed races |
 | `image_url` | varchar(512) | Public R2 URL or custom path for track layout image |
+| `track_category` | varchar(30) | `street` \| `high_speed` \| `high_downforce` \| `balanced` — drives `car_performance_at_circuit` blend |
 
 ---
 
@@ -276,6 +277,7 @@ FP2 long-run stint data per driver per race. Populated by `ingest_fp2`. 2018+ on
 | `race_id` | FK → races | |
 | `driver_id` | FK → drivers | |
 | `compound` | varchar(20) | `SOFT`, `MEDIUM`, `HARD` |
+| `session_type` | varchar(4) | `FP2` (primary) \| `FP1` (sprint-weekend fallback — those weekends have no FP2) |
 | `median_lap_ms` | integer | MEDIUM-normalised median stint lap time (Soft +500ms, Hard −400ms) |
 | `stint_length` | integer | Number of laps in the long-run stint (≥5) |
 | `fp2_best_lap_ms` | integer | Driver's single fastest raw lap in FP2 |
@@ -317,7 +319,7 @@ Aggregated after each race. Drives `car_performance_score` in predictions.
 |--------|------|-------|
 | `season_id` | FK → seasons | |
 | `team_id` | FK → teams | |
-| `car_performance_score` | numeric(5,4) | Normalized from avg finish position |
+| `car_performance_score` | numeric(5,4) | Blend of robust race pace (median finish) + qualifying pace (avg grid): `0.6·minmax(21−median) + 0.4·minmax(21−avg_grid)` |
 | `reliability_score` | numeric(5,4) | Normalized from 1 − dnf_rate |
 | `championship_position` | integer | |
 | UNIQUE | `(season_id, team_id)` | |
@@ -339,7 +341,7 @@ One row per driver per grand prix race. Written by `compute_features`, updated b
 | `weather_impact_score` | numeric(6,5) | |
 | `track_overtake_score` | numeric(6,5) | **Deprecated** — always NULL in weighted-v3; value baked into circuit-adjusted scores |
 | `position_gain_score` | numeric(6,5) | Raw avg position gain (kept for display only) |
-| `long_run_pace_score` | numeric(6,5) | FP2 primary, historical fallback |
+| `long_run_pace_score` | numeric(6,5) | Practice (FP2/FP1) primary, historical fallback |
 | `reliability_score` | numeric(6,5) | |
 | `qualifying_delta_score` | numeric(6,5) | Rolling 5-race weighted teammate delta |
 | `sector_strength_score` | numeric(6,5) | |
@@ -347,7 +349,7 @@ One row per driver per grand prix race. Written by `compute_features`, updated b
 | `circuit_adj_start_pos_score` | numeric(6,5) | Starting position scaled by overtake_rate × sc_probability |
 | `circuit_adj_position_gain_score` | numeric(6,5) | Position gain scaled by overtake_rate |
 | `raw_weighted_score` | numeric(8,6) | Weighted sum before softmax |
-| `long_run_used_fp2` | boolean | Whether `long_run_pace_score` came from FP2 data (true) or the historical circuit fallback (false/null) |
+| `long_run_used_fp` | boolean | Whether `long_run_pace_score` came from a practice session (FP2 or FP1 fallback; true) or the historical circuit fallback (false/null) |
 | `win_probability` | numeric(6,5) | After softmax — sums to 1.0 per race |
 | `predicted_position` | integer | 1 = predicted winner |
 | UNIQUE | `(race_id, driver_id)` | |

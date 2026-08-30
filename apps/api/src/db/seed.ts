@@ -4,6 +4,26 @@ import { circuits, seasons } from './schema';
 
 const R2_BASE = '/circuits';
 
+// Static track categorization — which characteristic dominates at this circuit.
+// Drives car_performance_at_circuit (blend of season + category-specific pace).
+const TRACK_CATEGORY: Record<string, string> = {
+  a1_ring: 'high_speed', adelaide: 'street', albert_park: 'street', austin: 'balanced',
+  bahrain: 'high_speed', bahrain_outer: 'balanced', baku: 'street', brands_hatch: 'high_downforce',
+  buenos_aires: 'high_downforce', caesars_palace: 'street', canada: 'high_speed', catalunya: 'high_downforce',
+  dallas: 'street', detroit: 'street', dijon: 'high_downforce', donington: 'high_downforce',
+  estoril: 'high_downforce', fuji_speedway: 'high_speed', hockenheim: 'high_speed', hungaroring: 'high_downforce',
+  imola: 'high_downforce', india: 'high_speed', indianapolis: 'high_speed', interlagos: 'balanced',
+  istanbul: 'high_downforce', jacarepagua: 'high_downforce', jarama: 'high_downforce', jeddah: 'street',
+  jerez: 'high_downforce', korea: 'balanced', kyalami: 'high_downforce', las_vegas: 'street',
+  long_beach: 'street', lusail: 'high_speed', madrid: 'high_downforce', magny_cours: 'high_downforce',
+  mexico_city: 'high_speed', miami: 'street', monaco: 'street', monza: 'high_speed',
+  mugello: 'balanced', nurburgring: 'high_downforce', okayama: 'high_downforce', paul_ricard: 'high_downforce',
+  phoenix: 'street', portimao: 'high_downforce', red_bull_ring: 'high_speed', sepang: 'high_speed',
+  shanghai: 'high_speed', silverstone: 'high_speed', singapore: 'street', sochi: 'balanced',
+  spa: 'high_speed', suzuka: 'high_downforce', valencia: 'street', watkins_glen: 'high_downforce',
+  yas_marina: 'balanced', zandvoort: 'high_downforce', zolder: 'high_downforce',
+};
+
 const CIRCUITS_2025 = [
   { circuitKey: 'bahrain',      name: 'Bahrain International Circuit',         country: 'Bahrain',      city: 'Sakhir',        lapCount: 57, trackLengthKm: '5.412', overtakeRate: '0.72', numberOfCorners: 15, drsZones: 3, imageUrl: `${R2_BASE}/bahrain.jpg` },
   { circuitKey: 'jeddah',       name: 'Jeddah Corniche Circuit',                country: 'Saudi Arabia', city: 'Jeddah',        lapCount: 50, trackLengthKm: '6.174', overtakeRate: '0.60', numberOfCorners: 27, drsZones: 3, imageUrl: `${R2_BASE}/jeddah.jpg` },
@@ -97,7 +117,10 @@ async function seed() {
   ]).onConflictDoNothing();
 
   console.log('Seeding circuits...');
-  await db.insert(circuits).values(CIRCUITS_2025).onConflictDoNothing();
+  const circuitsWithCategory = (CIRCUITS_2025 as Array<Record<string, unknown>>).map(
+    (c) => ({ ...c, trackCategory: TRACK_CATEGORY[c.circuitKey] ?? 'balanced' })
+  ) as typeof CIRCUITS_2025;
+  await db.insert(circuits).values(circuitsWithCategory).onConflictDoNothing();
 
   console.log('Seed complete.');
 }
