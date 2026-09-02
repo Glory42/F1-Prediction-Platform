@@ -9,7 +9,7 @@ import type {
   SprintResult, SprintDetailResponse, SprintFeatureScores, LapSummary,
 } from '../../common/types';
 import { SPRINT_FORMATS } from '../../common/constants';
-import { toDriver, toRace } from '../../common/mappers';
+import { toDriver, toRace, toSprintResult } from '../../common/mappers';
 import { buildPredictionResponse as buildSharedPredictionResponse } from '../../common/prediction-response';
 
 function toSprintFeatures(f: typeof driverSprintFeatures.$inferSelect): SprintFeatureScores {
@@ -67,25 +67,7 @@ export class SprintService {
     ]);
 
     // Return all rows (including grid_set placeholder rows) so frontend can render qualifying times
-    const completedResults: SprintResult[] = resultRows
-      .map((r) => ({
-        id: r.sprint_results.id,
-        raceId: r.sprint_results.raceId,
-        driverId: r.sprint_results.driverId,
-        finishPosition: r.sprint_results.finishPosition,
-        gridPosition: r.sprint_results.gridPosition,
-        points: r.sprint_results.points,
-        status: r.sprint_results.status,
-        fastestLap: r.sprint_results.fastestLap,
-        sq1TimeMs: r.sprint_results.sq1TimeMs ?? null,
-        sq2TimeMs: r.sprint_results.sq2TimeMs ?? null,
-        sq3TimeMs: r.sprint_results.sq3TimeMs ?? null,
-        sqSector1Ms: r.sprint_results.sqSector1Ms ?? null,
-        sqSector2Ms: r.sprint_results.sqSector2Ms ?? null,
-        sqSector3Ms: r.sprint_results.sqSector3Ms ?? null,
-        sqSpeedSt: r.sprint_results.sqSpeedSt ?? null,
-        driver: toDriver(r.drivers, r.teams),
-      }));
+    const completedResults: SprintResult[] = resultRows.map(toSprintResult);
 
     const lapsByDriver = new Map<number, { lapTimes: number[]; total: number; driver: typeof drivers.$inferSelect; team: typeof teams.$inferSelect }>();
     for (const row of lapRows) {

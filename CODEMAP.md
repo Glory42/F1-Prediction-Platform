@@ -14,11 +14,14 @@ F1-prediction/
 ├── LICENSE                # GPL-3.0
 ├── docs/                  # Project documentation
 │   ├── architecture.md    # System diagram and layer connections
-│   ├── prediction-model.md# Feature weights, scoring formula, softmax
 │   ├── data-pipeline.md   # ETL job chain, cron schedule, backfill
 │   ├── database-schema.md # All tables, columns, and relationships
+│   ├── prediction-model.md# Feature weights, scoring formula, softmax
+│   ├── rulebased-architecture.md # Per-feature inventory of the weighted-v3 predictor
 │   ├── api-reference.md   # All endpoints, params, and response shapes
-│   └── deployment.md      # Env vars, Cloudflare setup, first-time steps
+│   ├── frontend.md        # Astro app — routing, server-only fetch rule, component layout
+│   ├── deployment.md      # Env vars, Cloudflare setup, first-time steps
+│   └── testing.md         # The five test suites — coverage, how to run, CI
 ├── apps/                  # JS/Bun-only convention — orchestrated by root package.json, no workspaces
 │   ├── api/               # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
 │   ├── web/               # Astro SSR frontend — Cloudflare Pages
@@ -43,10 +46,11 @@ apps/api/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
-│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit() — canonical mappers used by all services
+│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult() — canonical row→DTO mappers used by all services
 │   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
+│   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
 │   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
 │   ├── common/accuracy.ts          # aggregateAccuracyBySeason() — groups PredictionHistoryItem[] into per-season gp/sprint/overall accuracy buckets
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
@@ -74,7 +78,9 @@ apps/api/
 │   └── modules/                   # Feature modules (service / controller / module)
 │       ├── races/
 │       │   ├── races.service.ts   # DB queries — race list, detail, circuit history
-│       │   ├── circuit-detail.helpers.ts # Pure helpers for findCircuitDetails (era bucketing, win aggregation, stats)
+│       │   ├── circuit-era.helpers.ts     # Pure era bucketing for findCircuitDetails — Era/EraMap/ERAS, aggregateEraWins(), buildDominanceByEra(), normalizeTeamKey()
+│       │   ├── circuit-stats.helpers.ts   # Pure per-response stat computations — buildCircuitHistory(), computeQualifyingImpactStats/WeatherStats/SafetyCarStats(), pickFastestLap(); owns WinnerRow/FastestLapRow
+│       │   ├── circuit-headshot-backfill.ts # backfillDriverHeadshots() — the one DB-reading enrichment (swaps latest driver profiles into per-era win entries in place; no writes)
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── drivers/
@@ -87,6 +93,8 @@ apps/api/
 │       │   └── teams.module.ts    # GET /, /standings, /:id, /:id/career
 │       ├── predictions/
 │       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), accuracy-by-season, standings, model-info
+│       │   ├── predictions.helpers.ts # toFeatures() (GP feature row→DTO) + buildGpPredictionResponse() — the GP-specific query builders over common/prediction-response
+│       │   ├── intel-standings.helpers.ts # aggregateSeasonFeatures() (table-driven per-feature averaging) + buildIntelStandingRows() (rank + min-max normalise + sprint totals) for findIntelStandings()
 │       │   ├── predictions.controller.ts
 │       │   └── predictions.module.ts  # GET /model-info, /upcoming, /race/:id, /history, /accuracy, /standings
 │       ├── sprint/
@@ -113,12 +121,14 @@ apps/api/
 ├── tests/
 │   ├── unit/
 │   │   ├── modules/
-│   │   │   └── quality/           # quality.service test (severity casting)
+│   │   │   ├── quality/           # quality.service test (severity casting)
+│   │   │   └── predictions/       # intel-standings.helpers test (feature averaging + standings normalise)
 │   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │   │       ├── mappers.test.ts
 │   │       ├── collections.test.ts
 │   │       ├── standings.test.ts
 │   │       ├── prediction-response.test.ts
+│   │       ├── prediction-history.test.ts
 │   │       ├── cache.test.ts
 │   │       └── accuracy.test.ts
 │   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
@@ -131,6 +141,7 @@ apps/api/
 │       ├── app/request.ts          # apiRequest() — in-process app.request() with TEST_DATABASE_URL env
 │       ├── db/test-db.ts           # getTestDb()/truncateAll() — refuses to truncate if TEST_DATABASE_URL === DATABASE_URL
 │       └── factories/              # one insert helper per table, FK chain: season → team/circuit → driver → race → results
+├── eslint.config.js               # Flat config — tiered `max-lines` (controller 80 / module 50 / service+helpers 200 / common 150 / default 150; schema+seed+types.ts+tests off), run via `bun run lint`
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
@@ -341,7 +352,7 @@ apps/web/
 
 | Route | Data source | Notes |
 |-------|-------------|-------|
-| `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
+| `/docs` | Astro Content Collections | Doc index — card grid of all 9 docs |
 | `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav + on-this-page rail |
 | `/` | Static | Landing — no API call |
 | `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` + `/api/predictions/accuracy` | GP + sprint upcoming; history merged; accuracy table; calibration chart + Brier when ≥5 races done |
@@ -523,11 +534,14 @@ data-engine/
 | File | Content |
 |------|---------|
 | `architecture.md` | Monorepo layout, ASCII system diagram, data flow through a race weekend |
-| `prediction-model.md` | All 12 features with weights, weighted score formula, softmax, data availability by era |
 | `data-pipeline.md` | Job descriptions, required chain order, cron schedule, local commands, backfill, idempotency |
 | `database-schema.md` | Every table with all columns, types, and notes; ER-style relationship diagram |
-| `api-reference.md` | All 17 endpoints with query params, response shapes, error codes |
+| `prediction-model.md` | All 12 features with weights, weighted score formula, softmax, data availability by era |
+| `rulebased-architecture.md` | Per-feature inventory of the weighted-v3 predictor: source, computation, weight, usage |
+| `api-reference.md` | All endpoints with query params, response shapes, error codes |
+| `frontend.md` | Astro SSR app — stack, server-only data-fetch rule + 3 exceptions, `components/` vs `features/`, routes, styling, file-size budget |
 | `deployment.md` | Env vars for all three platforms, CORS config, first-time setup, local dev |
+| `testing.md` | The five suites (pytest, api unit/integration, web vitest, e2e Playwright) — what each covers, how to run, CI jobs |
 
 ---
 

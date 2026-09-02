@@ -218,6 +218,7 @@ export type PredictionHistoryItem = {
   actualWinner: Driver | null;
   winProbability: string;
   correct: boolean | null;
+  actualWinnerPredictedPosition: number | null;
   computedAt: string;
   isSprint: boolean;
 };
