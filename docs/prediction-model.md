@@ -119,7 +119,7 @@ Main race predictions are computed at `qualifying_done`. Sprint predictions are 
 |---------|--------|--------|
 | Car Performance | 20% | `team_season_stats.car_performance_score` — normalized avg finish position across the field |
 | Long Run Pace | 15% | **Primary:** practice-session MEDIUM-normalised median stint lap time from `fp2_long_run_times` (FP2, or **FP1 on sprint weekends** — they have no FP2); **fallback:** historical circuit median from `lap_times` (last 6 visits) |
-| Tyre Degradation | 8% | `REGR_SLOPE(lap_time_ms, tyre_life)` over last 4 races at circuit — lower slope = better management = higher score; cross-season via driver code |
+| Tyre Degradation | 8% | Compound-stratified `REGR_SLOPE(lap_time_ms, tyre_life)` calculated independently for SOFT, MEDIUM, and HARD over last 4 races at circuit — lap-weighted blend across qualifying compounds (≥8 laps/compound primary, ≥10 total laps fallback); lower slope = better management = higher score; cross-season via driver code |
 | Reliability | 8% | Blend: team reliability score (70%) + driver personal DNF rate (30%) |
 | Qualifying Delta | 8% | Recency-weighted (5→1) mean of teammate quali gap across last 5 races — cross-season via driver code |
 | Driver Rating | 8% | `driver_season_stats.total_points / races_entered / 25` — capped at 1.0 |
