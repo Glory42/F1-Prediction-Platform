@@ -93,9 +93,14 @@ per circuit, never changes.
 
 ### 3. Tyre Degradation — 0.08
 - **Source:** `lap_times.tyre_life` + `lap_time_ms`. Historical only.
-- **Computed** (`_compute_tyre_degradation`): `REGR_SLOPE(lap_time_ms, tyre_life)` over
-  the **last 4 completed races at the same circuit** (`circuit_id`), laps `tyre_life >= 3`.
-  Lower slope (less falloff) = better. Field-normalized [0,1].
+- **Computed** (`_compute_tyre_degradation`): compound-stratified `REGR_SLOPE(lap_time_ms, tyre_life)`
+  calculated **independently for SOFT, MEDIUM, and HARD** over the **last 4 completed races at the
+  same circuit** (`circuit_id`), laps `tyre_life >= 3`. Per-compound slopes are blended weighted by
+  each driver's clean lap count on that compound via `blend_compound_slopes`.
+- **Dual-threshold logic:** primary path requires ≥ 8 laps per compound; if no compound qualifies but
+  total laps ≥ 10, a fallback path includes all compounds with valid slopes. Drivers with insufficient
+  data fall back to the field median.
+- Lower blended slope (less falloff) = better. Field-normalized [0,1].
 - **This is per-DRIVER-per-circuit, but pooled from prior visits (cross-season via driver.code).**
 
 ### 4. Reliability — 0.08
