@@ -43,10 +43,11 @@ apps/api/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
-│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit() — canonical mappers used by all services
+│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult() — canonical row→DTO mappers used by all services
 │   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
+│   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
 │   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
 │   ├── common/accuracy.ts          # aggregateAccuracyBySeason() — groups PredictionHistoryItem[] into per-season gp/sprint/overall accuracy buckets
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
@@ -74,7 +75,9 @@ apps/api/
 │   └── modules/                   # Feature modules (service / controller / module)
 │       ├── races/
 │       │   ├── races.service.ts   # DB queries — race list, detail, circuit history
-│       │   ├── circuit-detail.helpers.ts # Pure helpers for findCircuitDetails (era bucketing, win aggregation, stats)
+│       │   ├── circuit-era.helpers.ts     # Pure era bucketing for findCircuitDetails — Era/EraMap/ERAS, aggregateEraWins(), buildDominanceByEra(), normalizeTeamKey()
+│       │   ├── circuit-stats.helpers.ts   # Pure per-response stat computations — buildCircuitHistory(), computeQualifyingImpactStats/WeatherStats/SafetyCarStats(), pickFastestLap(); owns WinnerRow/FastestLapRow
+│       │   ├── circuit-headshot-backfill.ts # backfillDriverHeadshots() — the one DB-reading enrichment (swaps latest driver profiles into per-era win entries in place; no writes)
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── drivers/
@@ -87,6 +90,8 @@ apps/api/
 │       │   └── teams.module.ts    # GET /, /standings, /:id, /:id/career
 │       ├── predictions/
 │       │   ├── predictions.service.ts # Upcoming (date-guarded), by race, history (incl. sprint), accuracy-by-season, standings, model-info
+│       │   ├── predictions.helpers.ts # toFeatures() (GP feature row→DTO) + buildGpPredictionResponse() — the GP-specific query builders over common/prediction-response
+│       │   ├── intel-standings.helpers.ts # aggregateSeasonFeatures() (table-driven per-feature averaging) + buildIntelStandingRows() (rank + min-max normalise + sprint totals) for findIntelStandings()
 │       │   ├── predictions.controller.ts
 │       │   └── predictions.module.ts  # GET /model-info, /upcoming, /race/:id, /history, /accuracy, /standings
 │       ├── sprint/
@@ -113,12 +118,14 @@ apps/api/
 ├── tests/
 │   ├── unit/
 │   │   ├── modules/
-│   │   │   └── quality/           # quality.service test (severity casting)
+│   │   │   ├── quality/           # quality.service test (severity casting)
+│   │   │   └── predictions/       # intel-standings.helpers test (feature averaging + standings normalise)
 │   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │   │       ├── mappers.test.ts
 │   │       ├── collections.test.ts
 │   │       ├── standings.test.ts
 │   │       ├── prediction-response.test.ts
+│   │       ├── prediction-history.test.ts
 │   │       ├── cache.test.ts
 │   │       └── accuracy.test.ts
 │   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
@@ -131,6 +138,7 @@ apps/api/
 │       ├── app/request.ts          # apiRequest() — in-process app.request() with TEST_DATABASE_URL env
 │       ├── db/test-db.ts           # getTestDb()/truncateAll() — refuses to truncate if TEST_DATABASE_URL === DATABASE_URL
 │       └── factories/              # one insert helper per table, FK chain: season → team/circuit → driver → race → results
+├── eslint.config.js               # Flat config — tiered `max-lines` (controller 80 / module 50 / service+helpers 200 / common 150 / default 150; schema+seed+types.ts+tests off), run via `bun run lint`
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
 ├── tsconfig.json                  # CF Workers target — excludes Node-only files (drizzle.config, seed)
