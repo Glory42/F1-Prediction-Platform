@@ -14,11 +14,14 @@ F1-prediction/
 ├── LICENSE                # GPL-3.0
 ├── docs/                  # Project documentation
 │   ├── architecture.md    # System diagram and layer connections
-│   ├── prediction-model.md# Feature weights, scoring formula, softmax
 │   ├── data-pipeline.md   # ETL job chain, cron schedule, backfill
 │   ├── database-schema.md # All tables, columns, and relationships
+│   ├── prediction-model.md# Feature weights, scoring formula, softmax
+│   ├── rulebased-architecture.md # Per-feature inventory of the weighted-v3 predictor
 │   ├── api-reference.md   # All endpoints, params, and response shapes
-│   └── deployment.md      # Env vars, Cloudflare setup, first-time steps
+│   ├── frontend.md        # Astro app — routing, server-only fetch rule, component layout
+│   ├── deployment.md      # Env vars, Cloudflare setup, first-time steps
+│   └── testing.md         # The five test suites — coverage, how to run, CI
 ├── apps/                  # JS/Bun-only convention — orchestrated by root package.json, no workspaces
 │   ├── api/               # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
 │   ├── web/               # Astro SSR frontend — Cloudflare Pages
@@ -349,7 +352,7 @@ apps/web/
 
 | Route | Data source | Notes |
 |-------|-------------|-------|
-| `/docs` | Astro Content Collections | Doc index — card grid of all 6 docs |
+| `/docs` | Astro Content Collections | Doc index — card grid of all 9 docs |
 | `/docs/[slug]` | Astro Content Collections | Rendered markdown with sidebar nav + on-this-page rail |
 | `/` | Static | Landing — no API call |
 | `/prediction` | `GET /api/predictions/upcoming` + `/api/sprint/upcoming` + `/api/predictions/accuracy` | GP + sprint upcoming; history merged; accuracy table; calibration chart + Brier when ≥5 races done |
@@ -531,11 +534,14 @@ data-engine/
 | File | Content |
 |------|---------|
 | `architecture.md` | Monorepo layout, ASCII system diagram, data flow through a race weekend |
-| `prediction-model.md` | All 12 features with weights, weighted score formula, softmax, data availability by era |
 | `data-pipeline.md` | Job descriptions, required chain order, cron schedule, local commands, backfill, idempotency |
 | `database-schema.md` | Every table with all columns, types, and notes; ER-style relationship diagram |
-| `api-reference.md` | All 17 endpoints with query params, response shapes, error codes |
+| `prediction-model.md` | All 12 features with weights, weighted score formula, softmax, data availability by era |
+| `rulebased-architecture.md` | Per-feature inventory of the weighted-v3 predictor: source, computation, weight, usage |
+| `api-reference.md` | All endpoints with query params, response shapes, error codes |
+| `frontend.md` | Astro SSR app — stack, server-only data-fetch rule + 3 exceptions, `components/` vs `features/`, routes, styling, file-size budget |
 | `deployment.md` | Env vars for all three platforms, CORS config, first-time setup, local dev |
+| `testing.md` | The five suites (pytest, api unit/integration, web vitest, e2e Playwright) — what each covers, how to run, CI jobs |
 
 ---
 
