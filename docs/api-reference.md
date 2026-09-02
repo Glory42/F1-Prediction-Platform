@@ -196,6 +196,9 @@ Returns all predictions for the year — both grand prix and sprint races merged
 
 Each item includes `isSprint: boolean`. Sprint items link to `/races/:id/sprint`; main race items link to `/prediction/:id`.
 
+`actualWinnerPredictedPosition` is the grid slot the model had put the actual winner in — non-null
+only once the race is decided; used by the frontend to show "model had them P4" on a missed call.
+
 ```json
 {
   "data": [
@@ -209,6 +212,7 @@ Each item includes `isSprint: boolean`. Sprint items link to `/races/:id/sprint`
       "actualWinner": { "code": "ANT", ... },
       "correct": true,
       "winProbability": "0.31200",
+      "actualWinnerPredictedPosition": 1,
       "computedAt": "2026-05-23T20:00:00.000Z"
     },
     {
@@ -221,6 +225,7 @@ Each item includes `isSprint: boolean`. Sprint items link to `/races/:id/sprint`
       "actualWinner": { "code": "RUS", ... },
       "correct": false,
       "winProbability": "0.29000",
+      "actualWinnerPredictedPosition": 3,
       "computedAt": "2026-03-14T18:00:00.000Z"
     }
   ]

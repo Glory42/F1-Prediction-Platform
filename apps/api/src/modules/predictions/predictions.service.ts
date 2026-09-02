@@ -1,4 +1,4 @@
-import { eq, desc, asc, inArray, and, gte, sql } from 'drizzle-orm';
+import { eq, desc, asc, inArray, and } from 'drizzle-orm';
 import type { Db } from '../../config/database';
 import {
   races, circuits, racePredictions, driverPredictionFeatures,
@@ -6,182 +6,129 @@ import {
   sprintPredictions, sprintResults, driverSprintFeatures,
 } from '../../db/schema';
 import type {
-  PredictionResponse, Driver,
-  PredictionHistoryItem, IntelStandingRow, ModelInfo, FeatureScores, SeasonAccuracy,
+  PredictionResponse,
+  PredictionHistoryItem, IntelStandingRow, ModelInfo, SeasonAccuracy,
 } from '../../common/types';
-import { toDriver, toCircuit } from '../../common/mappers';
 import { toKeyedMap } from '../../common/collections';
 import { resolveSeason } from '../../common/standings';
-import { buildPredictionResponse } from '../../common/prediction-response';
 import { aggregateAccuracyBySeason } from '../../common/accuracy';
+import {
+  buildHistoryItems,
+  buildProbPosMaps,
+  buildWinnerMap,
+  mergeHistoryByDateDesc,
+  type HistoryPredictionRow,
+  type HistoryProbRow,
+  type HistoryWinnerRow,
+} from '../../common/prediction-history';
+import { aggregateSeasonFeatures, buildIntelStandingRows } from './intel-standings.helpers';
+import { buildGpPredictionResponse } from './predictions.helpers';
 
-function toFeatures(f: typeof driverPredictionFeatures.$inferSelect): FeatureScores {
-  return {
-    carPerformance: f.carPerformanceScore,
-    driverRating: f.driverRatingScore,
-    startingPosition: f.startingPositionScore,
-    winRate: f.winRateScore,
-    luckFactor: f.luckFactorScore,
-    weatherImpact: f.weatherImpactScore,
-    trackOvertake: f.trackOvertakeScore ?? null,
-    positionGain: f.positionGainScore,
-    longRunPace: f.longRunPaceScore ?? null,
-    reliability: f.reliabilityScore ?? null,
-    qualifyingDelta: f.qualifyingDeltaScore ?? null,
-    sectorStrength: f.sectorStrengthScore ?? null,
-    tyreDeg: f.tyreDegScore ?? null,
-    circuitAdjStartPos: f.circuitAdjStartPosScore ?? null,
-    circuitAdjPositionGain: f.circuitAdjPositionGainScore ?? null,
-  };
-}
+const GP_DONE = (status: string) => status === 'completed';
+const SPRINT_DONE = (status: string) =>
+  ['sprint_done', 'qualifying_done', 'completed'].includes(status);
+
+type WinnerTable = typeof raceResults | typeof sprintResults;
+type ProbTable = typeof driverPredictionFeatures | typeof driverSprintFeatures;
 
 export class PredictionsService {
   async findUpcoming(db: Db): Promise<PredictionResponse | null> {
-    return this.buildResponse(db, 'upcoming');
+    return buildGpPredictionResponse(db, 'upcoming');
   }
 
   async findByRaceId(db: Db, raceId: number): Promise<PredictionResponse | null> {
-    return this.buildResponse(db, raceId);
+    return buildGpPredictionResponse(db, raceId);
   }
 
   // `year` omitted returns every season — used by findAccuracyBySeason() to aggregate across all years.
   async findHistory(db: Db, year?: number): Promise<PredictionHistoryItem[]> {
     const yearFilter = year !== undefined ? eq(seasons.year, year) : undefined;
-    const [rows, sprintRows] = await Promise.all([
-      db.select()
-        .from(racePredictions)
-        .innerJoin(races, eq(racePredictions.raceId, races.id))
-        .innerJoin(seasons, eq(races.seasonId, seasons.id))
-        .innerJoin(circuits, eq(races.circuitId, circuits.id))
-        .innerJoin(drivers, eq(racePredictions.predictedWinnerId, drivers.id))
-        .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .where(yearFilter)
-        .orderBy(desc(races.raceDate)),
-      db.select()
-        .from(sprintPredictions)
-        .innerJoin(races, eq(sprintPredictions.raceId, races.id))
-        .innerJoin(seasons, eq(races.seasonId, seasons.id))
-        .innerJoin(circuits, eq(races.circuitId, circuits.id))
-        .innerJoin(drivers, eq(sprintPredictions.predictedWinnerId, drivers.id))
-        .innerJoin(teams, eq(drivers.teamId, teams.id))
-        .where(yearFilter)
-        .orderBy(desc(races.raceDate)),
+    const [gpRows, sprintRows] = await Promise.all([
+      this.fetchPredictionRows(db, racePredictions, yearFilter),
+      this.fetchPredictionRows(db, sprintPredictions, yearFilter),
     ]);
 
-    const completedRaceIds = rows.filter((r) => r.races.status === 'completed').map((r) => r.races.id);
-    const sprintDoneIds = sprintRows
-      .filter((r) => ['sprint_done', 'qualifying_done', 'completed'].includes(r.races.status))
-      .map((r) => r.races.id);
-    const raceIds = rows.map((r) => r.races.id);
-    const sprintRaceIds = sprintRows.map((r) => r.races.id);
+    const gpIds = gpRows.map((r) => r.race.id);
+    const sprintIds = sprintRows.map((r) => r.race.id);
+    const gpDoneIds = gpRows.filter((r) => GP_DONE(r.race.status)).map((r) => r.race.id);
+    const sprintDoneIds = sprintRows.filter((r) => SPRINT_DONE(r.race.status)).map((r) => r.race.id);
 
-    // Fetch actual winners and win probabilities in two parallel pairs
-    const [mainWinnerRows, sprintWinnerRows] = await Promise.all([
-      completedRaceIds.length > 0
-        ? db.select()
-            .from(raceResults)
-            .innerJoin(drivers, eq(raceResults.driverId, drivers.id))
-            .innerJoin(teams, eq(drivers.teamId, teams.id))
-            .where(and(inArray(raceResults.raceId, completedRaceIds), eq(raceResults.finishPosition, 1)))
-        : Promise.resolve([]),
-      sprintDoneIds.length > 0
-        ? db.select()
-            .from(sprintResults)
-            .innerJoin(drivers, eq(sprintResults.driverId, drivers.id))
-            .innerJoin(teams, eq(drivers.teamId, teams.id))
-            .where(and(inArray(sprintResults.raceId, sprintDoneIds), eq(sprintResults.finishPosition, 1)))
-        : Promise.resolve([]),
+    const [gpWinners, sprintWinners, gpProbs, sprintProbs] = await Promise.all([
+      this.fetchWinners(db, raceResults, gpDoneIds),
+      this.fetchWinners(db, sprintResults, sprintDoneIds),
+      this.fetchProbs(db, driverPredictionFeatures, gpIds),
+      this.fetchProbs(db, driverSprintFeatures, sprintIds),
     ]);
 
-    const [probRows, sprintProbRows] = await Promise.all([
-      raceIds.length > 0
-        ? db.select({
-            raceId: driverPredictionFeatures.raceId,
-            driverId: driverPredictionFeatures.driverId,
-            winProbability: driverPredictionFeatures.winProbability,
-            predictedPosition: driverPredictionFeatures.predictedPosition,
-          })
-          .from(driverPredictionFeatures)
-          .where(inArray(driverPredictionFeatures.raceId, raceIds))
-        : Promise.resolve([]),
-      sprintRaceIds.length > 0
-        ? db.select({
-            raceId: driverSprintFeatures.raceId,
-            driverId: driverSprintFeatures.driverId,
-            winProbability: driverSprintFeatures.winProbability,
-            predictedPosition: driverSprintFeatures.predictedPosition,
-          })
-          .from(driverSprintFeatures)
-          .where(inArray(driverSprintFeatures.raceId, sprintRaceIds))
-        : Promise.resolve([]),
-    ]);
-
-    const actualWinnerMap = new Map<number, Driver>();
-    for (const w of mainWinnerRows) {
-      actualWinnerMap.set(w.race_results.raceId, toDriver(w.drivers, w.teams));
-    }
-
-    const sprintActualMap = new Map<number, Driver>();
-    for (const w of sprintWinnerRows) {
-      sprintActualMap.set(w.sprint_results.raceId, toDriver(w.drivers, w.teams));
-    }
-
-    const probMap = new Map<string, string>();
-    const posMap = new Map<string, number>();
-    for (const p of probRows) {
-      probMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
-      if (p.predictedPosition != null) posMap.set(`${p.raceId}:${p.driverId}`, p.predictedPosition);
-    }
-
-    const sprintProbMap = new Map<string, string>();
-    const sprintPosMap = new Map<string, number>();
-    for (const p of sprintProbRows) {
-      sprintProbMap.set(`${p.raceId}:${p.driverId}`, p.winProbability);
-      if (p.predictedPosition != null) sprintPosMap.set(`${p.raceId}:${p.driverId}`, p.predictedPosition);
-    }
-
-    const mainItems: PredictionHistoryItem[] = rows.map((r) => {
-      const { races: race, circuits: circuit, drivers: driver, teams: team, race_predictions: pred } = r;
-      const predictedWinner = toDriver(driver, team);
-      const actualWinner = race.status === 'completed' ? (actualWinnerMap.get(race.id) ?? null) : null;
-      return {
-        raceId: race.id, raceName: race.name, raceDate: race.raceDate,
-        roundNumber: race.roundNumber, circuit: toCircuit(circuit),
-        predictedWinner, actualWinner,
-        winProbability: probMap.get(`${race.id}:${driver.id}`) ?? '0',
-        correct: (race.status === 'completed' && actualWinner !== null)
-          ? (actualWinner.id === predictedWinner.id)
-          : null,
-        actualWinnerPredictedPosition: (race.status === 'completed' && actualWinner !== null)
-          ? (posMap.get(`${race.id}:${actualWinner.id}`) ?? null)
-          : null,
-        computedAt: pred.computedAt.toISOString(),
-        isSprint: false,
-      };
+    const gpItems = buildHistoryItems(gpRows, {
+      actualWinnerMap: buildWinnerMap(gpWinners),
+      ...buildProbPosMaps(gpProbs),
+      isDone: GP_DONE,
+      isSprint: false,
+    });
+    const sprintItems = buildHistoryItems(sprintRows, {
+      actualWinnerMap: buildWinnerMap(sprintWinners),
+      ...buildProbPosMaps(sprintProbs),
+      isDone: SPRINT_DONE,
+      isSprint: true,
     });
 
-    const sprintItems: PredictionHistoryItem[] = sprintRows.map((r) => {
-      const { races: race, circuits: circuit, drivers: driver, teams: team, sprint_predictions: pred } = r;
-      const predictedWinner = toDriver(driver, team);
-      const isDone = ['sprint_done', 'qualifying_done', 'completed'].includes(race.status);
-      const actualWinner = isDone ? (sprintActualMap.get(race.id) ?? null) : null;
-      return {
-        raceId: race.id, raceName: race.name, raceDate: race.raceDate,
-        roundNumber: race.roundNumber, circuit: toCircuit(circuit),
-        predictedWinner, actualWinner,
-        winProbability: sprintProbMap.get(`${race.id}:${driver.id}`) ?? '0',
-        correct: (isDone && actualWinner !== null) ? (actualWinner.id === predictedWinner.id) : null,
-        actualWinnerPredictedPosition: (isDone && actualWinner !== null)
-          ? (sprintPosMap.get(`${race.id}:${actualWinner.id}`) ?? null)
-          : null,
-        computedAt: pred.computedAt.toISOString(),
-        isSprint: true,
-      };
-    });
+    return mergeHistoryByDateDesc(gpItems, sprintItems);
+  }
 
-    return [...mainItems, ...sprintItems].sort((a, b) =>
-      new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime()
-    );
+  private async fetchPredictionRows(
+    db: Db,
+    table: typeof racePredictions | typeof sprintPredictions,
+    yearFilter: ReturnType<typeof eq> | undefined,
+  ): Promise<HistoryPredictionRow[]> {
+    const rows = await db
+      .select({
+        race: races,
+        circuit: circuits,
+        driver: drivers,
+        team: teams,
+        computedAt: table.computedAt,
+      })
+      .from(table)
+      .innerJoin(races, eq(table.raceId, races.id))
+      .innerJoin(seasons, eq(races.seasonId, seasons.id))
+      .innerJoin(circuits, eq(races.circuitId, circuits.id))
+      .innerJoin(drivers, eq(table.predictedWinnerId, drivers.id))
+      .innerJoin(teams, eq(drivers.teamId, teams.id))
+      .where(yearFilter)
+      .orderBy(desc(races.raceDate));
+    return rows;
+  }
+
+  private async fetchWinners(
+    db: Db,
+    table: WinnerTable,
+    raceIds: number[],
+  ): Promise<HistoryWinnerRow[]> {
+    if (raceIds.length === 0) return [];
+    return db
+      .select({ raceId: table.raceId, driver: drivers, team: teams })
+      .from(table)
+      .innerJoin(drivers, eq(table.driverId, drivers.id))
+      .innerJoin(teams, eq(drivers.teamId, teams.id))
+      .where(and(inArray(table.raceId, raceIds), eq(table.finishPosition, 1)));
+  }
+
+  private async fetchProbs(
+    db: Db,
+    table: ProbTable,
+    raceIds: number[],
+  ): Promise<HistoryProbRow[]> {
+    if (raceIds.length === 0) return [];
+    return db
+      .select({
+        raceId: table.raceId,
+        driverId: table.driverId,
+        winProbability: table.winProbability,
+        predictedPosition: table.predictedPosition,
+      })
+      .from(table)
+      .where(inArray(table.raceId, raceIds));
   }
 
   async findAccuracyBySeason(db: Db): Promise<SeasonAccuracy[]> {
@@ -213,96 +160,9 @@ export class PredictionsService {
 
     if (!featureRows.length) return [];
 
-    type Agg = {
-      driver: ReturnType<typeof toDriver>;
-      raw: number[];
-      carPerf: number[]; driverRating: number[]; startingPos: number[];
-      winRate: number[]; luckFactor: number[]; weatherImpact: number[];
-      trackOvertake: number[]; positionGain: number[];
-      longRunPace: number[]; reliability: number[];
-      qualifyingDelta: number[]; sectorStrength: number[];
-      tyreDeg: number[]; circuitAdjStartPos: number[]; circuitAdjPositionGain: number[];
-      winProb: number[];
-    };
+    const aggregated = aggregateSeasonFeatures(featureRows);
+    const driverIds = aggregated.map((r) => r.driver.id);
 
-    const byCode = new Map<string, Agg>();
-
-    for (const row of featureRows) {
-      const code = row.drivers.code;
-      const f = row.driver_prediction_features;
-      if (!byCode.has(code)) {
-        byCode.set(code, {
-          driver: toDriver(row.drivers, row.teams),
-          raw: [], carPerf: [], driverRating: [], startingPos: [],
-          winRate: [], luckFactor: [], weatherImpact: [], trackOvertake: [],
-          positionGain: [], longRunPace: [], reliability: [],
-          qualifyingDelta: [], sectorStrength: [],
-          tyreDeg: [], circuitAdjStartPos: [], circuitAdjPositionGain: [],
-          winProb: [],
-        });
-      }
-      const agg = byCode.get(code)!;
-      agg.driver = toDriver(row.drivers, row.teams);
-      agg.raw.push(Number(f.rawWeightedScore));
-      agg.carPerf.push(Number(f.carPerformanceScore));
-      agg.driverRating.push(Number(f.driverRatingScore));
-      agg.startingPos.push(Number(f.startingPositionScore));
-      agg.winRate.push(Number(f.winRateScore));
-      agg.luckFactor.push(Number(f.luckFactorScore));
-      agg.weatherImpact.push(Number(f.weatherImpactScore));
-      if (f.trackOvertakeScore != null) agg.trackOvertake.push(Number(f.trackOvertakeScore));
-      agg.positionGain.push(Number(f.positionGainScore));
-      if (f.longRunPaceScore != null) agg.longRunPace.push(Number(f.longRunPaceScore));
-      if (f.reliabilityScore != null) agg.reliability.push(Number(f.reliabilityScore));
-      if (f.qualifyingDeltaScore != null) agg.qualifyingDelta.push(Number(f.qualifyingDeltaScore));
-      if (f.sectorStrengthScore != null) agg.sectorStrength.push(Number(f.sectorStrengthScore));
-      if (f.tyreDegScore != null) agg.tyreDeg.push(Number(f.tyreDegScore));
-      if (f.circuitAdjStartPosScore != null) agg.circuitAdjStartPos.push(Number(f.circuitAdjStartPosScore));
-      if (f.circuitAdjPositionGainScore != null) agg.circuitAdjPositionGain.push(Number(f.circuitAdjPositionGainScore));
-      agg.winProb.push(Number(f.winProbability));
-    }
-
-    const avg = (arr: number[]) =>
-      arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-    const avgStr = (arr: number[]) => String(avg(arr));
-    const avgNullable = (arr: number[]) => arr.length ? String(avg(arr)) : null;
-
-    const results = Array.from(byCode.values()).map((agg) => {
-      const avgRaw = avg(agg.raw);
-      return {
-        driver: agg.driver,
-        features: {
-          carPerformance: avgStr(agg.carPerf),
-          driverRating: avgStr(agg.driverRating),
-          startingPosition: avgStr(agg.startingPos),
-          winRate: avgStr(agg.winRate),
-          luckFactor: avgStr(agg.luckFactor),
-          weatherImpact: avgStr(agg.weatherImpact),
-          trackOvertake: avgNullable(agg.trackOvertake),
-          positionGain: avgStr(agg.positionGain),
-          longRunPace: avgNullable(agg.longRunPace),
-          reliability: avgNullable(agg.reliability),
-          qualifyingDelta: avgNullable(agg.qualifyingDelta),
-          sectorStrength: avgNullable(agg.sectorStrength),
-          tyreDeg: avgNullable(agg.tyreDeg),
-          circuitAdjStartPos: avgNullable(agg.circuitAdjStartPos),
-          circuitAdjPositionGain: avgNullable(agg.circuitAdjPositionGain),
-        },
-        rawWeightedScore: String(avgRaw),
-        winProbability: String(avg(agg.winProb)),
-        predictedPosition: null,
-        _avgRaw: avgRaw,
-      };
-    });
-
-    results.sort((a, b) => b._avgRaw - a._avgRaw);
-
-    const rawVals = results.map((r) => r._avgRaw);
-    const minScore = Math.min(...rawVals);
-    const maxScore = Math.max(...rawVals);
-    const range = maxScore - minScore || 1;
-
-    const driverIds = results.map((r) => r.driver.id);
     const sprintStatsRows = driverIds.length > 0
       ? await db
           .select({
@@ -317,67 +177,8 @@ export class PredictionsService {
             eq(driverSeasonStats.seasonId, season.id),
           ))
       : [];
-    const sprintMap = toKeyedMap(sprintStatsRows, (s) => s.driverId);
 
-    return results.map((r) => {
-      const sprint = sprintMap.get(r.driver.id);
-      return {
-        driver: r.driver,
-        features: r.features,
-        rawWeightedScore: r.rawWeightedScore,
-        winProbability: r.winProbability,
-        predictedPosition: r.predictedPosition,
-        overallScore: Math.round(((r._avgRaw - minScore) / range) * 100),
-        sprintWins: sprint?.sprintWins ?? 0,
-        sprintPodiums: sprint?.sprintPodiums ?? 0,
-        sprintTotalPoints: sprint?.sprintTotalPoints ?? '0',
-      };
-    });
-  }
-
-  private async buildResponse(db: Db, target: 'upcoming' | number): Promise<PredictionResponse | null> {
-    return buildPredictionResponse<typeof driverPredictionFeatures.$inferSelect, FeatureScores>(db, {
-      target,
-      queryUpcoming: (db) =>
-        db
-          .select()
-          .from(racePredictions)
-          .innerJoin(races, eq(racePredictions.raceId, races.id))
-          .innerJoin(circuits, eq(races.circuitId, circuits.id))
-          .where(and(
-            eq(races.status, 'qualifying_done'),
-            gte(races.raceDate, sql`CURRENT_DATE`),
-          ))
-          .orderBy(asc(races.raceDate))
-          .limit(1)
-          .then((rows) => rows.map((r) => ({ prediction: r.race_predictions, race: r.races, circuit: r.circuits }))),
-      queryById: (db, raceId) =>
-        db
-          .select()
-          .from(racePredictions)
-          .innerJoin(races, eq(racePredictions.raceId, races.id))
-          .innerJoin(circuits, eq(races.circuitId, circuits.id))
-          .where(eq(racePredictions.raceId, raceId))
-          .limit(1)
-          .then((rows) => rows.map((r) => ({ prediction: r.race_predictions, race: r.races, circuit: r.circuits }))),
-      fetchFeatureRows: (db, raceId) =>
-        db
-          .select()
-          .from(driverPredictionFeatures)
-          .innerJoin(drivers, eq(driverPredictionFeatures.driverId, drivers.id))
-          .innerJoin(teams, eq(drivers.teamId, teams.id))
-          .where(eq(driverPredictionFeatures.raceId, raceId))
-          .orderBy(asc(driverPredictionFeatures.predictedPosition))
-          .then((rows) => rows.map((r) => ({
-            driverId: r.drivers.id,
-            driver: r.drivers,
-            team: r.teams,
-            winProbability: r.driver_prediction_features.winProbability,
-            predictedPosition: r.driver_prediction_features.predictedPosition,
-            raw: r.driver_prediction_features,
-          }))),
-      toFeatures,
-    });
+    return buildIntelStandingRows(aggregated, toKeyedMap(sprintStatsRows, (s) => s.driverId));
   }
 
   async getModelInfo(db: Db): Promise<ModelInfo> {

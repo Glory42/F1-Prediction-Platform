@@ -2,20 +2,19 @@ import { eq, and, asc, desc, gte, lte, isNotNull, sql, inArray } from 'drizzle-o
 import type { Db } from '../../config/database';
 import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams, raceStatusEnum } from '../../db/schema';
 import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse } from '../../common/types';
-import { toDriver, toRace, toCircuit } from '../../common/mappers';
+import { toDriver, toRace, toCircuit, toRaceResult, toQualifyingResult } from '../../common/mappers';
 import { toKeyedMap } from '../../common/collections';
+import { aggregateEraWins, buildDominanceByEra } from './circuit-era.helpers';
+import { backfillDriverHeadshots } from './circuit-headshot-backfill';
 import {
-  aggregateEraWins,
-  backfillDriverHeadshots,
   buildCircuitHistory,
-  buildDominanceByEra,
   computeQualifyingImpactStats,
   computeSafetyCarStats,
   computeWeatherStats,
   pickFastestLap,
   type FastestLapRow,
   type WinnerRow,
-} from './circuit-detail.helpers';
+} from './circuit-stats.helpers';
 
 export class RacesService {
   async findAll(db: Db, year: number, status?: string): Promise<Race[]> {
@@ -153,31 +152,8 @@ export class RacesService {
 
     const driverMap = toKeyedMap(resultsRows, (r) => r.drivers.id, (r) => toDriver(r.drivers, r.teams));
 
-    const results: RaceResult[] = resultsRows.map((r) => ({
-      id: r.race_results.id,
-      raceId: r.race_results.raceId,
-      driverId: r.race_results.driverId,
-      finishPosition: r.race_results.finishPosition,
-      gridPosition: r.race_results.gridPosition,
-      points: r.race_results.points,
-      status: r.race_results.status,
-      fastestLap: r.race_results.fastestLap,
-      driver: toDriver(r.drivers, r.teams),
-    }));
-
-    const qualifying: QualifyingResult[] = qualifyingRows.map((r) => ({
-      id: r.qualifying_results.id,
-      driverId: r.qualifying_results.driverId,
-      gridPosition: r.qualifying_results.gridPosition,
-      q1TimeMs: r.qualifying_results.q1TimeMs,
-      q2TimeMs: r.qualifying_results.q2TimeMs,
-      q3TimeMs: r.qualifying_results.q3TimeMs,
-      sector1Ms: r.qualifying_results.sector1Ms ?? null,
-      sector2Ms: r.qualifying_results.sector2Ms ?? null,
-      sector3Ms: r.qualifying_results.sector3Ms ?? null,
-      speedSt: r.qualifying_results.speedSt ?? null,
-      driver: toDriver(r.drivers, r.teams),
-    }));
+    const results: RaceResult[] = resultsRows.map(toRaceResult);
+    const qualifying: QualifyingResult[] = qualifyingRows.map(toQualifyingResult);
 
     const laps: LapSummary[] = lapRows
       .map((r) => ({

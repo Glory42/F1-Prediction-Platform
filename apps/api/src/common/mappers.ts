@@ -1,6 +1,12 @@
-import type { drivers, teams, races, circuits } from '../db/schema';
-import type { Driver, Team, Race, Circuit } from './types';
+import type {
+  drivers, teams, races, circuits, raceResults, qualifyingResults, sprintResults,
+} from '../db/schema';
+import type {
+  Driver, Team, Race, Circuit, RaceResult, QualifyingResult, SprintResult,
+} from './types';
 import { SPRINT_FORMATS } from './constants';
+
+type WithDriverTeam<T> = { drivers: typeof drivers.$inferSelect; teams: typeof teams.$inferSelect } & T;
 
 export function toTeam(t: typeof teams.$inferSelect): Team {
   return { id: t.id, seasonId: t.seasonId, teamKey: t.teamKey, name: t.name, nationality: t.nationality };
@@ -39,6 +45,63 @@ export function toCircuit(circuit: typeof circuits.$inferSelect): Circuit {
     drsZones: circuit.drsZones ?? null,
     scProbability: circuit.scProbability ?? null,
     imageUrl,
+  };
+}
+
+export function toRaceResult(r: WithDriverTeam<{ race_results: typeof raceResults.$inferSelect }>): RaceResult {
+  return {
+    id: r.race_results.id,
+    raceId: r.race_results.raceId,
+    driverId: r.race_results.driverId,
+    finishPosition: r.race_results.finishPosition,
+    gridPosition: r.race_results.gridPosition,
+    points: r.race_results.points,
+    status: r.race_results.status,
+    fastestLap: r.race_results.fastestLap,
+    driver: toDriver(r.drivers, r.teams),
+  };
+}
+
+export function toQualifyingResult(
+  r: WithDriverTeam<{ qualifying_results: typeof qualifyingResults.$inferSelect }>
+): QualifyingResult {
+  const q = r.qualifying_results;
+  return {
+    id: q.id,
+    driverId: q.driverId,
+    gridPosition: q.gridPosition,
+    q1TimeMs: q.q1TimeMs,
+    q2TimeMs: q.q2TimeMs,
+    q3TimeMs: q.q3TimeMs,
+    sector1Ms: q.sector1Ms ?? null,
+    sector2Ms: q.sector2Ms ?? null,
+    sector3Ms: q.sector3Ms ?? null,
+    speedSt: q.speedSt ?? null,
+    driver: toDriver(r.drivers, r.teams),
+  };
+}
+
+export function toSprintResult(
+  r: WithDriverTeam<{ sprint_results: typeof sprintResults.$inferSelect }>
+): SprintResult {
+  const s = r.sprint_results;
+  return {
+    id: s.id,
+    raceId: s.raceId,
+    driverId: s.driverId,
+    finishPosition: s.finishPosition,
+    gridPosition: s.gridPosition,
+    points: s.points,
+    status: s.status,
+    fastestLap: s.fastestLap,
+    sq1TimeMs: s.sq1TimeMs ?? null,
+    sq2TimeMs: s.sq2TimeMs ?? null,
+    sq3TimeMs: s.sq3TimeMs ?? null,
+    sqSector1Ms: s.sqSector1Ms ?? null,
+    sqSector2Ms: s.sqSector2Ms ?? null,
+    sqSector3Ms: s.sqSector3Ms ?? null,
+    sqSpeedSt: s.sqSpeedSt ?? null,
+    driver: toDriver(r.drivers, r.teams),
   };
 }
 

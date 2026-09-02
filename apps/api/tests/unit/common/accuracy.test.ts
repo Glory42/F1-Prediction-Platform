@@ -13,6 +13,7 @@ function item(overrides: Partial<PredictionHistoryItem>): PredictionHistoryItem 
     actualWinner: null,
     winProbability: '0.5',
     correct: null,
+    actualWinnerPredictedPosition: null,
     computedAt: '2025-06-01T00:00:00.000Z',
     isSprint: false,
     ...overrides,
