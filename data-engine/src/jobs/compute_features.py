@@ -221,11 +221,75 @@ def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id
     return {driver_ids[i]: normalized[i] for i in range(len(driver_ids))}, used_fp2
 
 
+def blend_compound_slopes(
+    compounds: list[tuple[float | None, int]],
+    min_laps_per_compound: int = 8,
+    min_total_laps: int = 10,
+) -> float | None:
+    """Blend per-compound degradation slopes into a single representative value.
+
+    ``compounds`` is a list of (slope, lap_count) pairs — one per tyre compound.
+    Returns the lap-weighted average of qualifying compounds, or None when the
+    driver has insufficient data.
+
+    Threshold logic (addresses both thin-data and even-split edge cases):
+    1. **Primary path**: compounds with ≥ ``min_laps_per_compound`` laps each
+       contribute their slope, weighted by lap count.
+    2. **Fallback path**: if *no* compound reaches the per-compound floor but the
+       driver's *total* clean laps across all compounds ≥ ``min_total_laps``,
+       include every compound that has a valid slope (regardless of count) so the
+       signal is preserved rather than discarded.
+    3. If neither path yields data, return None → the caller assigns the field
+       median.
+    """
+    # Primary path — only compounds meeting the per-compound floor
+    w_sum = 0.0
+    w_total = 0
+    for slope, n in compounds:
+        if slope is not None and n >= min_laps_per_compound:
+            w_sum += slope * n
+            w_total += n
+
+    if w_total > 0:
+        return w_sum / w_total
+
+    # Fallback path — no single compound qualified; check total laps
+    total_n = sum(n for _, n in compounds)
+    if total_n >= min_total_laps:
+        w_sum = 0.0
+        w_total = 0
+        for slope, n in compounds:
+            if slope is not None and n > 0:
+                w_sum += slope * n
+                w_total += n
+        if w_total > 0:
+            return w_sum / w_total
+
+    return None
+
+
+def _field_median(values: list[float]) -> float:
+    """True median of a sorted list (averages the two middle values for even length)."""
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    if n % 2 == 1:
+        return s[mid]
+    return (s[mid - 1] + s[mid]) / 2.0
+
+
 def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> dict[int, float]:
     """
-    REGR_SLOPE(lap_time_ms, tyre_life) across last 4 races at this circuit.
-    Uses laps with tyre_life >= 3 to skip warm-up laps.
-    Lower slope = better tyre management = higher score.
+    Compound-stratified tyre degradation.
+
+    Calculates REGR_SLOPE(lap_time_ms, tyre_life) separately for SOFT, MEDIUM,
+    and HARD across the last 4 completed races at this circuit, then blends each
+    driver's per-compound slopes via ``blend_compound_slopes``.
+
+    This prevents the cross-compound pace offset (~0.5–0.9 s between Soft and
+    Hard) from distorting the true tyre-management signal.
+
+    Lower blended slope = better tyre management = higher normalised score (1.0).
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -243,7 +307,20 @@ def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit
         cur.execute(
             """
             SELECT d_cur.id AS driver_id,
-                   REGR_SLOPE(lt.lap_time_ms::float, lt.tyre_life::float) AS deg_slope
+                   REGR_SLOPE(lt.lap_time_ms::float, lt.tyre_life::float)
+                     FILTER (WHERE lt.compound = 'SOFT')   AS soft_slope,
+                   COUNT(*)
+                     FILTER (WHERE lt.compound = 'SOFT')   AS soft_n,
+
+                   REGR_SLOPE(lt.lap_time_ms::float, lt.tyre_life::float)
+                     FILTER (WHERE lt.compound = 'MEDIUM') AS med_slope,
+                   COUNT(*)
+                     FILTER (WHERE lt.compound = 'MEDIUM') AS med_n,
+
+                   REGR_SLOPE(lt.lap_time_ms::float, lt.tyre_life::float)
+                     FILTER (WHERE lt.compound = 'HARD')   AS hard_slope,
+                   COUNT(*)
+                     FILTER (WHERE lt.compound = 'HARD')   AS hard_n
             FROM drivers d_cur
             JOIN drivers d_hist ON d_hist.code = d_cur.code
             JOIN lap_times lt ON lt.driver_id = d_hist.id
@@ -254,21 +331,28 @@ def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit
               AND lt.tyre_life IS NOT NULL AND lt.tyre_life >= 3
               AND lt.compound IN ('SOFT', 'MEDIUM', 'HARD')
             GROUP BY d_cur.id
-            HAVING COUNT(*) >= 10
             """,
             (past_ids, driver_ids),
         )
-        slope_map = {r["driver_id"]: float(r["deg_slope"]) for r in cur.fetchall()
-                     if r["deg_slope"] is not None}
+        raw_rows = {r["driver_id"]: r for r in cur.fetchall()}
+
+    slope_map: dict[int, float] = {}
+    for driver_id, row in raw_rows.items():
+        compounds = [
+            (row["soft_slope"], int(row["soft_n"] or 0)),
+            (row["med_slope"],  int(row["med_n"] or 0)),
+            (row["hard_slope"], int(row["hard_n"] or 0)),
+        ]
+        blended = blend_compound_slopes(compounds)
+        if blended is not None:
+            slope_map[driver_id] = blended
 
     if not slope_map:
         return {d: 0.5 for d in driver_ids}
 
-    all_slopes = sorted(slope_map.values())
-    mid = len(all_slopes) // 2
-    field_median = all_slopes[mid]
+    median = _field_median(list(slope_map.values()))
 
-    slopes = [slope_map.get(d, field_median) for d in driver_ids]
+    slopes = [slope_map.get(d, median) for d in driver_ids]
     max_slope = max(slopes)
     inverted = [max_slope - s for s in slopes]
     normalized = normalize_minmax(inverted) if len(set(inverted)) > 1 else [0.5] * len(driver_ids)
