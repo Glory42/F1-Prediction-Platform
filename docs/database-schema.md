@@ -190,7 +190,7 @@ One row per driver per grand prix.
 | `finish_position` | integer | Null = DNF/DSQ |
 | `grid_position` | integer | |
 | `points` | numeric(4,1) | Championship points scored |
-| `status` | varchar(30) | e.g. `Finished`, `+1 Lap`, `Accident` |
+| `status` | varchar(30) | Finishers: `Finished`, `Lapped`, `+1 Lap`, `+2 Laps`; DNFs: `Retired`, `Accident`, `Engine`, `Collision`, `Disqualified`, `Did not start`, etc. |
 | `total_race_time_ms` | bigint | For winner only |
 | `fastest_lap` | boolean | |
 | UNIQUE | `(race_id, driver_id)` | |

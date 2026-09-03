@@ -39,7 +39,7 @@ Set this as a **Secret** (not plaintext) so it's encrypted at rest.
 
 Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
 
-`keep_vars = true` is set in `apps/web/wrangler.toml`.
+Pages configs don't support `keep_vars` (and don't need it — Pages deployments never erase dashboard-set variables), so `apps/web/wrangler.toml` omits it.
 
 ### Data Engine — Render Dashboard
 
