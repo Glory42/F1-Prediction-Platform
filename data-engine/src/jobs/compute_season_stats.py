@@ -24,7 +24,8 @@ def run(year: int) -> None:
 
 
 def _compute_driver_stats(conn, season_id: int) -> None:
-    # ── Main race aggregates ──────────────────────────────────────────────────
+    # DNF filter excludes lead-lap finishes ('Finished'), FastF1 lapped finishes ('Lapped'),
+    # and Ergast lapped finishes ('+%').
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -34,9 +35,6 @@ def _compute_driver_stats(conn, season_id: int) -> None:
                 COUNT(rr.id) FILTER (WHERE rr.finish_position IS NOT NULL) AS races_finished,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position = 1) AS wins,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position <= 3) AS podiums,
-                -- DNF filter: excludes lead-lap finishes ('Finished'), FastF1 lapped finishes ('Lapped'),
-                -- and Ergast lapped finishes ('+%'). Note: ~1.6% of 'Lapped' rows in FastF1 are late-race
-                -- classified retirements (>90% distance); treating 'Lapped' as finish correctly protects 98.4% of lapped finishers.
                 COUNT(rr.id) FILTER (WHERE rr.status NOT IN ('Finished', 'Lapped') AND rr.status NOT LIKE '+%%') AS dnf_count,
                 COALESCE(SUM(rr.points::numeric), 0) AS total_points,
                 AVG(rr.finish_position) FILTER (WHERE rr.finish_position IS NOT NULL) AS avg_finish,
@@ -230,7 +228,8 @@ def _compute_teammate_quali_deltas(conn, season_id: int) -> dict[int, float | No
 
 
 def _compute_team_stats(conn, season_id: int) -> None:
-    # ── Main race team aggregates ─────────────────────────────────────────────
+    # DNF filter excludes lead-lap finishes ('Finished'), FastF1 lapped finishes ('Lapped'),
+    # and Ergast lapped finishes ('+%').
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -239,9 +238,6 @@ def _compute_team_stats(conn, season_id: int) -> None:
                 COUNT(DISTINCT r.id) AS races_completed,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position = 1) AS wins,
                 COUNT(rr.id) FILTER (WHERE rr.finish_position <= 3) AS podiums,
-                -- DNF filter: excludes lead-lap finishes ('Finished'), FastF1 lapped finishes ('Lapped'),
-                -- and Ergast lapped finishes ('+%'). Note: ~1.6% of 'Lapped' rows in FastF1 are late-race
-                -- classified retirements (>90% distance); treating 'Lapped' as finish correctly protects 98.4% of lapped finishers.
                 COUNT(rr.id) FILTER (WHERE rr.status NOT IN ('Finished', 'Lapped') AND rr.status NOT LIKE '+%%') AS dnf_count,
                 COUNT(rr.id) AS total_entries,
                 COALESCE(SUM(rr.points::numeric), 0) AS total_points,
