@@ -1,7 +1,14 @@
 name = "f1-intelligence-web"
+pages_build_output_dir = "dist"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 keep_vars = true
+
+# Explicit build command: Cloudflare Pages auto-detects bun via the legacy
+# binary bun.lockb filename only. This project uses bun's newer bun.lock JSON
+# format, so we must install bun and invoke it explicitly.
+[build]
+command = "curl -fsSL https://bun.sh/install | bash && export PATH=\"$HOME/.bun/bin:$PATH\" && bun install && bun run build"
 
 [vars]
 # Update this to your actual Worker URL from the Cloudflare dashboard
