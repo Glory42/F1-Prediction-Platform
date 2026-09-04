@@ -337,8 +337,8 @@ Full detail in `docs/prediction-model.md`.
 ### Static / Hardcoded inputs
 - `circuits.overtake_rate` — seeded once per circuit, never changes
 - `circuits.sc_probability` — seeded once per circuit, never changes
-- Softmax temperature T=0.3 — hardcoded in `compute_predictions.py` / `compute_sprint_predictions.py`
-- Model weights — hardcoded in `compute_features.py` / `compute_sprint_features.py`
+- Softmax temperature T=0.3 — `SOFTMAX_TEMPERATURE` in `data-engine/src/utils/feature_manifest.py`, imported by `prediction_runner.py`/`math_utils.py` (Python) and `apps/web/src/lib/predictionMath.ts` (TS)
+- Model weights — `GP_FEATURES`/`SPRINT_FEATURES` in `feature_manifest.py`, re-exported as `WEIGHTS` by `compute_features.py`/`compute_sprint_features.py`; checked against `docs/feature-weights.json` and `apps/web`'s `FEATURE_META`/`SPRINT_FEATURE_META`
 
 ### Softmax
 Temperature T=0.3. Lower = more decisive. Do not increase T.

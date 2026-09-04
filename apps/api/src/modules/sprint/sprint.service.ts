@@ -11,20 +11,10 @@ import type {
 import { SPRINT_FORMATS } from '../../common/constants';
 import { toDriver, toRace, toSprintResult } from '../../common/mappers';
 import { buildPredictionResponse as buildSharedPredictionResponse } from '../../common/prediction-response';
+import { SPRINT_FEATURE_MANIFEST, mapFeatureRow } from '../../common/featureManifest';
 
 function toSprintFeatures(f: typeof driverSprintFeatures.$inferSelect): SprintFeatureScores {
-  return {
-    carPerformance: f.carPerformanceScore,
-    startingPosition: f.startingPositionScore,
-    driverRating: f.driverRatingScore,
-    trackOvertake: f.trackOvertakeScore ?? null,
-    shortRunPace: f.shortRunPaceScore,
-    weatherImpact: f.weatherImpactScore,
-    winRate: f.winRateScore,
-    luckFactor: f.luckFactorScore,
-    circuitAdjStartPos: f.circuitAdjStartPosScore ?? null,
-    sqQualifyingDelta: f.sqQualifyingDeltaScore ?? null,
-  };
+  return mapFeatureRow(f, SPRINT_FEATURE_MANIFEST);
 }
 
 export class SprintService {

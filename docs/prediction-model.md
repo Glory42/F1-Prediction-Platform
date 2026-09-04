@@ -57,9 +57,9 @@ Some inputs never change and are seeded once into the database or hardcoded in P
 |-------|-------------|---------|
 | Circuit overtake rate | `circuits.overtake_rate` | Never — seeded once per track |
 | Circuit SC probability | `circuits.sc_probability` | Never — seeded once per track |
-| Model weights | `compute_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
-| Sprint model weights | `compute_sprint_features.py` `WEIGHTS` dict | Only when model is intentionally updated |
-| Softmax temperature T=0.3 | `prediction_runner.py` (shared by `compute_predictions.py` and `compute_sprint_predictions.py`) | Only when model is intentionally updated |
+| Model weights | `feature_manifest.py` `GP_FEATURES` (re-exported as `WEIGHTS` by `compute_features.py`); mirrored in `apps/web/src/lib/predictionMath.ts` `FEATURE_META`, both checked against `docs/feature-weights.json` | Only when model is intentionally updated |
+| Sprint model weights | `feature_manifest.py` `SPRINT_FEATURES` (re-exported as `WEIGHTS` by `compute_sprint_features.py`); mirrored in `predictionMath.ts` `SPRINT_FEATURE_META` | Only when model is intentionally updated |
+| Softmax temperature T=0.3 | `feature_manifest.py` `SOFTMAX_TEMPERATURE` (Python), `predictionMath.ts` `SOFTMAX_TEMPERATURE` (TS) — imported by every caller in each language | Only when model is intentionally updated |
 
 ---
 
@@ -134,22 +134,12 @@ All feature scores are normalized to [0.0, 1.0] using min-max normalization acro
 
 ### Weighted Score
 
-```python
-raw = (
-    car_perf                  * 0.20 +
-    long_run                  * 0.15 +
-    tyre_deg                  * 0.08 +
-    reliability               * 0.08 +
-    quali_delta               * 0.08 +
-    driver_rating             * 0.08 +
-    win_rate                  * 0.08 +
-    luck                      * 0.07 +
-    sector_strength           * 0.06 +
-    circuit_adj_start_pos     * 0.07 +
-    circuit_adj_position_gain * 0.03 +
-    weather_score             * 0.02
-)
-```
+`raw = weighted_sum(feature_values, WEIGHTS)` — the dot product of each driver's per-feature
+scores against the weights above. Both the weights table and this formula are sourced from
+`data-engine/src/utils/feature_manifest.py`'s `GP_FEATURES` (also mirrored in
+`docs/feature-weights.json`, checked against `apps/web`'s `FEATURE_META` by
+`test_weights.py`/`predictionMath.test.ts`) — this doc doesn't restate the numbers a second
+time so they can't drift from the code.
 
 `track_overtake_score` is no longer a standalone additive feature — its value is baked into the circuit-adjusted starting position and position gain multipliers.
 
@@ -172,18 +162,8 @@ Intentionally different from the main race model. Sprint races are ~17 laps with
 
 ### Weighted Score
 
-```python
-raw = (
-    car_perf              * 0.25 +
-    circuit_adj_start_pos * 0.25 +
-    short_run             * 0.10 +
-    driver_rating         * 0.10 +
-    weather_score         * 0.08 +
-    win_rate              * 0.08 +
-    luck                  * 0.08 +
-    sq_delta              * 0.06
-)
-```
+`raw = weighted_sum(feature_values, WEIGHTS)`, same combination rule as the GP model. Sourced
+from `feature_manifest.py`'s `SPRINT_FEATURES` — see the GP model's note above.
 
 Sprint driver rating and win rate use sprint-specific history when ≥3 sprint races are recorded, otherwise fall back to main race stats (scaled to match the 8-point sprint maximum vs 25-point race maximum).
 
@@ -196,7 +176,10 @@ exp_s = np.exp(scores / T)
 win_probability = exp_s / exp_s.sum()
 ```
 
-Temperature `T = 0.3`. Lower temperature makes the model more decisive — small score differences produce larger probability gaps. Do not increase T.
+Temperature `T = 0.3`, defined once as `SOFTMAX_TEMPERATURE` in `feature_manifest.py`
+(Python) and `predictionMath.ts` (TS) and imported everywhere it's used. Lower temperature
+makes the model more decisive — small score differences produce larger probability gaps. Do
+not increase T.
 
 Probabilities sum to 1.0 across all drivers in a race. Same temperature applies to both the sprint and main race models.
 

@@ -2,7 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { api } from '@/lib/api';
 import type { SprintPredictionResponse, SprintDetailResponse } from '@/types';
-import { SPRINT_WEIGHTS, SPRINT_FEATURE_META, contributions } from '@/lib/predictionMath';
+import { SPRINT_WEIGHTS, SPRINT_FEATURE_META, contributions, radarFeatures } from '@/lib/predictionMath';
 import { SPRINT_ACCENT } from '@/features/predictions/types';
 import PredictionHeader from '@/features/predictions/components/PredictionHeader.astro';
 import PredictionOutcomeBanner from '@/features/predictions/components/PredictionOutcomeBanner.astro';
@@ -41,16 +41,10 @@ const winner = prediction
   : null;
 const breakdown = winner ? contributions(winner.features, SPRINT_WEIGHTS) : [];
 
-const RADAR_FEATURES: [string, string][] = [
-  ['Car Performance', 'carPerformance'],
-  ['Adj. Grid Pos', 'circuitAdjStartPos'],
-  ['Short Run Pace', 'shortRunPace'],
-  ['Driver Rating', 'driverRating'],
-  ['Weather', 'weatherImpact'],
-  ['Win Rate', 'winRate'],
-  ['Luck Factor', 'luckFactor'],
-  ['SQ vs Teammate', 'sqQualifyingDelta'],
-];
+const RADAR_FEATURES = radarFeatures(SPRINT_FEATURE_META, {
+  circuitAdjStartPos: 'Adj. Grid Pos',
+  weatherImpact: 'Weather',
+});
 ---
 
 <BaseLayout title={race ? `Sprint Prediction · ${race.name}` : 'Sprint Prediction'}>

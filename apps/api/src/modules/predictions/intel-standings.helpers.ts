@@ -1,6 +1,7 @@
 import type { drivers, teams, driverPredictionFeatures } from '../../db/schema';
 import type { FeatureScores, IntelStandingRow } from '../../common/types';
 import { toDriver } from '../../common/mappers';
+import { GP_FEATURE_MANIFEST } from '../../common/featureManifest';
 
 export interface SprintSeasonTotals {
   sprintWins: number;
@@ -8,28 +9,10 @@ export interface SprintSeasonTotals {
   sprintTotalPoints: string;
 }
 
-type FeatureCol = keyof typeof driverPredictionFeatures.$inferSelect;
-
-// Table-driven so a new feature column is a single row here, not another
-// copy-pasted `if (f.xScore != null) agg.x.push(...)` line — feature drift is a
-// known hazard (see MEMORY.md "driver_prediction_features column drift").
-const FEATURE_COLUMNS: { key: keyof FeatureScores; col: FeatureCol; nullable: boolean }[] = [
-  { key: 'carPerformance', col: 'carPerformanceScore', nullable: false },
-  { key: 'driverRating', col: 'driverRatingScore', nullable: false },
-  { key: 'startingPosition', col: 'startingPositionScore', nullable: false },
-  { key: 'winRate', col: 'winRateScore', nullable: false },
-  { key: 'luckFactor', col: 'luckFactorScore', nullable: false },
-  { key: 'weatherImpact', col: 'weatherImpactScore', nullable: false },
-  { key: 'positionGain', col: 'positionGainScore', nullable: false },
-  { key: 'trackOvertake', col: 'trackOvertakeScore', nullable: true },
-  { key: 'longRunPace', col: 'longRunPaceScore', nullable: true },
-  { key: 'reliability', col: 'reliabilityScore', nullable: true },
-  { key: 'qualifyingDelta', col: 'qualifyingDeltaScore', nullable: true },
-  { key: 'sectorStrength', col: 'sectorStrengthScore', nullable: true },
-  { key: 'tyreDeg', col: 'tyreDegScore', nullable: true },
-  { key: 'circuitAdjStartPos', col: 'circuitAdjStartPosScore', nullable: true },
-  { key: 'circuitAdjPositionGain', col: 'circuitAdjPositionGainScore', nullable: true },
-];
+// The shared GP_FEATURE_MANIFEST (see common/featureManifest.ts) is what makes this
+// table-driven — a new feature column is a manifest entry there, not another
+// copy-pasted `if (f.xScore != null) agg.x.push(...)` line here.
+const FEATURE_COLUMNS = GP_FEATURE_MANIFEST;
 
 export interface SeasonFeatureRow {
   driver_prediction_features: typeof driverPredictionFeatures.$inferSelect;
@@ -75,7 +58,7 @@ export function aggregateSeasonFeatures(rows: SeasonFeatureRow[]): AggregatedFea
     bucket.raw.push(Number(f.rawWeightedScore));
     bucket.winProb.push(Number(f.winProbability));
     for (const c of FEATURE_COLUMNS) {
-      const value = f[c.col];
+      const value = f[c.column];
       if (c.nullable && value == null) continue;
       bucket.cols[c.key].push(Number(value));
     }

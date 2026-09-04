@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import {
   weightedScore,
@@ -15,6 +18,21 @@ import {
   SPRINT_WEIGHTS,
   SPRINT_FEATURE_META,
 } from '../../../src/lib/predictionMath';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const featureWeightsFixture = JSON.parse(
+  readFileSync(join(__dirname, '../../../../../docs/feature-weights.json'), 'utf-8'),
+);
+
+// The shared fixture is snake_case (Python-native); GP_WEIGHTS/SPRINT_WEIGHTS are camelCase.
+function toSnakeCaseWeights(weights: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(weights).map(([key, value]) => [
+      key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`),
+      value,
+    ]),
+  );
+}
 
 describe('weightedScore', () => {
   test('sums weight times feature score over the weighted keys', () => {
@@ -101,6 +119,16 @@ describe('SPRINT_WEIGHTS / SPRINT_FEATURE_META', () => {
     for (const key of Object.keys(SPRINT_WEIGHTS)) {
       expect(SPRINT_FEATURE_META[key]?.label).toBeTruthy();
     }
+  });
+});
+
+describe('docs/feature-weights.json (cross-language drift check)', () => {
+  test('GP_WEIGHTS matches the shared fixture', () => {
+    expect(toSnakeCaseWeights(GP_WEIGHTS)).toEqual(featureWeightsFixture.gp);
+  });
+
+  test('SPRINT_WEIGHTS matches the shared fixture', () => {
+    expect(toSnakeCaseWeights(SPRINT_WEIGHTS)).toEqual(featureWeightsFixture.sprint);
   });
 });
 

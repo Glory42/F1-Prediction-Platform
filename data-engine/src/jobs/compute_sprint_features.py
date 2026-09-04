@@ -12,21 +12,11 @@ from src.utils.feature_helpers import (
     compute_team_circuit_perf,
     blend_car_perf,
 )
+from src.utils.feature_manifest import SPRINT_FEATURES, SPRINT_WEIGHTS as WEIGHTS, assemble_scores
 
 # Sprint races are ~17 laps with no pit stop strategy variance.
 # Grid position dominates — overtaking is very hard in such a short race.
 # Circuit-context multiplier (same formula as GP) applies to starting position.
-WEIGHTS = {
-    "car_performance":         0.25,
-    "circuit_adj_start_pos":   0.25,
-    "short_run_pace":          0.10,
-    "driver_rating":           0.10,
-    "weather_impact":          0.08,
-    "win_rate":                0.08,
-    "luck_factor":             0.08,
-    "qualifying_delta_sprint": 0.06,
-}
-# sum = 1.00
 
 
 def run(race_id: int) -> None:
@@ -106,33 +96,27 @@ def run(race_id: int) -> None:
             luck          = luck_map.get(driver_id, 0.5)
             sq_delta      = sq_delta_map.get(driver_id, 0.5)
 
-            raw = weighted_sum({
-                "car_performance":         car_perf,
-                "circuit_adj_start_pos":   circuit_adj_start_pos,
-                "short_run_pace":          short_run,
-                "driver_rating":           driver_rating,
-                "weather_impact":          weather_score,
-                "win_rate":                win_rate,
-                "luck_factor":             luck,
-                "qualifying_delta_sprint": sq_delta,
-            }, WEIGHTS)
+            feature_values = {
+                "car_performance": car_perf,
+                "circuit_adj_start_pos": circuit_adj_start_pos,
+                "short_run_pace": short_run,
+                "driver_rating": driver_rating,
+                "weather_impact": weather_score,
+                "win_rate": win_rate,
+                "luck_factor": luck,
+                "sq_qualifying_delta": sq_delta,
+            }
+            raw = weighted_sum(assemble_scores(feature_values, SPRINT_FEATURES), WEIGHTS)
 
             rows_to_upsert.append({
-                "race_id":                    race_id,
-                "driver_id":                  driver_id,
-                "car_performance_score":      round(car_perf, 5),
-                "starting_position_score":    round(start_pos, 5),
-                "driver_rating_score":        round(driver_rating, 5),
-                "track_overtake_score":       None,
-                "short_run_pace_score":       round(short_run, 5),
-                "weather_impact_score":       round(weather_score, 5),
-                "win_rate_score":             round(win_rate, 5),
-                "luck_factor_score":          round(luck, 5),
-                "circuit_adj_start_pos_score": round(circuit_adj_start_pos, 5),
-                "sq_qualifying_delta_score":  round(sq_delta, 5),
-                "raw_weighted_score":         round(raw, 6),
-                "win_probability":            0.0,
-                "predicted_position":         None,
+                "race_id": race_id,
+                "driver_id": driver_id,
+                **{f"{f.name}_score": round(feature_values[f.name], 5) for f in SPRINT_FEATURES},
+                "starting_position_score": round(start_pos, 5),
+                "track_overtake_score": None,
+                "raw_weighted_score": round(raw, 6),
+                "win_probability": 0.0,
+                "predicted_position": None,
             })
 
         upsert(conn, "driver_sprint_features", rows_to_upsert, ["race_id", "driver_id"])

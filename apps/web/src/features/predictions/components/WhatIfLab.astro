@@ -60,18 +60,12 @@ const payload = JSON.stringify({
 </style>
 
 <script>
+  import { softmax } from '@/lib/predictionMath';
+
   function escapeHtml(str: string) {
     return String(str)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
-  function softmax(scores: number[]) {
-    const scaled = scores.map((s) => s / 0.3);
-    const max = Math.max(...scaled);
-    const exps = scaled.map((s) => Math.exp(s - max));
-    const sum = exps.reduce((a, b) => a + b, 0);
-    return exps.map((e) => e / sum);
   }
 
   function initWhatIfLabs() {

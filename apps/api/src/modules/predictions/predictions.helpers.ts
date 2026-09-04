@@ -5,25 +5,10 @@ import {
 } from '../../db/schema';
 import type { PredictionResponse, FeatureScores } from '../../common/types';
 import { buildPredictionResponse } from '../../common/prediction-response';
+import { GP_FEATURE_MANIFEST, mapFeatureRow } from '../../common/featureManifest';
 
 export function toFeatures(f: typeof driverPredictionFeatures.$inferSelect): FeatureScores {
-  return {
-    carPerformance: f.carPerformanceScore,
-    driverRating: f.driverRatingScore,
-    startingPosition: f.startingPositionScore,
-    winRate: f.winRateScore,
-    luckFactor: f.luckFactorScore,
-    weatherImpact: f.weatherImpactScore,
-    trackOvertake: f.trackOvertakeScore ?? null,
-    positionGain: f.positionGainScore,
-    longRunPace: f.longRunPaceScore ?? null,
-    reliability: f.reliabilityScore ?? null,
-    qualifyingDelta: f.qualifyingDeltaScore ?? null,
-    sectorStrength: f.sectorStrengthScore ?? null,
-    tyreDeg: f.tyreDegScore ?? null,
-    circuitAdjStartPos: f.circuitAdjStartPosScore ?? null,
-    circuitAdjPositionGain: f.circuitAdjPositionGainScore ?? null,
-  };
+  return mapFeatureRow(f, GP_FEATURE_MANIFEST);
 }
 
 export function buildGpPredictionResponse(
