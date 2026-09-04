@@ -18,11 +18,11 @@ def _resolve_race(conn: Any, year: int, round_num: int) -> RaceContext:
     return RaceContext(
         race_id=race_row["id"],
         season_id=race_row["season_id"],
-        extra={"circuit_id": race_row["circuit_id"]},
+        circuit_id=race_row["circuit_id"],
     )
 
 
-def _apply_conditions(
+def _mark_status(
     conn: Any,
     race_ctx: RaceContext,
     weather: str,
@@ -30,7 +30,6 @@ def _apply_conditions(
     sc_vsc: dict[str, int],
 ) -> None:
     race_id = race_ctx.race_id
-    circuit_id = race_ctx.extra["circuit_id"]
 
     with conn.cursor() as cur:
         cur.execute(
@@ -53,7 +52,18 @@ def _apply_conditions(
                 race_id,
             ),
         )
-    # Refresh sc_probability for this circuit from all completed races
+    print(
+        f"  Race {race_id} → completed | weather={weather} "
+        f"SC={sc_vsc['safety_car_laps']} VSC={sc_vsc['vsc_laps']} "
+        f"AirTemp={weather_details['air_temp_avg']}°C"
+    )
+
+
+def _recompute_circuit_sc_probability(conn: Any, race_ctx: RaceContext) -> None:
+    """Refresh circuits.sc_probability for this race's circuit from all completed races —
+    a cross-table side effect of a race finishing, distinct from this race's own status write."""
+    circuit_id = race_ctx.circuit_id
+
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -71,11 +81,7 @@ def _apply_conditions(
             """,
             (circuit_id,),
         )
-    print(
-        f"  Race {race_id} → completed | weather={weather} "
-        f"SC={sc_vsc['safety_car_laps']} VSC={sc_vsc['vsc_laps']} "
-        f"AirTemp={weather_details['air_temp_avg']}°C"
-    )
+    print(f"  Recomputed sc_probability for circuit {circuit_id}")
 
 
 def run(year: int, round_num: int) -> None:
@@ -93,6 +99,7 @@ def run(year: int, round_num: int) -> None:
             laps_row_label="lap time",
             no_results_error="No results inserted for race {race_id} — all driver codes unknown",
             resolve_race=_resolve_race,
-            apply_conditions=_apply_conditions,
+            mark_status=_mark_status,
+            cross_table_hook=_recompute_circuit_sc_probability,
         ),
     )
