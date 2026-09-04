@@ -23,8 +23,9 @@ it's Python, and its jobs run once and exit rather than being a long-running dev
 - `data-engine/tests/` — pytest. Pure functions (`math_utils.py`, pure `feature_helpers.py` helpers, model
   `WEIGHTS` invariants) are tested directly. DB-touching functions (`compute_weather_score`, `compute_luck_score`,
   `build_feature_context`, `build_driver_code_map`) are tested via `tests/support/fake_db.py` — a scripted
-  `FakeCursor`/`FakeConnection` double shaped like psycopg2's `RealDictCursor`, no real DB. Deeper ETL
-  orchestration (`ingest_runner.py`, `upsert.py`, `prediction_runner.py`) is still untested.
+  `FakeCursor`/`FakeConnection` double shaped like psycopg2's `RealDictCursor`, no real DB. `ingest_runner.py`'s
+  two shared runners (`run_ingest_job` for race/sprint, `run_qualifying_ingest_job` for qualifying/sprint-qualifying)
+  are tested the same way. `upsert.py` and `prediction_runner.py` are still untested.
 - `apps/api/tests/unit/` — `bun test`, mirrors `src/` by domain (e.g. `tests/unit/common/mappers.test.ts`
   tests `src/common/mappers.ts`). Covers the shared `src/common/` mapper/aggregation layer.
 - `apps/api/tests/integration/` — `bun test`, real Hono `app.request()` calls against a dedicated Neon test

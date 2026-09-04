@@ -28,7 +28,7 @@ def _resolve_race(conn: Any, year: int, round_num: int) -> RaceContext:
     return RaceContext(race_id=race_row["id"], season_id=race_row["season_id"])
 
 
-def _apply_conditions(
+def _mark_status(
     conn: Any,
     race_ctx: RaceContext,
     weather: str,
@@ -86,6 +86,6 @@ def run(year: int, round_num: int) -> None:
             laps_row_label="sprint lap",
             no_results_error="No sprint results for race {race_id} — all driver codes unknown",
             resolve_race=_resolve_race,
-            apply_conditions=_apply_conditions,
+            mark_status=_mark_status,
         ),
     )

@@ -460,7 +460,9 @@ data-engine/
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
-│       ├── ingest_runner.py       # run_ingest_job(...) — shared headshot/results/lap-time/conditions logic for ingest_race + ingest_sprint
+│       ├── ingest_runner.py       # Two seams: run_ingest_job(...) — shared headshot/results/lap-time/status logic for
+│       │                          # ingest_race + ingest_sprint; run_qualifying_ingest_job(...) — shared logic for
+│       │                          # ingest_qualifying + ingest_sprint_qualifying (no weather/laps/headshots)
 │       ├── feature_helpers.py     # Shared scoring math for GP + sprint models — compute_weather_score(),
 │       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
 │       ├── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
@@ -488,7 +490,8 @@ data-engine/
 │   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, both models
 │   ├── test_prediction_ranking.py  # rank_by_probability
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
-│   └── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
+│   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
+│   └── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 ├── requirements-dev.txt           # requirements.txt + pytest
@@ -525,6 +528,7 @@ data-engine/
 | `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
 | `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |
 | `prediction_runner.py` | `run_prediction_job(...)` — shared softmax/rank/upsert logic for GP + sprint predictions; `rank_by_probability(driver_ids, probabilities)` — pure position-ranking + winner-pick, extracted so it's unit-testable without a DB connection |
+| `ingest_runner.py` | Two seams, matched to two different session shapes (see the module docstring for why they're not one). `run_ingest_job(year, round, IngestJobConfig)` — full race/sprint session (weather, SC/VSC, results, lap times, headshots); `IngestJobConfig.mark_status` writes the job's own `races` row, an optional `cross_table_hook` runs after it for effects on other tables (e.g. `ingest_race`'s `circuits.sc_probability` recompute). `run_qualifying_ingest_job(year, round, QualifyingJobConfig)` — qualifying-only session (just quali times, no weather/laps/headshots); `QualifyingJobConfig.rows_from_quali` is the per-job typed `session → rows` function used by `ingest_qualifying`/`ingest_sprint_qualifying` |
 | `schedule_window.py` | `race_weekend_window(schedule, now)` → `RaceWeekendWindow \| None` — the current/next GP's window (FP1−1h … race+24h) derived purely from the FastF1 calendar, no DB; `RaceWeekendWindow.contains(now)`. Used by `auto_runner` to gate all DB access and to size the worker's poll interval |
 
 ---

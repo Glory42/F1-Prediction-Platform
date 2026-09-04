@@ -51,10 +51,12 @@ pytest, config in `pyproject.toml` (`pythonpath = ["."]`, `testpaths = ["tests"]
 - **DB-touching functions are tested through a fake double** — `tests/support/fake_db.py` provides
   `FakeCursor` / `FakeConnection`, shaped like psycopg2's `RealDictCursor`. `FakeConnection` takes a
   list of result sets and hands one out per `with conn.cursor()` block, in call order. This covers
-  `compute_weather_score`, `compute_luck_score`, `build_feature_context`, `build_driver_code_map`.
+  `compute_weather_score`, `compute_luck_score`, `build_feature_context`, `build_driver_code_map`, and
+  `ingest_runner.py`'s two shared runners (`run_ingest_job`, `run_qualifying_ingest_job`) — the latter via
+  monkeypatched per-job callables and FastF1 helpers, no real session data needed.
 - `conftest.py` sets a placeholder `DATABASE_URL` so importing a job module (which reads it at import
   time) works with or without a local `.env`. Tests never open a real connection.
-- Still untested: deeper ETL orchestration (`ingest_runner.py`, `upsert.py`, `prediction_runner.py`).
+- Still untested: deeper ETL orchestration (`upsert.py`, `prediction_runner.py`).
 
 ## API unit (`apps/api/tests/unit/`)
 
