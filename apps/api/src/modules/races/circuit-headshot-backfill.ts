@@ -3,10 +3,8 @@ import type { Db } from '../../config/database';
 import { drivers, teams, seasons } from '../../db/schema';
 import { ERAS, driverKeyFor, type EraMap, type DriverWinEntry } from './circuit-era.helpers';
 
-// Historical race rows often lack headshot URLs. This reads each winning driver's
-// most recent season profile and swaps its richer driver/team records into the
-// per-era win entries in place — a read + in-memory enrichment, no DB writes
-// (the API never writes to Neon; ETL owns that).
+// Historical rows often lack headshots — read-only enrichment from each driver's
+// latest season profile, swapped into the per-era win entries in place.
 export async function backfillDriverHeadshots(
   db: Db,
   driverWinsByEra: EraMap<Map<string, DriverWinEntry>>

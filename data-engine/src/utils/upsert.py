@@ -10,12 +10,8 @@ def upsert(
     conflict_cols: list[str],
     exclude_update: list[str] | None = None,
 ) -> None:
-    """
-    Upsert rows into table.
-    conflict_cols  — columns that form the unique key (skipped in UPDATE SET).
-    exclude_update — additional columns to skip in UPDATE SET (e.g. 'status'
-                     so existing completed rows aren't reset to 'scheduled').
-    """
+    """exclude_update skips extra columns in UPDATE SET beyond conflict_cols (e.g. 'status',
+    so existing completed rows aren't reset to 'scheduled')."""
     if not rows:
         return
 

@@ -1,11 +1,5 @@
-"""
-data_quality_audit — measures per-table data completeness/quality across the
-database and writes the results to `data_quality_runs` + `data_quality_issues`.
-
-Runs from Python because several checks read large per-lap tables
-(`lap_times`, `sprint_lap_times`) where a row-count scan is the reliable signal —
-the Hono API keeps the response side read-only, per the CLAUDE.md constraints.
-"""
+"""Measures per-table data completeness across the DB, writes results to
+data_quality_runs/issues. Runs in Python since the API stays read-only."""
 import json
 from typing import Any
 
@@ -67,9 +61,7 @@ def _audit_race(conn, race: dict, *, run_season_stats: bool) -> tuple[list[dict]
     is_sprint = race["event_format"] in SPRINT_FORMATS
     quali_count = race["quali_count"]
     result_count = race["result_count"]
-    # Cross-table references: use the other table's count as the expected value so a
-    # row-count check never compares a value against itself (which would be tautological).
-    # A ~20-car grid is the fallback when the counterpart table is empty (pre-race).
+    # Cross-table counts avoid a tautological self-check; ~20-car grid is the pre-race fallback.
     expected_grid = quali_count or 20
     lap_count = race.get("lap_count") or 0
 
@@ -81,9 +73,8 @@ def _audit_race(conn, race: dict, *, run_season_stats: bool) -> tuple[list[dict]
             "is_sprint": is_sprint,
         })
 
-    # ── qualifying_results ────────────────────────────────────────────────
-    # Legacy eras (pre-2018) intentionally lack part of this data per data-pipeline
-    # coverage, so only FastF1-era rounds are measured for qualifying quality.
+    # qualifying_results: pre-2018 legacy eras intentionally lack this data, so only
+    # FastF1-era rounds are measured.
     if status in ("qualifying_done", "completed") and year >= 2018:
         # Cross-check against race_results (independent reference) when available.
         quali_expected = result_count if result_count else 20
@@ -165,11 +156,8 @@ def _audit_race(conn, race: dict, *, run_season_stats: bool) -> tuple[list[dict]
                 add("sprint_lap_times", "lap_coverage", "low",
                     "no sprint laps ingested for a completed sprint weekend", True)
 
-# ── fp2_long_run_times (2018+, expected grid) ─────────────────────────
-    # Sprint weekends replace FP2 with FP1 (no FP2 session exists), so only measure
-    # conventional weekends — otherwise every sprint race is a permanent false positive.
-    # FP2 is informational, not re-ingestable: drivers sometimes do no long-run stint, in
-    # which case the model deliberately falls back to historical circuit pace (compute_features).
+    # Sprint weekends use FP1 not FP2, so only conventional weekends are measured here —
+    # low coverage is informational (the model falls back to historical circuit pace).
     if (status in ("qualifying_done", "completed") and year >= 2018
             and expected_grid > 0 and not is_sprint):
         fp2_drivers = _scalar(conn,
@@ -181,9 +169,8 @@ def _audit_race(conn, race: dict, *, run_season_stats: bool) -> tuple[list[dict]
                 f"FP2 long-run coverage {coverage:.0%} ({fp2_drivers}/~{expected_grid} drivers); "
                 f"model falls back to historical circuit pace", False)
 
-    # ── season stats presence ─────────────────────────────────────────────
-    # Season-scoped aggregate — emit only once (on the first completed race of the
-    # season) so a single season-level gap isn't duplicated across every race.
+    # Season-scoped aggregate — emit only on the season's first completed race so it
+    # isn't duplicated across every race.
     if status == "completed" and run_season_stats:
         missing = _scalar(conn, """
             SELECT COUNT(*) FROM drivers d
@@ -253,11 +240,8 @@ def run(year: int | None = None, all_years: bool = False) -> None:
             summary["by_table"].setdefault(i["table_name"], 0)
             summary["by_table"][i["table_name"]] += 1
 
-        # One aggregate run per audit pass (race_id NULL). `year_key` is the stored
-        # year column value — a per-season scan stores the real year; an all-years scan
-        # stores 0. The partial unique index (year) WHERE race_id IS NULL makes this
-        # INSERT ... ON CONFLICT idempotent: re-running an audit for the same year upserts
-        # the same single row instead of accumulating new runs (and issue rows).
+        # year_key=0 marks an all-years scan; the partial unique index (year) WHERE
+        # race_id IS NULL makes re-running the same year's audit an upsert, not a new row.
         year_key = year if not all_years and year is not None else 0
         with conn.cursor() as cur:
             cur.execute(

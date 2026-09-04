@@ -10,9 +10,8 @@ function toBucket(items: PredictionHistoryItem[]): AccuracyBucket {
   };
 }
 
-// Groups by the race's calendar year (read directly off raceDate — 'YYYY-MM-DD' — rather
-// than via Date/getFullYear() to sidestep any timezone ambiguity), splitting GP vs sprint
-// so a season with many sprint races doesn't skew the GP model's own accuracy or vice versa.
+// Year comes from raceDate's 'YYYY-MM-DD' prefix, not Date/getFullYear(), to sidestep
+// timezone ambiguity. Splits GP vs sprint so one doesn't skew the other's accuracy.
 export function aggregateAccuracyBySeason(items: PredictionHistoryItem[]): SeasonAccuracy[] {
   const byYear = new Map<number, { gp: PredictionHistoryItem[]; sprint: PredictionHistoryItem[] }>();
 

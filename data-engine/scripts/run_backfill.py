@@ -1,8 +1,5 @@
-"""
-Full historical backfill runner.
-Usage:  python scripts/run_backfill.py 2018 2020
-        python scripts/run_backfill.py 2000 2017   (once legacy ingest jobs are ready)
-"""
+"""Full historical backfill runner (positional args, no --help: start year, end year).
+Usage: python scripts/run_backfill.py 2018 2020"""
 import sys
 import traceback
 

@@ -5,9 +5,8 @@ import type { QualityReport, SeasonSummary } from '@/types';
 import YearSelect from '@/components/shared/YearSelect.astro';
 import { Cpu, ShieldAlert, ShieldCheck, Wrench, TriangleAlert, CircleAlert, Info } from 'lucide-react';
 
-// Development-only dashboard: the data-quality reports are internal tooling, not
-// meant for live users. SSR runs this on every request, so a production request
-// short-circuits to a real 404 response before any data is fetched or rendered.
+// Dev-only dashboard — a production request short-circuits to a real 404 before
+// any data is fetched, since SSR would otherwise run this on every request.
 if (!import.meta.env.DEV) {
   return new Response('Not found', { status: 404 });
 }

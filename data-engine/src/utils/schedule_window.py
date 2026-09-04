@@ -39,13 +39,8 @@ def _to_utc(value: Any) -> Optional[datetime]:
 
 
 def race_weekend_window(schedule: pd.DataFrame, now: datetime) -> Optional[RaceWeekendWindow]:
-    """The race-weekend window for the current or next Grand Prix, or None when
-    no race is currently live or upcoming.
-
-    Derived entirely from the FastF1 schedule — no database. A race counts as
-    "current" until _CURRENT_RACE_GRACE past its start so post-race ingestion
-    still falls inside the window.
-    """
+    """Derived purely from the FastF1 schedule, no DB. A race stays "current" until
+    _CURRENT_RACE_GRACE past its start so post-race ingestion still falls inside."""
     candidates = []
     for _, row in schedule.iterrows():
         race_start = _to_utc(row.get("Session5DateUtc"))

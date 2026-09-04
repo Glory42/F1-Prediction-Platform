@@ -1,9 +1,8 @@
 from collections import defaultdict
 from src.utils.math_utils import normalize_minmax, clamp
 
-# How much the circuit-category performance signal weighs vs the season-level
-# car_performance_score when blended at feature time. Ramps in as more same-category
-# races are observed (w = 0 until a team has >=2 category races).
+# Weight of the circuit-category signal vs season car_performance_score, ramping in
+# as more same-category races are observed (w = 0 until a team has >=2 such races).
 CAR_CIRCUIT_BLEND_MAX = 0.35
 CAR_CIRCUIT_MIN_RACES = 2
 CAR_CIRCUIT_RAMP_RACES = 6
@@ -14,12 +13,8 @@ def compute_compressed_car_perf(
     grid_signals: list[float],
     rel_weight: float = 0.5,
 ) -> list[float]:
-    """Compute a compressed car performance score across teams in a season.
-
-    Combines 60% race pace signal (21 - median_finish) and 40% qualifying speed signal (21 - avg_grid).
-    Normalizes using a 50/50 blend of relative field min-max and absolute grid scale (1..20).
-    This prevents extreme runaway 1.0 vs 0.74 gaps among close top-tier constructors.
-    """
+    """Blends relative field min-max with an absolute grid scale (1..20) so top-tier
+    constructors don't get runaway 1.0 vs 0.74 gaps."""
     if not pace_signals or not grid_signals:
         return []
     raw = [0.6 * p + 0.4 * g for p, g in zip(pace_signals, grid_signals)]
@@ -29,12 +24,8 @@ def compute_compressed_car_perf(
 
 
 def blend_car_perf(season: float, category: float | None, category_races: int) -> float:
-    """Blend season-level car performance with circuit-category-specific performance.
-
-    ``category`` is None when a team has no historical races at this circuit category,
-    in which case the season signal is used unchanged. The category weight ramps 0→max
-    as sample size grows (2..6 races) so early-season the season signal dominates.
-    """
+    """`category` is None with no history at this circuit category (season signal used
+    unchanged); otherwise the category weight ramps 0->max as sample size grows (2..6)."""
     if category is None or category_races < CAR_CIRCUIT_MIN_RACES:
         return clamp(season)
     ramp = (category_races - CAR_CIRCUIT_MIN_RACES) / max(CAR_CIRCUIT_RAMP_RACES - CAR_CIRCUIT_MIN_RACES, 1)
@@ -43,16 +34,8 @@ def blend_car_perf(season: float, category: float | None, category_races: int) -
 
 
 def compute_team_circuit_perf(conn, driver_ids: list[int], race_id: int, circuit_category: str) -> dict[int, dict]:
-    """
-    Per-team performance at circuits of this category, cross-season via driver.code.
-    For each current-season driver, average their finish position at completed races
-    whose circuit has the same track_category (excluding the target race), then
-    min-max normalize (21 - avg_finish) across the field so the category score is a
-    0-1 value comparable to the season-level car_performance_score. On high_speed tracks,
-    also blends in speed trap telemetry (70% finish + 30% speed). Returns
-    {driver_id: {"score": 0-1 | None, "n": count}}: score is None when the driver has
-    < CAR_CIRCUIT_MIN_RACES such races (blend falls back to season signal).
-    """
+    """Cross-season via driver.code; returns {driver_id: {"score": 0-1 | None, "n": count}},
+    score None below CAR_CIRCUIT_MIN_RACES. high_speed tracks also blend in speed trap pace."""
     with conn.cursor() as cur:
         cur.execute("SELECT race_date FROM races WHERE id = %s", (race_id,))
         race_info = cur.fetchone()
@@ -224,11 +207,8 @@ def compute_luck_score(conn, driver_ids: list[int], race_id: int, team_perf: dic
 
 
 def circuit_adj_start_pos(start_pos: float, overtake_rate: float, sc_probability: float) -> float:
-    """
-    Starting position matters more at low-overtake tracks (Monaco) and less at high (Monza).
-    SC probability reduces grid advantage further — high-SC circuits bunch the field.
-    Shared by the GP and sprint models — same formula, different WEIGHTS.
-    """
+    """Grid position matters more at low-overtake tracks; high SC probability bunches the
+    field, reducing it further. Shared by GP and sprint — same formula, different WEIGHTS."""
     return clamp(start_pos * (1 + (1 - overtake_rate)) * (1 - 0.3 * sc_probability))
 
 
@@ -241,14 +221,8 @@ def compute_rolling_teammate_delta(
     time_cols: tuple[str, str, str],
     status_filter: tuple[str, ...],
 ) -> dict[int, float]:
-    """
-    Rolling weighted mean of teammate qualifying delta across the last 5 sessions
-    (cross-season via driver.code). Weight: most recent = 5, oldest = 1.
-    Positive = driver was faster than teammate.
-
-    `table`/`time_cols`/`status_filter` distinguish GP qualifying from sprint qualifying —
-    the algorithm itself is identical between the two models.
-    """
+    """Weighted mean (recent=5..oldest=1) teammate delta over the last 5 sessions, cross-season.
+    `table`/`time_cols`/`status_filter` pick GP vs sprint qualifying; the algorithm is shared."""
     with conn.cursor() as cur:
         cur.execute("SELECT race_date FROM races WHERE id = %s", (race_id,))
         race_info = cur.fetchone()

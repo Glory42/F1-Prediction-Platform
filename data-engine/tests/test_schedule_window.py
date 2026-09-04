@@ -17,11 +17,8 @@ def _naive(dt):
 
 
 def _event(round_number, race_utc, *, fmt="conventional", sessions=None):
-    """One schedule row shaped like fastf1.get_event_schedule().
-
-    Default session layout: FP1 two days before the race, FP2 +4h, FP3/Q the
-    day before, R at race_utc.
-    """
+    """One schedule row shaped like fastf1.get_event_schedule() — default layout: FP1 two
+    days before the race, FP2 +4h, FP3/Q the day before, R at race_utc."""
     if sessions is None:
         fp1 = race_utc - timedelta(days=2)
         sessions = [

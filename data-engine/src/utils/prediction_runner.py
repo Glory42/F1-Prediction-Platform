@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from psycopg2 import sql
 from psycopg2.extras import execute_batch
 from src.db.client import get_conn
+from src.utils.feature_manifest import SOFTMAX_TEMPERATURE
 from src.utils.math_utils import softmax
 
 
@@ -45,7 +46,7 @@ def run_prediction_job(
         driver_ids = [r["driver_id"] for r in feature_rows]
         raw_scores = [float(r["raw_weighted_score"]) for r in feature_rows]
 
-        probabilities = softmax(raw_scores, temperature=0.3)
+        probabilities = softmax(raw_scores, temperature=SOFTMAX_TEMPERATURE)
         assert abs(sum(probabilities) - 1.0) < 1e-4, "Probabilities do not sum to 1"
 
         # Rank: position 1 = highest probability

@@ -53,6 +53,10 @@ apps/api/
 │   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
 │   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
 │   ├── common/accuracy.ts          # aggregateAccuracyBySeason() — groups PredictionHistoryItem[] into per-season gp/sprint/overall accuracy buckets
+│   ├── common/featureManifest.ts   # GP_FEATURE_MANIFEST/SPRINT_FEATURE_MANIFEST (key, column, label, nullable) +
+│   │                               #   mapFeatureRow() — weight-less local manifest (apps/api never computes with
+│   │                               #   weights); derives toFeatures()/toSprintFeatures() and intel-standings.helpers.ts's
+│   │                               #   aggregation columns from one place instead of three
 │   ├── config/database.ts         # createDb() — Drizzle over Neon HTTP driver
 │   ├── db/
 │   │   ├── schema/                # Drizzle table definitions (source of truth)
@@ -304,9 +308,10 @@ apps/web/
 │   │   ├── teamColors.ts          # team_key → official hex color map (fallback #6B7280)
 │   │   ├── teamLogos.ts           # team_key → /teams/<file> static logo path (null if no logo)
 │   │   ├── countryFlags.ts        # country → emoji flag helper
-│   │   ├── predictionMath.ts      # weightedScore, softmax(0.3), contributions, confidenceTier, brierScore,
-│   │   │                          #   calibrationBuckets, driverPredictionRecord, bestCall/worstMiss/longestStreak,
-│   │   │                          #   GP_WEIGHTS/SPRINT_WEIGHTS + *_FEATURE_META (hand-copy of the Python model weights)
+│   │   ├── predictionMath.ts      # weightedScore, softmax (SOFTMAX_TEMPERATURE=0.3), radarFeatures(), contributions,
+│   │   │                          #   confidenceTier, brierScore, calibrationBuckets, driverPredictionRecord,
+│   │   │                          #   bestCall/worstMiss/longestStreak, GP_WEIGHTS/SPRINT_WEIGHTS + *_FEATURE_META
+│   │   │                          #   (the canonical TS-side manifest, checked against docs/feature-weights.json)
 │   │   └── utils.ts               # cn() helper (clsx + tailwind-merge)
 │   ├── types/
 │   │   └── index.ts               # All TypeScript types — Circuit, Team, Driver, Race,
@@ -456,6 +461,9 @@ data-engine/
 │       ├── fastf1_helpers.py      # get_session(messages=False), session_to_race_results(),
 │       │                          # session_to_quali_results(), session_to_lap_times(),
 │       │                          # get_weather(), get_weather_details(), get_sc_vsc_laps()
+│       ├── feature_manifest.py    # GP_FEATURES/SPRINT_FEATURES (name, weight, label, nullable) — the single source
+│       │                          # for both models' weights; GP_WEIGHTS/SPRINT_WEIGHTS + assemble_scores() +
+│       │                          # SOFTMAX_TEMPERATURE derive from it; checked against docs/feature-weights.json
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp(), weighted_sum()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
@@ -487,7 +495,8 @@ data-engine/
 │   ├── test_feature_helpers_db.py  # compute_weather_score, compute_luck_score — via fake_db
 │   ├── test_feature_context.py     # build_feature_context, build_driver_code_map — via fake_db
 │   ├── test_fastf1_helpers.py      # ms_to_int (the one pure function in fastf1_helpers.py)
-│   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, both models
+│   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, assemble_scores() key-drift guard,
+│   │                                #   both models checked against docs/feature-weights.json
 │   ├── test_prediction_ranking.py  # rank_by_probability
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
 │   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
@@ -523,7 +532,8 @@ data-engine/
 | File | Key functions |
 |------|--------------|
 | `fastf1_helpers.py` | `get_session(year, round, type, messages=False)` — loads FastF1 session (SQ sessions need `messages=True`); `session_to_quali_results()`, `session_to_race_results()`, `session_to_lap_times()` — extract structured dicts from FastF1 DataFrames |
-| `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=0.3)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)`; `weighted_sum(scores, weights)` — dot product of a feature-score dict against a model's `WEIGHTS` dict, shared by `compute_features`/`compute_sprint_features` |
+| `feature_manifest.py` | `GP_FEATURES`/`SPRINT_FEATURES: tuple[FeatureSpec, ...]` (name, weight, label, nullable) — the single source for both models' weights; `GP_WEIGHTS`/`SPRINT_WEIGHTS` dicts and `SOFTMAX_TEMPERATURE` derive from it; `assemble_scores(values, features)` raises `KeyError` if a manifest feature's score was never computed. Checked against `docs/feature-weights.json` (also read by `apps/web`'s `predictionMath.test.ts`) so Python and TS weights can't silently drift |
+| `math_utils.py` | `normalize_minmax(values)` — min-max to [0,1]; `softmax(scores, temperature=SOFTMAX_TEMPERATURE)` — temperature-scaled; `bayesian_win_rate(wins, races)` — Laplace smoothed; `clamp(value)`; `weighted_sum(scores, weights)` — dot product of a feature-score dict against a model's `WEIGHTS` dict, shared by `compute_features`/`compute_sprint_features` |
 | `upsert.py` | `upsert(conn, table, rows, conflict_cols, exclude_update=[])` — idempotent bulk write; `exclude_update` prevents overwriting specified columns (used to protect sprint race data from SQ re-ingest) |
 | `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
 | `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |

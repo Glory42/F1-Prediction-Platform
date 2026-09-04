@@ -1,12 +1,5 @@
-"""
-Two seams, not one. `run_ingest_job`/`IngestJobConfig` process a full race/sprint session —
-weather, SC/VSC, results, lap times, driver headshots. `run_qualifying_ingest_job`/
-`QualifyingJobConfig` process only qualifying times — no weather, no laps, no headshots, no
-SC/VSC. Forcing qualifying through the race/sprint shape would mean adding several always-None
-fields to an already-wide config; instead each pair of jobs shares the seam that matches what it
-actually does, and the qualifying/sprint-qualifying duplication that existed before this refactor
-is gone too.
-"""
+"""Two seams, not one: qualifying has no weather/laps/headshots, so forcing it through the
+race/sprint config would just add always-None fields to an already-wide one."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -31,9 +24,7 @@ from src.utils.upsert import upsert
 
 @dataclass(frozen=True)
 class RaceContext:
-    """Race row resolved for this ingest run. circuit_id is set only by ingest_race
-    (needed for the circuits.sc_probability recompute); it stays None for ingest_sprint,
-    which has no cross-table effect."""
+    """circuit_id is set only by ingest_race, for the circuits.sc_probability recompute."""
 
     race_id: int
     season_id: int
@@ -53,9 +44,8 @@ class IngestJobConfig:
     no_results_error: str
     resolve_race: Callable[[Any, int, int], RaceContext]
     mark_status: Callable[[Any, RaceContext, str, dict[str, float | None], dict[str, int]], None]
-    # Runs after mark_status, for side effects on tables OTHER than `races` (e.g. ingest_race's
-    # circuits.sc_probability recompute). Kept separate so a cross-table write is a visible, named
-    # step instead of buried inside one opaque callback that also owns the races write.
+    # Runs after mark_status, for side effects on OTHER tables (e.g. ingest_race's
+    # circuits.sc_probability recompute) — a visible, named step, not a buried one.
     cross_table_hook: Callable[[Any, RaceContext], None] | None = None
 
 

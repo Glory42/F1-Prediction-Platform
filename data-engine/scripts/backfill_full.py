@@ -1,32 +1,6 @@
 #!/usr/bin/env python3
-"""
-Full historical backfill: 2000–2026 (or any range).
-
-For every year this script:
-  1. sync_schedule        — populate race calendar + sprint dates
-  2. sync_season          — populate drivers / teams
-  3. For each round:
-       ingest_qualifying  — main qualifying grid
-       ingest_race        — race results + lap times
-  4. For sprint rounds additionally:
-       ingest_sprint_qualifying  — SQ grid (needed before sprint prediction)
-       compute_sprint_features
-       compute_sprint_predictions
-       ingest_sprint             — actual sprint race results
-  5. compute_season_stats  — once per year
-  6. compute_features + compute_predictions  — for every completed race
-
-FastF1 data notes:
-  - Reliable qualifying + lap data from 2018 onwards.
-  - Sprint format introduced in 2021 (British GP, Italian GP, Brazilian GP).
-  - Older years (2000–2017) will attempt but may fail gracefully on missing sessions.
-
-Usage:
-  python scripts/backfill_full.py                        # 2000–2026
-  python scripts/backfill_full.py --start 2018           # 2018–2026
-  python scripts/backfill_full.py --start 2025 --end 2026
-  python scripts/backfill_full.py --start 2026 --end 2026  # current season only
-"""
+"""Full historical backfill (default 2000-2026) in dependency order: sync, ingest,
+sprint pipeline, then features/predictions. Reliable FastF1 data starts 2018; sprint format began 2021."""
 
 import argparse
 import sys
@@ -144,10 +118,7 @@ def process_year(year: int) -> None:
         # Main race
         _run(f"{tag} ingest_race",       ingest_race,       year, rn)
 
-    # 4 ── Sprint ingestion (for rounds that are sprint weekends)
-    # For completed sprints the FastF1 SQ session has no classification positions,
-    # so we load the sprint race session ("S") which contains both GridPosition
-    # (SQ result) and Position (finish). Order: ingest_sprint → csf → csp.
+    # SQ session has no classification, so load "S" (has grid + finish) instead.
     sprint_rounds = [r for r in rounds if r["has_sprint"]]
     if sprint_rounds:
         print(f"[{year}] sprint pipeline for {len(sprint_rounds)} sprint rounds ...")

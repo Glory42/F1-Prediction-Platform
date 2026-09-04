@@ -1,0 +1,26 @@
+{
+  "gp": {
+    "car_performance": 20,
+    "long_run_pace": 15,
+    "tyre_deg": 8,
+    "reliability": 8,
+    "qualifying_delta": 8,
+    "driver_rating": 8,
+    "win_rate": 8,
+    "luck_factor": 7,
+    "sector_strength": 6,
+    "circuit_adj_start_pos": 7,
+    "circuit_adj_position_gain": 3,
+    "weather_impact": 2
+  },
+  "sprint": {
+    "car_performance": 25,
+    "circuit_adj_start_pos": 25,
+    "short_run_pace": 10,
+    "driver_rating": 10,
+    "weather_impact": 8,
+    "win_rate": 8,
+    "luck_factor": 8,
+    "sq_qualifying_delta": 6
+  }
+}

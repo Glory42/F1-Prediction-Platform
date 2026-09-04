@@ -11,11 +11,8 @@ def health_from_issues(issues: list[dict[str, Any]]) -> float:
 
 
 def resolve_issue_actions(issue: dict[str, Any]) -> list[str]:
-    """Map one fixable issue row to the ordered job names that resolve it.
-
-    Order matters — ingest first, then recompute downstream things that depend
-    on the new rows. Returns [] when the issue has no repair path ('' not fixable'').
-    """
+    """Ordered job names to resolve one issue — ingest first, then downstream recompute.
+    Returns [] when the issue has no repair path."""
     table = issue.get("table_name")
     check = issue.get("check_name")
     if table == "qualifying_results" and check in ("row_count", "q_time_present"):

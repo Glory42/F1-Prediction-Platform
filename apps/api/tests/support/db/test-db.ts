@@ -17,10 +17,8 @@ export const getTestDatabaseUrl = (): string => {
   return databaseUrl;
 };
 
-// Neon auto-generates endpoint hostnames (e.g. ep-billowing-lab-...) that never contain
-// "test" regardless of branch, so string-matching the URL isn't a meaningful check here.
-// The real safety boundary is that TEST_DATABASE_URL is a distinct env var from
-// DATABASE_URL — refuse to truncate if they've somehow been set to the same value.
+// Neon hostnames never contain "test", so string-matching isn't meaningful here — the real
+// safety boundary is that TEST_DATABASE_URL must differ from DATABASE_URL.
 const assertResetAllowed = (testDatabaseUrl: string): void => {
   const allowManualOverride = process.env.TEST_DB_ALLOW_RESET === '1';
   if (allowManualOverride) return;

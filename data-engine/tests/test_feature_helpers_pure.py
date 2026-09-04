@@ -87,10 +87,7 @@ class TestComputeCompressedCarPerf:
         assert compute_compressed_car_perf([], []) == []
 
     def test_compresses_top_teams_avoiding_runaway_gap(self):
-        # Team 1: dominant winner (median 4.0, grid 3.0) -> signal 17.0, 18.0
-        # Team 2: close contender (median 5.5, grid 4.5) -> signal 15.5, 16.5
-        # Team 3: midfield (median 11.0, grid 10.0) -> signal 10.0, 11.0
-        # Team 4: backmarker (median 16.0, grid 16.0) -> signal 5.0, 5.0
+        # 4 teams spanning dominant winner -> close contender -> midfield -> backmarker.
         paces = [17.0, 15.5, 10.0, 5.0]
         grids = [18.0, 16.5, 11.0, 5.0]
 

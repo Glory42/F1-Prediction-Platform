@@ -1,14 +1,5 @@
-"""
-Full prediction recompute — weighted-v3 (GP) and sprint-v2 (sprint).
-
-Covers:
-  - Every race that has qualifying_results (GP predictions)
-  - Every sprint weekend that has sprint_results (sprint predictions)
-
-Run from data-engine/:
-    source venv/bin/activate
-    python scripts/backfill_all_predictions.py
-"""
+"""Recomputes GP (weighted-v3) and sprint (sprint-v2) predictions for every race/sprint
+weekend that already has qualifying_results / sprint_results."""
 import sys
 import time
 import psycopg2

@@ -30,9 +30,8 @@ export interface EraWinAggregates {
   driverWinsByEra: EraMap<Map<string, DriverWinEntry>>;
 }
 
-// F1 team identities get rebranded across seasons (Alpha Tauri -> RB -> Racing
-// Bulls, Alfa Romeo -> Alfa Romeo Racing, etc). Without this, wins for the same
-// constructor lineage would split across team_key variants in the dominance tallies.
+// Team identities rebrand across seasons (Alpha Tauri -> RB -> Racing Bulls, etc.) —
+// without this, one constructor's wins would split across team_key variants.
 const TEAM_KEY_ALIASES: Record<string, string> = {
   red_bull: 'red_bull_racing',
   rb: 'racing_bulls',

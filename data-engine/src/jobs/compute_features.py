@@ -11,23 +11,7 @@ from src.utils.feature_helpers import (
     compute_team_circuit_perf,
     blend_car_perf,
 )
-
-
-WEIGHTS = {
-    "car_performance":            0.20,
-    "long_run_pace":              0.15,
-    "tyre_degradation":           0.08,
-    "reliability":                0.08,
-    "qualifying_delta":           0.08,
-    "driver_rating":              0.08,
-    "win_rate":                   0.08,
-    "luck_factor":                0.07,
-    "sector_strength":            0.06,
-    "circuit_adj_start_pos":      0.07,
-    "circuit_adj_position_gain":  0.03,
-    "weather_impact":             0.02,
-}
-# sum = 1.00
+from src.utils.feature_manifest import GP_FEATURES, GP_WEIGHTS as WEIGHTS, assemble_scores
 
 
 def run(race_id: int) -> None:
@@ -63,9 +47,8 @@ def run(race_id: int) -> None:
         sector_map      = _compute_sector_strength(conn, driver_ids, race_id)
         tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, ctx.circuit_id)
 
-        # Circuit-category car performance (cross-season) — used to nudge the season
-        # car_perf toward a car's strength at this kind of circuit (e.g. McLaren on
-        # high-downforce tracks). None => no history at this category -> season signal.
+        # Nudges season car_perf toward a car's strength at this circuit category (e.g.
+        # McLaren on high-downforce tracks); None => no history, falls back to season signal.
         cat_perf_map = compute_team_circuit_perf(
             conn, driver_ids, race_id, ctx.circuit_category
         ) if ctx.circuit_category else {d: {"score": None, "n": 0} for d in driver_ids}
@@ -105,43 +88,33 @@ def run(race_id: int) -> None:
             sector_strength = sector_map.get(driver_id, 0.5)
             tyre_deg     = tyre_deg_map.get(driver_id, 0.5)
 
-            raw = weighted_sum({
-                "car_performance":           car_perf,
-                "long_run_pace":             long_run,
-                "tyre_degradation":          tyre_deg,
-                "reliability":               reliability,
-                "qualifying_delta":          quali_delta,
-                "driver_rating":             driver_rating,
-                "win_rate":                  win_rate,
-                "luck_factor":               luck,
-                "sector_strength":           sector_strength,
-                "circuit_adj_start_pos":     circuit_adj_start_pos,
+            feature_values = {
+                "car_performance": car_perf,
+                "long_run_pace": long_run,
+                "tyre_deg": tyre_deg,
+                "reliability": reliability,
+                "qualifying_delta": quali_delta,
+                "driver_rating": driver_rating,
+                "win_rate": win_rate,
+                "luck_factor": luck,
+                "sector_strength": sector_strength,
+                "circuit_adj_start_pos": circuit_adj_start_pos,
                 "circuit_adj_position_gain": circuit_adj_position_gain,
-                "weather_impact":            weather_score,
-            }, WEIGHTS)
+                "weather_impact": weather_score,
+            }
+            raw = weighted_sum(assemble_scores(feature_values, GP_FEATURES), WEIGHTS)
 
             rows_to_upsert.append({
-                "race_id":                       race_id,
-                "driver_id":                     driver_id,
-                "car_performance_score":          round(car_perf, 5),
-                "driver_rating_score":            round(driver_rating, 5),
-                "starting_position_score":        round(start_pos, 5),
-                "win_rate_score":                 round(win_rate, 5),
-                "luck_factor_score":              round(luck, 5),
-                "weather_impact_score":           round(weather_score, 5),
-                "track_overtake_score":           None,
-                "position_gain_score":            round(position_gain, 5),
-                "long_run_pace_score":            round(long_run, 5),
-                "long_run_used_fp":               long_run_used_fp,
-                "reliability_score":              round(reliability, 5),
-                "qualifying_delta_score":         round(quali_delta, 5),
-                "sector_strength_score":          round(sector_strength, 5),
-                "tyre_deg_score":                 round(tyre_deg, 5),
-                "circuit_adj_start_pos_score":    round(circuit_adj_start_pos, 5),
-                "circuit_adj_position_gain_score": round(circuit_adj_position_gain, 5),
-                "raw_weighted_score":             round(raw, 6),
-                "win_probability":                0.0,
-                "predicted_position":             None,
+                "race_id": race_id,
+                "driver_id": driver_id,
+                **{f"{f.name}_score": round(feature_values[f.name], 5) for f in GP_FEATURES},
+                "starting_position_score": round(start_pos, 5),
+                "track_overtake_score": None,
+                "position_gain_score": round(position_gain, 5),
+                "long_run_used_fp": long_run_used_fp,
+                "raw_weighted_score": round(raw, 6),
+                "win_probability": 0.0,
+                "predicted_position": None,
             })
 
         upsert(conn, "driver_prediction_features", rows_to_upsert, ["race_id", "driver_id"])
@@ -154,15 +127,8 @@ def run(race_id: int) -> None:
 # ── Feature helpers ────────────────────────────────────────────────────────────
 
 def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> tuple[dict[int, float], bool]:
-    """
-    Primary: practice-session long-run median from fp2_long_run_times. On sprint
-    weekends the ingest falls back to FP1 (no FP2 session exists), stored in the
-    same table with session_type='FP1', so this reads whichever practice data landed.
-    Fallback: historical circuit median from lap_times (last 6 completed races).
-    Returns (pace_map, used_fp) — used_fp records whether the feature came from a
-    practice session (FP2 or FP1) rather than the weaker historical fallback,
-    surfaced by the data-quality audit.
-    """
+    """Practice long-run median (FP2, or FP1 on sprint weekends, same table); falls back to
+    historical circuit median. `used_fp` flags which source was used, for the quality audit."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -226,22 +192,8 @@ def blend_compound_slopes(
     min_laps_per_compound: int = 8,
     min_total_laps: int = 10,
 ) -> float | None:
-    """Blend per-compound degradation slopes into a single representative value.
-
-    ``compounds`` is a list of (slope, lap_count) pairs — one per tyre compound.
-    Returns the lap-weighted average of qualifying compounds, or None when the
-    driver has insufficient data.
-
-    Threshold logic (addresses both thin-data and even-split edge cases):
-    1. **Primary path**: compounds with ≥ ``min_laps_per_compound`` laps each
-       contribute their slope, weighted by lap count.
-    2. **Fallback path**: if *no* compound reaches the per-compound floor but the
-       driver's *total* clean laps across all compounds ≥ ``min_total_laps``,
-       include every compound that has a valid slope (regardless of count) so the
-       signal is preserved rather than discarded.
-    3. If neither path yields data, return None → the caller assigns the field
-       median.
-    """
+    """Lap-weighted average slope across (slope, lap_count) compound pairs meeting the
+    per-compound floor, falling back to all compounds if total laps clear min_total_laps."""
     # Primary path — only compounds meeting the per-compound floor
     w_sum = 0.0
     w_total = 0
@@ -279,18 +231,8 @@ def _field_median(values: list[float]) -> float:
 
 
 def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> dict[int, float]:
-    """
-    Compound-stratified tyre degradation.
-
-    Calculates REGR_SLOPE(lap_time_ms, tyre_life) separately for SOFT, MEDIUM,
-    and HARD across the last 4 completed races at this circuit, then blends each
-    driver's per-compound slopes via ``blend_compound_slopes``.
-
-    This prevents the cross-compound pace offset (~0.5–0.9 s between Soft and
-    Hard) from distorting the true tyre-management signal.
-
-    Lower blended slope = better tyre management = higher normalised score (1.0).
-    """
+    """Per-compound REGR_SLOPE, blended via blend_compound_slopes — avoids the ~0.5-0.9s
+    cross-compound pace offset distorting the tyre-management signal. Lower slope = higher score."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id FROM races "

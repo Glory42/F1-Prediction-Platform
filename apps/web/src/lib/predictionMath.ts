@@ -35,6 +35,17 @@ export const SPRINT_WEIGHTS: Weights = Object.fromEntries(
   Object.entries(SPRINT_FEATURE_META).map(([key, meta]) => [key, meta.weight]),
 );
 
+export const SOFTMAX_TEMPERATURE = 0.3;
+
+// Derives RADAR_FEATURES' key set from FEATURE_META instead of a second hand-typed list.
+// `shortLabels` keeps the radar chart's intentionally shorter labels.
+export function radarFeatures(
+  meta: Record<string, { label: string; weight: number }>,
+  shortLabels: Partial<Record<string, string>> = {},
+): [string, string][] {
+  return Object.keys(meta).map((key) => [shortLabels[key] ?? meta[key].label, key]);
+}
+
 export type FeatureContribution = {
   key: string;
   weight: number;
@@ -184,7 +195,7 @@ export function weightedScore(features: FeatureInput, weights: Weights): number 
   return total;
 }
 
-export function softmax(scores: number[], temperature = 0.3): number[] {
+export function softmax(scores: number[], temperature = SOFTMAX_TEMPERATURE): number[] {
   const scaled = scores.map((s) => s / temperature);
   const max = Math.max(...scaled);
   const exps = scaled.map((s) => Math.exp(s - max));

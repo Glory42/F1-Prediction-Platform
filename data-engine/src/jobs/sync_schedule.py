@@ -142,9 +142,7 @@ def run(year: int) -> None:
             event_format = str(event.get("EventFormat", "conventional")).lower()
             is_sprint = event_format in SPRINT_FORMATS
 
-            # Session4 = main Qualifying for both conventional and sprint_qualifying formats
-            # Session5 = Race for both formats
-            # Session2 = Sprint Qualifying, Session3 = Sprint Race (sprint formats only)
+            # Session4/5 = Qualifying/Race always; Session2/3 = Sprint Quali/Race (sprint only).
             qualifying_date = _to_utc_iso(event.get("Session4DateUtc"))
             sprint_date = _to_utc_iso(event.get("Session3DateUtc")) if is_sprint else None
             sprint_qualifying_date = _to_utc_iso(event.get("Session2DateUtc")) if is_sprint else None
