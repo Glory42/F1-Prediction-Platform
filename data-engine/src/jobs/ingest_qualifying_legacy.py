@@ -1,9 +1,5 @@
-"""
-Legacy qualifying ingest for pre-2018 seasons.
-Uses Ergast data via FastF1 — grid positions and Q times where available.
-Pre-2006: single-lap qualifying (no Q1/Q2/Q3 split).
-2006+: Q1/Q2/Q3 format.
-"""
+"""Pre-2018 qualifying via Ergast/FastF1: pre-2006 is single-lap (no Q1/Q2/Q3);
+2006+ uses the Q1/Q2/Q3 format."""
 import fastf1
 import pandas as pd
 from typing import Any

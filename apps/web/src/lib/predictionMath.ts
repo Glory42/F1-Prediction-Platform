@@ -37,10 +37,8 @@ export const SPRINT_WEIGHTS: Weights = Object.fromEntries(
 
 export const SOFTMAX_TEMPERATURE = 0.3;
 
-// Derives a page's RADAR_FEATURES from FEATURE_META/SPRINT_FEATURE_META instead of a second,
-// independently hand-typed key list — the real drift risk (a missing/misspelled/stale radar
-// key). `shortLabels` preserves intentionally shorter labels for the space-constrained radar
-// chart rather than forcing FEATURE_META's fuller labels onto it.
+// Derives RADAR_FEATURES' key set from FEATURE_META instead of a second hand-typed list.
+// `shortLabels` keeps the radar chart's intentionally shorter labels.
 export function radarFeatures(
   meta: Record<string, { label: string; weight: number }>,
   shortLabels: Partial<Record<string, string>> = {},

@@ -1,23 +1,5 @@
-"""
-Benchmark car_performance_score change: old (avg-finish) vs new (median+grid blend,
-with circuit-category blend at feature time) on prediction accuracy.
-
-Three numbers reported:
-  1. STORED LIVE  — predictions as they were computed in production (point-in-time,
-                    old code). Read from race_predictions before any recompute.
-  2. OLD RECOMPUTE — full-season context, old car_performance formula, no circuit blend.
-  3. NEW RECOMPUTE — full-season context, new (blended) car_performance + circuit blend.
-
-(2) vs (3) share identical context, isolating exactly the metric change we made.
-The benchmark snapshots DB state touched (team_season_stats.car_performance_score,
-circuits.track_category, driver_prediction_features, race_predictions) and restores it
-afterward so only `compute_season_stats`+`compute_features`+`compute_predictions`
-rewrites happen transiently.
-
-Run from data-engine/:
-    python scripts/benchmark_car_perf.py --years 2024 2025 2026
-    python scripts/benchmark_car_perf.py                     # all 2018..latest
-"""
+"""Benchmarks the car_performance_score formula change (old avg-finish vs new blended)
+by recomputing predictions under both, then restores all touched DB state afterward."""
 import argparse
 import pathlib
 import sys
@@ -199,10 +181,8 @@ def main():
 
     print(f"Benchmarking {len(race_ids)} completed races across years {years}\n")
 
-    # ── Pass: OLD recompute ─────────────────────────────────────────────────
-    # Compute season stats with the NEW code, then override car_performance_score
-    # with the old avg-finish formula and disable the circuit blend, so the only
-    # diff vs the NEW pass is exactly the metric change + category blend.
+    # OLD recompute: new season-stats code, old avg-finish car_performance formula,
+    # no circuit blend — isolates exactly the metric change vs the NEW pass below.
     for year in years:
         compute_season_stats.run(year)
     set_old_car_performance(conn, years)

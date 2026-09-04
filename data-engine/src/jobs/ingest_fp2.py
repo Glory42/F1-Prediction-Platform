@@ -16,20 +16,12 @@ SPRINT_FORMATS = ("sprint", "sprint_qualifying", "sprint_shootout")
 
 
 def select_practice_session(event_format: str | None) -> str:
-    """Which practice session supplies long-run pace for a race weekend.
-
-    Sprint weekends have no FP2 session — the only full practice slot is FP1,
-    so the engine falls back to it. Conventional weekends keep FP2 as primary.
-    """
+    """Sprint weekends have no FP2 session, so they fall back to FP1 for long-run pace."""
     return "FP1" if (event_format or "conventional") in SPRINT_FORMATS else "FP2"
 
 
 def _load_practice_session(year: int, round_num: int, event_format: str):
-    """
-    Load FP2 long-run data, falling back to FP1 on sprint weekends (which have no
-    FP2 session). Returns (session, session_type) where session_type is 'FP2' or
-    'FP1'. Raises on unexpected load errors; returns None early when no laps data.
-    """
+    """Returns (session, session_type) with session_type 'FP2' or 'FP1' per select_practice_session."""
     session_type = select_practice_session(event_format)
     session = get_session(year, round_num, session_type)
     return session, session_type

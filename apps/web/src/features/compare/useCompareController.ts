@@ -74,13 +74,8 @@ export function useCompareController<T extends { id: number }, TDetail, TYearSta
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The mount-hydration effect (below) sets `year` from the URL, which also
-  // triggers the year-tracking effect (also below) to re-fetch that year's
-  // items. Rather than both effects independently fetching the same year (a
-  // race where the year-tracking effect's fetch callback closes over a stale
-  // aId/bId and can clobber the URL's a/b params), the mount effect stashes
-  // its desired a/b here and the year-tracking effect's single fetch applies
-  // them once — one fetch, one place that resolves the final aId/bId.
+  // Mount-hydration sets `year`, which triggers the year-tracking effect's fetch — stash
+  // desired a/b here so that one fetch applies them, instead of two racing fetches.
   const pendingHydrationRef = useRef<{ aId?: number; bId?: number } | null>(null);
 
   useEffect(() => {

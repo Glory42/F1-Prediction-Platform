@@ -14,9 +14,7 @@ from src.utils.feature_helpers import (
 )
 from src.utils.feature_manifest import SPRINT_FEATURES, SPRINT_WEIGHTS as WEIGHTS, assemble_scores
 
-# Sprint races are ~17 laps with no pit stop strategy variance.
-# Grid position dominates — overtaking is very hard in such a short race.
-# Circuit-context multiplier (same formula as GP) applies to starting position.
+# Sprint races are ~17 laps with no pit strategy — grid position dominates over strategy.
 
 
 def run(race_id: int) -> None:

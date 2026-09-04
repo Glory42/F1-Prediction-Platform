@@ -404,4 +404,5 @@ Applying the DB schema is covered under [Drizzle ORM](#drizzle-orm-appsapidrizzl
 - Python: type hints on all function signatures
 - No comments explaining what code does — name things clearly instead
 - Only comment WHY when it's non-obvious (a hidden constraint, a workaround)
+- Comments must be at most 2 lines. Only go longer if it's genuinely unavoidable — that should be rare
 - No console.log in production code — use structured logging patterns

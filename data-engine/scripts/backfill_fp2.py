@@ -1,10 +1,5 @@
-"""
-Backfill FP2 long-run data for all completed races (2018+).
-Failures are logged and skipped — FP2 data availability varies.
-
-    source venv/bin/activate
-    python scripts/backfill_fp2.py
-"""
+"""Backfills FP2 long-run data for all completed races (2018+).
+Failures are logged and skipped — FP2 data availability varies."""
 import sys
 import time
 import psycopg2

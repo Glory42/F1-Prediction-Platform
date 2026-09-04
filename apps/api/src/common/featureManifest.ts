@@ -1,15 +1,8 @@
 import type { driverPredictionFeatures, driverSprintFeatures } from '../db/schema';
 import type { FeatureScores, SprintFeatureScores } from './types';
 
-// apps/api never computes with feature weights — it only reads and re-labels stored scores
-// (weighting happens in data-engine's compute_features.py / compute_sprint_features.py, and
-// in apps/web's predictionMath.ts for the interactive What-If lab). So this manifest carries
-// no weight field; it just dedupes the key/column/label/nullable mapping that used to be
-// hand-typed separately in toFeatures(), toSprintFeatures(), and intel-standings.helpers.ts's
-// FEATURE_COLUMNS. `column: keyof TRow` makes a manifest entry referencing a column that
-// doesn't exist on the Drizzle-inferred row type a compile error, not silent drift; `TKey`
-// pins `key` to the target FeatureScores/SprintFeatureScores type so consumers that index a
-// Record<keyof FeatureScores, ...> by manifest key stay fully type-checked too.
+// apps/api never computes with weights, so no weight field here — just the key/column/label
+// mapping. `column: keyof TRow` makes a stale column reference a compile error.
 export interface FeatureManifestEntry<TRow, TKey extends string = string> {
   key: TKey;
   column: keyof TRow;

@@ -4,9 +4,8 @@ from tests.support.fake_db import FakeConnection
 
 class TestComputeLongRunPace:
     def test_uses_practice_data_when_most_drivers_have_rows(self):
-        """Sprint-weekend FP1 fallback data lands in fp2_long_run_times; when >=70%
-        of drivers have practice medians, the feature comes from practice (used_fp
-        True) rather than the historical fallback."""
+        """When >=70% of drivers have practice medians, the feature comes from
+        practice (used_fp True) rather than the historical fallback."""
         conn = FakeConnection([
             # first query: fp2_long_run_times medians per driver (FP1 fallback data)
             [

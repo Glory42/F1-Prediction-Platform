@@ -8,11 +8,8 @@ import {
 
 const PORT = Number(process.env.FIXTURE_API_PORT ?? 4310);
 
-// GlobalSearch/DriverCompareTool/TeamCompareTool fetch client-side (the sanctioned
-// exception to Astro's server-only data fetching — see CLAUDE.md) — from the browser
-// that's a genuine cross-origin request to this fixture server, so it needs CORS
-// headers the same way the real Hono API does, unlike the server-side Astro fetches
-// every other fixture route only ever serves.
+// GlobalSearch/DriverCompareTool/TeamCompareTool fetch client-side (see CLAUDE.md), a real
+// cross-origin request to this fixture server, so it needs CORS like the real API does.
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 
 function ok(data: unknown): Response {

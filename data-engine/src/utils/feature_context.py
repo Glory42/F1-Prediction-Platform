@@ -4,15 +4,8 @@ from typing import Any, Callable
 
 @dataclass
 class FeatureContext:
-    """
-    Everything the GP (compute_features) and sprint (compute_sprint_features)
-    jobs both need before they diverge into model-specific weights: the race +
-    circuit row, the driver pool for this session, starting position, and the
-    season-level driver/team stats used to build most feature scores.
-
-    Grid source differs by model (qualifying_results vs sprint_results) —
-    build_feature_context() takes that as a parameter rather than picking one.
-    """
+    """Shared pre-divergence context for the GP and sprint feature jobs. Grid source
+    differs by model, so build_feature_context() takes it as a parameter."""
 
     race_id: int
     season_id: int
@@ -39,19 +32,8 @@ def build_feature_context(
     grid_not_found_message: str,
     validate_race: Callable[[dict[str, Any]], None] | None = None,
 ) -> FeatureContext:
-    """
-    Fetch and assemble the query/assembly scaffolding shared by both prediction
-    models: race+circuit row, grid map + starting position, driver season
-    stats, and team performance/reliability data.
-
-    `grid_table` is `qualifying_results` for the GP model or `sprint_results`
-    for the sprint model — both tables expose the same `driver_id`/`grid_position`
-    columns, so the query shape is identical, only the source table differs.
-
-    `validate_race`, if given, runs right after the race row is fetched and
-    before the grid lookup — e.g. the sprint model rejects non-sprint weekends
-    here so that error takes priority over a "no grid rows" error.
-    """
+    """`grid_table` is `qualifying_results` (GP) or `sprint_results` (sprint). `validate_race`
+    runs before the grid lookup so its error outranks a "no grid rows" error."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT r.id, r.season_id, r.weather, r.sprint_weather, r.circuit_id, r.event_format, "

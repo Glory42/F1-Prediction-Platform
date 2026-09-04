@@ -17,9 +17,8 @@ def _get_pool() -> psycopg2.pool.SimpleConnectionPool:
 
 
 class _PooledConnection:
-    """Wraps a pooled connection so conn.close() returns it to the pool
-    instead of tearing down the TCP/TLS session — every job already calls
-    conn.close() in a finally block."""
+    """conn.close() returns the connection to the pool instead of tearing down the
+    TCP/TLS session — every job already calls close() in a finally block."""
 
     def __init__(self, pool: psycopg2.pool.SimpleConnectionPool, conn: Any) -> None:
         self._pool = pool
@@ -42,11 +41,8 @@ def _is_alive(conn: Any) -> bool:
 
 
 def get_conn() -> Any:
-    """Neon closes idle connections during the worker's 15-minute sleep
-    between auto_runner cycles, which leaves stale connections sitting in
-    the pool. Validate before handing one out and discard+replace it if
-    the far end already dropped it, instead of surfacing an SSL error on
-    the caller's first query."""
+    """Neon closes idle connections between auto_runner cycles; validate before handing
+    one out and discard+replace it rather than surfacing an SSL error on first query."""
     pool = _get_pool()
     for _ in range(pool.maxconn):
         conn = pool.getconn()

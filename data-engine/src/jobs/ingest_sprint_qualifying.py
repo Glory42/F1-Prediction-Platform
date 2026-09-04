@@ -33,11 +33,7 @@ def _session_type_for(event_format: str) -> str:
 def _rows_from_quali(
     quali_rows: list[dict[str, Any]], driver_map: dict[str, int], race_id: int
 ) -> list[dict[str, Any]]:
-    """
-    Ingest Sprint Qualifying (SQ) results. Writes grid positions and SQ1/SQ2/SQ3
-    lap times into sprint_results so compute_sprint_features can run before the sprint.
-    ingest_sprint will later upsert the full finish results into the same rows.
-    """
+    """Writes grid/SQ times into sprint_results; ingest_sprint later fills in finish results."""
     rows = []
     for row in quali_rows:
         code = row["driver_code"]

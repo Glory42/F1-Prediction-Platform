@@ -7,9 +7,7 @@ from src.jobs.compute_features import WEIGHTS as GP_WEIGHTS
 from src.jobs.compute_sprint_features import WEIGHTS as SPRINT_WEIGHTS
 from src.utils.feature_manifest import GP_FEATURES, SPRINT_FEATURES, assemble_scores
 
-# Guards the exact regression risk the model relies on manual review to catch today:
-# an edit to one weight during a refactor silently breaking the sum-to-1 invariant that
-# the raw_weighted_score / softmax pipeline assumes.
+# Guards against an edit silently breaking the sum-to-1 invariant the softmax pipeline assumes.
 
 FEATURE_WEIGHTS_JSON = Path(__file__).resolve().parents[2] / "docs" / "feature-weights.json"
 

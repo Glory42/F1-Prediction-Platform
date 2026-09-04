@@ -41,11 +41,6 @@ SOFTMAX_TEMPERATURE = 0.3
 
 
 def assemble_scores(values: dict[str, float], features: tuple[FeatureSpec, ...]) -> dict[str, float]:
-    """Pulls each manifest feature's value out of `values` by name.
-
-    Raises KeyError immediately if a feature was added to the manifest but its score was
-    never computed — a manifest/assembly drift that would otherwise silently sum an
-    incomplete weighted score. A stale computed value whose manifest entry was removed is
-    ignored, matching weighted_sum's existing tolerance for extra score keys.
-    """
+    """Raises KeyError if a manifest feature's score was never computed, instead of
+    silently summing an incomplete weighted score."""
     return {f.name: values[f.name] for f in features}

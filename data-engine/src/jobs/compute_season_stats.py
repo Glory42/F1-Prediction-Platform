@@ -282,13 +282,8 @@ def _compute_team_stats(conn, season_id: int) -> None:
     sorted_teams = sorted(team_aggs, key=lambda x: float(x["total_points"]), reverse=True)
     position_map = {row["team_id"]: i + 1 for i, row in enumerate(sorted_teams)}
 
-    # ── Car performance score: blend of robust race pace + qualifying pace ─────
-    # A single AVG(finish) is outlier-sensitive (one DNF drags a dominant car),
-    # and ignores one-lap speed entirely. Blend:
-    #   pace_signal  = 21 - median_finish   (robust central tendency)
-    #   quali_signal = 21 - avg_grid        (raw car speed)
-    # Compressed scoring combines 50% relative field min-max and 50% absolute scale,
-    # preventing artificial runaway 1.0 vs 0.74 gaps between top constructors.
+    # Blends median-finish pace (outlier-robust) with grid pace (raw speed); scoring is
+    # 50% relative min-max + 50% absolute to avoid runaway gaps between top constructors.
     fmt_median = lambda t: float(t["median_finish"]) if t["median_finish"] is not None else 21.0
     pace_signal = [21.0 - fmt_median(t) for t in team_aggs]
     grid_signal = [

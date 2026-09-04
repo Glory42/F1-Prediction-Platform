@@ -92,11 +92,7 @@ def _is_ready(session_date_utc: Any, delay_hours: float, now: datetime) -> bool:
 
 
 def decide_next_action(status: str, is_sprint: bool, event: pd.Series, now: datetime) -> Optional[Action]:
-    """Pure decision: given the current race status and schedule row, what should run next.
-
-    Does no I/O — takes already-fetched schedule/status data so it can be tested with
-    fake inputs, without mocking FastF1 or a live DB connection.
-    """
+    """Pure — no I/O — so it's testable with fake inputs, no FastF1/DB mocking needed."""
     if is_sprint and status == "scheduled":
         return Action(
             kind=ActionKind.SPRINT_QUALIFYING,
@@ -141,13 +137,8 @@ class StepOutcome:
 
 
 def _run_action_steps(action: Action, ctx: RaceRunContext) -> StepOutcome:
-    """Runs an Action's job sequence in order, tracking how far it got.
-
-    Each job commits its own status change (if any) in its own connection, independent of
-    this function — so `last_committed_status` on failure reflects what's actually in the DB,
-    letting `revert_race_status` avoid clobbering progress a later step in the sequence
-    failed to build on.
-    """
+    """Tracks how far the sequence got so revert_race_status can avoid clobbering
+    progress a later step failed to build on."""
     last_committed_status: Optional[str] = None
     for step in action.steps:
         try:
@@ -167,15 +158,8 @@ def revert_race_status(
     error: Exception,
     failed_step: str,
 ) -> None:
-    """Shared failure handler for a job sequence: log the structured failure, then set the
-    race status to whatever the sequence actually last committed (or the pre-sequence status
-    if nothing did) so the next auto_runner cycle resumes from the right place.
-
-    Opens its own connection rather than reusing run_cycle's — this fires after a job
-    sequence that can run for minutes (FastF1 fetches), long enough for the long-lived
-    shared connection to have gone stale; a fresh connection here keeps the revert write
-    itself from failing.
-    """
+    """Reverts to the last status the sequence actually committed, not the pre-sequence value.
+    Opens its own connection — the shared one may have gone stale during a long job run."""
     log_job_failure(failed_step, error, race_id=ctx.race_id, year=ctx.year, round=ctx.round_number)
     target_status = last_committed_status if last_committed_status is not None else pre_sequence_status
     conn = conn_factory()
@@ -206,13 +190,8 @@ def _fp2_coverage(conn, race_id: int) -> float:
 
 
 def _backfill_fp2(log_func, conn, ctx: RaceRunContext) -> None:
-    """
-    Opportunistic FP2 catch-up while a race sits in `qualifying_done` before the
-    main race. ingest_fp2 only runs once (during MAIN_QUALIFYING); if FastF1 did
-    not have the session data yet it silently returned and was never retried.
-    Each qualifying wait-cycle, if FP2 coverage is still below the model's 0.7
-    fallback gate, retry the ingest and refresh features/predictions on success.
-    """
+    """ingest_fp2 only runs once (at MAIN_QUALIFYING); if data wasn't ready it was never
+    retried, so retry here each wait-cycle while coverage is below the 0.7 fallback gate."""
     before = _fp2_coverage(conn, ctx.race_id)
     if before >= 0.7:
         return
@@ -250,10 +229,8 @@ def poll_interval_for_window(
     *,
     schedule_available: bool = True,
 ) -> int:
-    """How long the worker loop should sleep before the next auto_runner cycle:
-    ACTIVE during a race-weekend window (or when the schedule couldn't be fetched at
-    all — fail-safe, a transient FastF1 outage must not go quiet for IDLE_POLL_SECONDS
-    during a live race weekend), IDLE otherwise."""
+    """ACTIVE during a race weekend, or fail-safe when the schedule fetch fails (an outage
+    must not go quiet for IDLE_POLL_SECONDS during a live race weekend); IDLE otherwise."""
     if not schedule_available:
         return ACTIVE_POLL_SECONDS
     if window is not None and window.contains(now_utc):
@@ -347,9 +324,7 @@ def run_cycle(
                 log_func(f"[auto_runner] Unhandled status '{status}'. Exiting.")
                 return CycleResult(window=window, schedule_available=schedule_available)
             if not action.ready:
-                # While the main race hasn't finished the wait window, opportunistically
-                # backfill FP2 (see _backfill_fp2) so a missing-at-qualifying session
-                # still lands before the race starts.
+                # Opportunistically backfill FP2 (see _backfill_fp2) while waiting for the race.
                 if status == "qualifying_done" and action.kind == ActionKind.MAIN_RACE:
                     _backfill_fp2(log_func, conn, ctx)
                 log_func(f"[auto_runner] {action.label} not finished yet or hasn't reached delay threshold. Exiting.")

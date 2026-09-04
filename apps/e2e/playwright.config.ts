@@ -24,10 +24,8 @@ export default defineConfig({
       env: { FIXTURE_API_PORT: String(FIXTURE_API_PORT) },
     },
     {
-      // The @astrojs/cloudflare adapter doesn't support `astro preview` (it errors:
-      // "does not support the preview command"), so the SSR frontmatter under test runs
-      // via `astro dev` instead — this still exercises the real page frontmatter/runtime,
-      // just via Vite's dev server rather than the Workers build artifact.
+      // @astrojs/cloudflare doesn't support `astro preview`, so tests run via `astro dev`
+      // instead — still the real page frontmatter/runtime, just via Vite's dev server.
       command: `bun run dev --port ${WEB_PORT}`,
       cwd: '../web',
       url: `http://localhost:${WEB_PORT}/`,

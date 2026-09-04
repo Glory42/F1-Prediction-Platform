@@ -47,9 +47,8 @@ def run(race_id: int) -> None:
         sector_map      = _compute_sector_strength(conn, driver_ids, race_id)
         tyre_deg_map    = _compute_tyre_degradation(conn, driver_ids, race_id, ctx.circuit_id)
 
-        # Circuit-category car performance (cross-season) — used to nudge the season
-        # car_perf toward a car's strength at this kind of circuit (e.g. McLaren on
-        # high-downforce tracks). None => no history at this category -> season signal.
+        # Nudges season car_perf toward a car's strength at this circuit category (e.g.
+        # McLaren on high-downforce tracks); None => no history, falls back to season signal.
         cat_perf_map = compute_team_circuit_perf(
             conn, driver_ids, race_id, ctx.circuit_category
         ) if ctx.circuit_category else {d: {"score": None, "n": 0} for d in driver_ids}
@@ -128,15 +127,8 @@ def run(race_id: int) -> None:
 # ── Feature helpers ────────────────────────────────────────────────────────────
 
 def _compute_long_run_pace(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> tuple[dict[int, float], bool]:
-    """
-    Primary: practice-session long-run median from fp2_long_run_times. On sprint
-    weekends the ingest falls back to FP1 (no FP2 session exists), stored in the
-    same table with session_type='FP1', so this reads whichever practice data landed.
-    Fallback: historical circuit median from lap_times (last 6 completed races).
-    Returns (pace_map, used_fp) — used_fp records whether the feature came from a
-    practice session (FP2 or FP1) rather than the weaker historical fallback,
-    surfaced by the data-quality audit.
-    """
+    """Practice long-run median (FP2, or FP1 on sprint weekends, same table); falls back to
+    historical circuit median. `used_fp` flags which source was used, for the quality audit."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -200,22 +192,8 @@ def blend_compound_slopes(
     min_laps_per_compound: int = 8,
     min_total_laps: int = 10,
 ) -> float | None:
-    """Blend per-compound degradation slopes into a single representative value.
-
-    ``compounds`` is a list of (slope, lap_count) pairs — one per tyre compound.
-    Returns the lap-weighted average of qualifying compounds, or None when the
-    driver has insufficient data.
-
-    Threshold logic (addresses both thin-data and even-split edge cases):
-    1. **Primary path**: compounds with ≥ ``min_laps_per_compound`` laps each
-       contribute their slope, weighted by lap count.
-    2. **Fallback path**: if *no* compound reaches the per-compound floor but the
-       driver's *total* clean laps across all compounds ≥ ``min_total_laps``,
-       include every compound that has a valid slope (regardless of count) so the
-       signal is preserved rather than discarded.
-    3. If neither path yields data, return None → the caller assigns the field
-       median.
-    """
+    """Lap-weighted average slope across (slope, lap_count) compound pairs meeting the
+    per-compound floor, falling back to all compounds if total laps clear min_total_laps."""
     # Primary path — only compounds meeting the per-compound floor
     w_sum = 0.0
     w_total = 0
@@ -253,18 +231,8 @@ def _field_median(values: list[float]) -> float:
 
 
 def _compute_tyre_degradation(conn, driver_ids: list[int], race_id: int, circuit_id: int) -> dict[int, float]:
-    """
-    Compound-stratified tyre degradation.
-
-    Calculates REGR_SLOPE(lap_time_ms, tyre_life) separately for SOFT, MEDIUM,
-    and HARD across the last 4 completed races at this circuit, then blends each
-    driver's per-compound slopes via ``blend_compound_slopes``.
-
-    This prevents the cross-compound pace offset (~0.5–0.9 s between Soft and
-    Hard) from distorting the true tyre-management signal.
-
-    Lower blended slope = better tyre management = higher normalised score (1.0).
-    """
+    """Per-compound REGR_SLOPE, blended via blend_compound_slopes — avoids the ~0.5-0.9s
+    cross-compound pace offset distorting the tyre-management signal. Lower slope = higher score."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id FROM races "

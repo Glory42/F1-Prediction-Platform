@@ -1,27 +1,5 @@
-"""
-data_quality_repair — resolves open, fixable gaps reported by data_quality_audit.
-
-The audit only *measures* and marks issues `fixable=true`; this job actually closes
-them. Each issue maps to the ingest job that owns that table's data (per the source
-matrix in docs/data-pipeline.md), and after ingesting it recomputes whatever the
-downstream model needs so the fix reaches `driver_prediction_features` / predictions.
-
-Because several fixes need a full re-ingest of a race (lap_times, results), the
-repair intentionally re-runs the ingest job for the whole race, then recomputes
-features, predictions, and (when results changed) season stats — exactly like the
-auto_runner chain would have done.
-
-Run:  python src/main.py --job data_quality_repair [--year N] [--resolve <run_id>]
-By default it repairs the latest unresolve audit run for the given (or current) year.
-
-Source ownership (which table each ingest fixes):
-  ingest_fp2           -> fp2_long_run_times
-  ingest_qualifying    -> qualifying_results (and sector/q-times)
-  ingest_race          -> race_results + lap_times
-  ingest_sprint_qual   -> sprint_results (SQ) -> driver_sprint_features
-  ingest_sprint        -> sprint_results + sprint_lap_times
-  compute_*            -> driver_prediction_features / season stats / predictions
-"""
+"""Resolves fixable gaps data_quality_audit found, by re-running the owning ingest job
+(per docs/data-pipeline.md's source matrix) and recomputing downstream features/predictions."""
 import sys
 from typing import Any
 
@@ -105,9 +83,7 @@ def run(year: int, resolve_run: int | None = None) -> None:
             return
 
         print(f"[data_quality_repair] run {run_id}: {len(issues)} fixable issues")
-        # Dedupe by race: a race with several related issues must not re-run the full
-        # ingest + recompute chain once per issue. Group fixable issues by race, union
-        # their repair steps in first-seen order, execute each group once, then resolve.
+        # Group by race so several issues on one race don't re-run the full chain per issue.
         skipped = 0
         grouped: dict[tuple, dict] = {}
         for issue in issues:

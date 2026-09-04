@@ -9,9 +9,7 @@ export interface SprintSeasonTotals {
   sprintTotalPoints: string;
 }
 
-// The shared GP_FEATURE_MANIFEST (see common/featureManifest.ts) is what makes this
-// table-driven — a new feature column is a manifest entry there, not another
-// copy-pasted `if (f.xScore != null) agg.x.push(...)` line here.
+// A new feature column is a GP_FEATURE_MANIFEST entry, not a copy-pasted `if` line here.
 const FEATURE_COLUMNS = GP_FEATURE_MANIFEST;
 
 export interface SeasonFeatureRow {

@@ -11,10 +11,8 @@ export default [
     languageOptions: { parser: tseslint.parser },
   },
 
-  // ── file-size budget ────────────────────────────────────────────────
-  // Tiered by role: controllers/modules are pure glue; a service method doing a
-  // multi-join query + row→DTO mapping is legitimately long; shared common/
-  // helpers exist to hold extracted complexity but still shouldn't sprawl.
+  // File-size budget, tiered by role: controllers/modules are pure glue; services
+  // legitimately carry query + mapping weight; shared helpers shouldn't sprawl.
 
   // catch-all for any source file (config/, main.ts, db/migrate.ts)
   {

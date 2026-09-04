@@ -7,14 +7,8 @@ from src.utils.logging_utils import log_job_failure
 
 
 def auto_detect_race(year: int | None, conn) -> tuple[int, int]:
-    """
-    Find the most recent race whose qualifying session is today or earlier
-    and that hasn't finished its main qualifying step yet.
-    Uses qualifying_date (real FastF1 Session4DateUtc) so it works for
-    every schedule variant: Friday-qualifying rounds, sprint weekends,
-    and Saturday/Sunday races.
-    Falls back to race_date - 1 for legacy rows that predate the column.
-    """
+    """Uses qualifying_date (FastF1 Session4DateUtc) so it works for every schedule
+    variant; falls back to race_date - 1 for legacy rows predating that column."""
     from src.db.client import get_conn
     conn = conn or get_conn()
     today = date.today()

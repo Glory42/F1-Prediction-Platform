@@ -1,17 +1,6 @@
 #!/usr/bin/env python3
-"""
-Backfill sprint race data for seasons that contain sprint weekends.
-
-For each year this script:
-  1. Re-syncs the schedule to populate qualifying_date / sprint_date / event_format
-  2. For every completed sprint round runs:
-       ingest_sprint_qualifying → compute_sprint_features → compute_sprint_predictions
-       → ingest_sprint → (compute_season_stats once at the end)
-
-Usage:
-    python scripts/backfill_sprint.py [--years 2025 2026]
-    python scripts/backfill_sprint.py --years 2026          # single year
-"""
+"""Backfill sprint race data for seasons with sprint weekends: re-sync schedule, then
+ingest + compute for every completed sprint round, then re-run season stats."""
 import argparse
 import sys
 
@@ -73,10 +62,8 @@ def run_year(year: int) -> None:
 
     print(f"  Found {len(rounds)} completed sprint rounds: rounds {[r[0] for r in rounds]}")
 
-    # Step 3 — for each sprint round, ingest + compute
-    # For completed sprints we use ingest_sprint (loads "S" session which has both
-    # GridPosition=SQ result and Position=finish). The SQ session has no classification
-    # data in FastF1 for historical races so ingest_sprint_qualifying is skipped.
+    # Historical SQ sessions have no classification data, so ingest_sprint's "S"
+    # session (GridPosition + Position) is used instead of ingest_sprint_qualifying.
     from src.jobs.compute_sprint_features import run as csf_run
     from src.jobs.compute_sprint_predictions import run as csp_run
     from src.jobs.ingest_sprint import run as sprint_run

@@ -30,9 +30,8 @@ export default [
     },
   },
 
-  // ── file-size budget ────────────────────────────────────────────────
-  // Tiered on purpose: a page composes sections and fetches data, so it
-  // runs longer than a leaf component; pure logic modules should stay tight.
+  // File-size budget: a page composes sections and fetches data, so it runs longer
+  // than a leaf component; pure logic modules should stay tight.
 
   // default for any source file
   {
