@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from src import auto_runner
-from src.auto_runner import run as auto_runner_run
+from src.auto_runner import run_cycle as auto_runner_run_cycle
 from src.utils.logging_utils import log_job_failure
 
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "admin")
@@ -126,13 +126,14 @@ def start_worker():
         "~every 6 h otherwise — outside a race weekend it never opens a DB connection."
     )
     while True:
+        result = None
         try:
             STATE["status"] = "Running checks..."
             STATE["last_check"] = datetime.now(timezone.utc).isoformat()
             log_update("[worker] Triggering auto_runner checks...")
-            
-            auto_runner_run(log_func=log_update)
-            
+
+            result = auto_runner_run_cycle(log_func=log_update)
+
             STATE["status"] = "Sleeping (Idle)"
             STATE["last_error"] = None
         except Exception as e:
@@ -140,8 +141,13 @@ def start_worker():
             log_job_failure("auto_runner", e)
             STATE["status"] = "Error"
             STATE["last_error"] = str(e)
-            
-        sleep_seconds = auto_runner.next_poll_interval_seconds()
+
+        if result is not None:
+            sleep_seconds = auto_runner.poll_interval_for_window(
+                result.window, datetime.now(timezone.utc), schedule_available=result.schedule_available
+            )
+        else:
+            sleep_seconds = auto_runner.ACTIVE_POLL_SECONDS  # cycle raised — fail-safe, retry soon
         log_update(f"[worker] Checks finished. Sleeping for {sleep_seconds // 60} minutes...")
         time.sleep(sleep_seconds)
 

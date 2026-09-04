@@ -110,7 +110,7 @@ A persistent web service runs continuously:
    - Main Race + 3 hours
 4. If the time has passed, it attempts to download the data. 
    - **If F1 data is delayed**, FastF1 throws a `DataNotLoadedError`. The script catches this, exits cleanly, and tries again next hour.
-5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats). If any job in the sequence fails, it reverts the race `status` to ensure it safely retries the entire sequence next hour.
+5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats). If any job in the sequence fails, it sets the race `status` to whatever the sequence actually last committed — not blindly back to the pre-sequence value — so the next hour's retry resumes from where it left off instead of redoing already-completed steps.
 
 ---
 
