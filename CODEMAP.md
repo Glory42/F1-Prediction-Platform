@@ -488,7 +488,7 @@ data-engine/
 │   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, both models
 │   ├── test_prediction_ranking.py  # rank_by_probability
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
-│   └── test_auto_runner.py         # run() schedule gate + next_poll_interval_seconds
+│   └── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 ├── requirements-dev.txt           # requirements.txt + pytest
