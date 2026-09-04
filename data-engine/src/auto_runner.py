@@ -34,7 +34,7 @@ class ActionKind(str, Enum):
 
 
 @dataclass(frozen=True)
-class RaceContext:
+class RaceRunContext:
     race_id: int
     year: int
     round_number: int
@@ -43,7 +43,7 @@ class RaceContext:
 @dataclass(frozen=True)
 class JobStep:
     name: str
-    run: Callable[[RaceContext], None]
+    run: Callable[[RaceRunContext], None]
     commits_status: Optional[str]
 
 
@@ -140,7 +140,7 @@ class StepOutcome:
     error: Optional[Exception]
 
 
-def _run_action_steps(action: Action, ctx: RaceContext) -> StepOutcome:
+def _run_action_steps(action: Action, ctx: RaceRunContext) -> StepOutcome:
     """Runs an Action's job sequence in order, tracking how far it got.
 
     Each job commits its own status change (if any) in its own connection, independent of
@@ -160,8 +160,8 @@ def _run_action_steps(action: Action, ctx: RaceContext) -> StepOutcome:
 
 
 def revert_race_status(
-    conn: Any,
-    ctx: RaceContext,
+    conn_factory: Callable[[], Any],
+    ctx: RaceRunContext,
     last_committed_status: Optional[str],
     pre_sequence_status: str,
     error: Exception,
@@ -169,12 +169,22 @@ def revert_race_status(
 ) -> None:
     """Shared failure handler for a job sequence: log the structured failure, then set the
     race status to whatever the sequence actually last committed (or the pre-sequence status
-    if nothing did) so the next auto_runner cycle resumes from the right place."""
+    if nothing did) so the next auto_runner cycle resumes from the right place.
+
+    Opens its own connection rather than reusing run_cycle's — this fires after a job
+    sequence that can run for minutes (FastF1 fetches), long enough for the long-lived
+    shared connection to have gone stale; a fresh connection here keeps the revert write
+    itself from failing.
+    """
     log_job_failure(failed_step, error, race_id=ctx.race_id, year=ctx.year, round=ctx.round_number)
     target_status = last_committed_status if last_committed_status is not None else pre_sequence_status
-    with conn.cursor() as cur:
-        cur.execute("UPDATE races SET status = %s WHERE id = %s", (target_status, ctx.race_id))
-    conn.commit()
+    conn = conn_factory()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE races SET status = %s WHERE id = %s", (target_status, ctx.race_id))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _fp2_coverage(conn, race_id: int) -> float:
@@ -195,7 +205,7 @@ def _fp2_coverage(conn, race_id: int) -> float:
     return covered / expected
 
 
-def _backfill_fp2(log_func, conn, ctx: RaceContext) -> None:
+def _backfill_fp2(log_func, conn, ctx: RaceRunContext) -> None:
     """
     Opportunistic FP2 catch-up while a race sits in `qualifying_done` before the
     main race. ingest_fp2 only runs once (during MAIN_QUALIFYING); if FastF1 did
@@ -304,7 +314,7 @@ def run_cycle(
             log_func("[auto_runner] No active races found. Exiting.")
             return CycleResult(window=window, schedule_available=schedule_available)
 
-        ctx = RaceContext(
+        ctx = RaceRunContext(
             race_id=race_row["id"],
             year=race_row["year"],
             round_number=race_row["round_number"],
@@ -318,6 +328,8 @@ def run_cycle(
         if schedule is None:
             try:
                 schedule = fetch()
+                schedule_available = True
+                window = race_weekend_window(schedule, now_utc)
             except Exception as e:
                 log_func(f"[auto_runner] Failed to fetch schedule from FastF1: {e}")
                 return CycleResult(window=None, schedule_available=False)
@@ -347,7 +359,9 @@ def run_cycle(
                 outcome = _run_action_steps(action, ctx)
                 if not outcome.ok:
                     log_func(f"[auto_runner] Error during {action.label} sequence: {outcome.error}. Reverting status.")
-                    revert_race_status(conn, ctx, outcome.last_committed_status, status, outcome.error, outcome.failed_step)
+                    revert_race_status(
+                        conn_factory, ctx, outcome.last_committed_status, status, outcome.error, outcome.failed_step
+                    )
                     raise outcome.error
                 log_func(f"[auto_runner] {action.label} ingestion completed successfully.")
                 return CycleResult(window=window, schedule_available=schedule_available)

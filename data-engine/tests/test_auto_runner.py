@@ -60,6 +60,21 @@ def _active_race_row(race_id=1, round_number=1, year=2026, status="scheduled", e
     return {"id": race_id, "round_number": round_number, "year": year, "status": status, "event_format": event_format}
 
 
+class _FlakyOnceScheduleProvider:
+    """Fails the first call (simulating the gate fetch hitting a transient outage),
+    then succeeds on every call after."""
+
+    def __init__(self, schedule):
+        self.calls = 0
+        self._schedule = schedule
+
+    def __call__(self):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("transient FastF1 outage")
+        return self._schedule
+
+
 class TestRunScheduleGate:
     def test_does_not_touch_the_database_outside_a_race_weekend(self):
         spy = _SpyConnFactory()
@@ -120,6 +135,25 @@ class TestRunScheduleGate:
         )
 
         assert provider.calls == 1
+
+    def test_resyncs_schedule_available_and_window_after_a_successful_retry(self):
+        # The gate fetch fails, but the in-cycle retry (once we know which round to look up)
+        # succeeds — the CycleResult must reflect that recovery, not the earlier failure.
+        race = _utc(2026, 3, 8, 4, 0)
+        now = race - timedelta(hours=6)  # inside the window once the schedule is available
+        provider = _FlakyOnceScheduleProvider(_schedule_with_race(1, race))
+        conn = FakeConnection([_active_race_row(status="unhandled_status", event_format="conventional")])
+
+        result = auto_runner.run_cycle(
+            log_func=lambda *_: None,
+            now_utc=now,
+            schedule_provider=provider,
+            conn_factory=lambda: conn,
+        )
+
+        assert result.schedule_available is True
+        assert result.window is not None
+        assert result.window.contains(now)
 
 
 class TestPollIntervalForWindow:
@@ -213,7 +247,7 @@ class TestRunActionSteps:
             label="Sprint Qualifying",
             steps=auto_runner._ACTION_JOBS[auto_runner.ActionKind.SPRINT_QUALIFYING],
         )
-        ctx = auto_runner.RaceContext(race_id=1, year=2026, round_number=5)
+        ctx = auto_runner.RaceRunContext(race_id=1, year=2026, round_number=5)
 
         outcome = auto_runner._run_action_steps(action, ctx)
 
@@ -242,7 +276,7 @@ class TestRunActionSteps:
             label="Sprint Qualifying",
             steps=auto_runner._ACTION_JOBS[auto_runner.ActionKind.SPRINT_QUALIFYING],
         )
-        ctx = auto_runner.RaceContext(race_id=1, year=2026, round_number=5)
+        ctx = auto_runner.RaceRunContext(race_id=1, year=2026, round_number=5)
 
         outcome = auto_runner._run_action_steps(action, ctx)
 
@@ -255,24 +289,48 @@ class TestRunActionSteps:
 class TestRevertRaceStatus:
     def test_reverts_to_pre_sequence_status_when_nothing_committed(self):
         conn = FakeConnection([None])
-        ctx = auto_runner.RaceContext(race_id=7, year=2026, round_number=3)
+        ctx = auto_runner.RaceRunContext(race_id=7, year=2026, round_number=3)
 
-        auto_runner.revert_race_status(conn, ctx, None, "scheduled", RuntimeError("boom"), "ingest_sprint_qualifying")
+        auto_runner.revert_race_status(
+            lambda: conn, ctx, None, "scheduled", RuntimeError("boom"), "ingest_sprint_qualifying"
+        )
 
         _, params = conn.cursors[-1].executed[-1]
         assert params == ("scheduled", 7)
         assert conn.commits == 1
+        assert conn.closed is True
 
     def test_reverts_to_last_committed_status_not_pre_sequence_status(self):
         conn = FakeConnection([None])
-        ctx = auto_runner.RaceContext(race_id=7, year=2026, round_number=3)
+        ctx = auto_runner.RaceRunContext(race_id=7, year=2026, round_number=3)
 
         auto_runner.revert_race_status(
-            conn, ctx, "sprint_qualifying_done", "scheduled", RuntimeError("boom"), "compute_sprint_features"
+            lambda: conn,
+            ctx,
+            "sprint_qualifying_done",
+            "scheduled",
+            RuntimeError("boom"),
+            "compute_sprint_features",
         )
 
         _, params = conn.cursors[-1].executed[-1]
         assert params == ("sprint_qualifying_done", 7)
+
+    def test_opens_its_own_connection_rather_than_reusing_one(self):
+        # Regression guard: revert must not reuse a connection that's been idle for the
+        # whole (potentially long) job sequence — it should ask conn_factory for a fresh one.
+        conn = FakeConnection([None])
+        factory_calls = []
+
+        def conn_factory():
+            factory_calls.append(1)
+            return conn
+
+        ctx = auto_runner.RaceRunContext(race_id=7, year=2026, round_number=3)
+
+        auto_runner.revert_race_status(conn_factory, ctx, None, "scheduled", RuntimeError("boom"), "ingest_race")
+
+        assert len(factory_calls) == 1
 
 
 class TestRunCycleSequenceRetry:
