@@ -1,6 +1,6 @@
 from src.db.client import get_conn
 from src.utils.feature_helpers import compute_compressed_car_perf
-from src.utils.math_utils import normalize_minmax
+from src.utils.math_utils import bayesian_win_rate, normalize_minmax
 from src.utils.upsert import upsert
 
 
@@ -128,7 +128,7 @@ def _compute_driver_stats(conn, season_id: int) -> None:
         races_entered = int(d["races_entered"])
         wins = int(d["wins"])
         dnf_count = int(d["dnf_count"])
-        win_rate = (wins + 0.5) / (races_entered + 2) if races_entered > 0 else 0.25
+        win_rate = bayesian_win_rate(wins, races_entered) if races_entered > 0 else 0.25
         dnf_rate = round(dnf_count / races_entered, 3) if races_entered > 0 else None
 
         sprint = sprint_aggs.get(driver_id)
@@ -136,7 +136,7 @@ def _compute_driver_stats(conn, season_id: int) -> None:
         sprint_wins = int(sprint["sprint_wins"]) if sprint else 0
         sprint_podiums = int(sprint["sprint_podiums"]) if sprint else 0
         sprint_pts = float(sprint["sprint_total_points"]) if sprint else 0.0
-        sprint_win_rate = (sprint_wins + 0.5) / (sprint_races + 2) if sprint_races > 0 else None
+        sprint_win_rate = bayesian_win_rate(sprint_wins, sprint_races) if sprint_races > 0 else None
         sprint_avg_finish = round(float(sprint["sprint_avg_finish"]), 2) if sprint and sprint["sprint_avg_finish"] else None
 
         sectors = sector_map.get(driver_id, {})
