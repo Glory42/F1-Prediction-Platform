@@ -503,6 +503,8 @@ data-engine/
 │   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, assemble_scores() key-drift guard,
 │   │                                #   both models checked against docs/feature-weights.json
 │   ├── test_prediction_ranking.py  # rank_by_probability
+│   ├── test_prediction_runner.py   # run_prediction_job — via fake_db + monkeypatched execute_batch
+│   ├── test_upsert.py              # upsert() param shape + no-op-on-empty — via fake_db + monkeypatched execute_batch
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
 │   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
 │   └── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers

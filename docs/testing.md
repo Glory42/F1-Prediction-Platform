@@ -56,7 +56,11 @@ pytest, config in `pyproject.toml` (`pythonpath = ["."]`, `testpaths = ["tests"]
   monkeypatched per-job callables and FastF1 helpers, no real session data needed.
 - `conftest.py` sets a placeholder `DATABASE_URL` so importing a job module (which reads it at import
   time) works with or without a local `.env`. Tests never open a real connection.
-- Still untested: deeper ETL orchestration (`upsert.py`, `prediction_runner.py`).
+- `upsert.py` and `prediction_runner.py` write via `psycopg2.extras.execute_batch`, which renders SQL
+  through a C extension that needs a real connection even just to quote identifiers — so their tests
+  (`test_upsert.py`, `test_prediction_runner.py`) monkeypatch `execute_batch` itself and assert on the
+  params it receives, the same pattern `test_ingest_runner.py` already uses for its own `execute_batch`
+  call, rather than extending `FakeCursor` to fake SQL rendering.
 
 ## API unit (`apps/api/tests/unit/`)
 

@@ -25,7 +25,11 @@ it's Python, and its jobs run once and exit rather than being a long-running dev
   `build_feature_context`, `build_driver_code_map`) are tested via `tests/support/fake_db.py` — a scripted
   `FakeCursor`/`FakeConnection` double shaped like psycopg2's `RealDictCursor`, no real DB. `ingest_runner.py`'s
   two shared runners (`run_ingest_job` for race/sprint, `run_qualifying_ingest_job` for qualifying/sprint-qualifying)
-  are tested the same way. `upsert.py` and `prediction_runner.py` are still untested.
+  are tested the same way. `upsert.py` and `prediction_runner.py` route their writes through
+  `psycopg2.extras.execute_batch`, which renders SQL via a C extension that needs a real connection
+  even just to quote identifiers — so their tests monkeypatch `execute_batch` itself and assert on
+  the params it receives, the same pattern `test_ingest_runner.py` already uses for its own
+  `execute_batch` call, rather than extending `FakeCursor` to fake SQL rendering.
 - `apps/api/tests/unit/` — `bun test`, mirrors `src/` by domain (e.g. `tests/unit/common/mappers.test.ts`
   tests `src/common/mappers.ts`). Covers the shared `src/common/` mapper/aggregation layer.
 - `apps/api/tests/integration/` — `bun test`, real Hono `app.request()` calls against a dedicated Neon test
