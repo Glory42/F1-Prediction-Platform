@@ -1,9 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { api } from '@/lib/api';
-import type { SprintPredictionResponse, SprintDetailResponse } from '@/types';
-import { SPRINT_WEIGHTS, SPRINT_FEATURE_META, contributions, radarFeatures } from '@/lib/predictionMath';
-import { SPRINT_ACCENT } from '@/features/predictions/types';
+import { buildPredictionPageData } from '@/features/predictions/buildPredictionPageData';
 import PredictionHeader from '@/features/predictions/components/PredictionHeader.astro';
 import PredictionOutcomeBanner from '@/features/predictions/components/PredictionOutcomeBanner.astro';
 import ContributionBar from '@/features/predictions/components/ContributionBar.astro';
@@ -13,41 +10,14 @@ import ModelWeightsGrid from '@/features/predictions/components/ModelWeightsGrid
 import WhatIfLab from '@/features/predictions/components/WhatIfLab.astro';
 
 const { id } = Astro.params;
-const raceId = Number(id);
-
-let prediction: SprintPredictionResponse | null = null;
-let sprintDetail: SprintDetailResponse | null = null;
-let error: string | null = null;
-
-const [predResult, detailResult] = await Promise.allSettled([
-  api.getSprintByRaceId(raceId),
-  api.getSprintDetail(raceId),
-]);
-
-if (predResult.status === 'fulfilled') prediction = predResult.value;
-else error = 'No sprint prediction available for this race';
-if (detailResult.status === 'fulfilled') sprintDetail = detailResult.value;
-
-const race = prediction?.race ?? sprintDetail?.race ?? null;
-const raceYear = race ? new Date(race.raceDate).getFullYear() : new Date().getFullYear();
-
-const sprintWinner = sprintDetail?.results?.find((r) => r.finishPosition === 1) ?? null;
-const correct = prediction && sprintWinner
-  ? prediction.predictedWinner.id === sprintWinner.driver.id
-  : null;
-
-const winner = prediction
-  ? prediction.drivers.find((d) => d.driver.id === prediction!.predictedWinner.id) ?? prediction.drivers[0]
-  : null;
-const breakdown = winner ? contributions(winner.features, SPRINT_WEIGHTS) : [];
-
-const RADAR_FEATURES = radarFeatures(SPRINT_FEATURE_META, {
-  circuitAdjStartPos: 'Adj. Grid Pos',
-  weatherImpact: 'Weather',
-});
+const data = await buildPredictionPageData('sprint', Number(id));
+const {
+  race, prediction, results, error, raceYear, actualWinner, correct,
+  winner, breakdown, radarFeatures, weights, featureMeta, accent,
+} = data;
 ---
 
-<BaseLayout title={race ? `Sprint Prediction · ${race.name}` : 'Sprint Prediction'}>
+<BaseLayout title={data.title}>
   <div class="mt-7 space-y-8">
 
     <div class="mb-6 flex items-center gap-4">
@@ -58,74 +28,68 @@ const RADAR_FEATURES = radarFeatures(SPRINT_FEATURE_META, {
 
     {error && !prediction ? (
       <div class="border border-white/[0.06] p-10 text-center">
-        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">No sprint prediction for this race</p>
+        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">{data.notFoundMessage}</p>
         <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">{error}</p>
       </div>
     ) : prediction && race ? (
       <>
         <PredictionHeader
           title={race.name}
-          kicker={`./round-${race.roundNumber.toString().padStart(2, '0')} · sprint prediction`}
+          kicker={data.kicker}
           city={race.circuit.city}
           country={race.circuit.country}
-          date={race.sprintDate ?? race.raceDate}
+          date={data.date ?? race.raceDate}
           modelVersion={prediction.modelVersion}
           computedAt={prediction.computedAt}
           p1={Number(prediction.drivers[0]?.winProbability)}
           p2={prediction.drivers[1] ? Number(prediction.drivers[1].winProbability) : null}
-          accent={SPRINT_ACCENT}
+          accent={accent}
         />
 
-        {correct !== null && sprintWinner && (
+        {correct !== null && actualWinner && (
           <PredictionOutcomeBanner
             predictedName={prediction.predictedWinner.fullName}
-            actualName={sprintWinner.driver.fullName}
-            actualLabel="actual sprint winner"
+            actualName={actualWinner.driver.fullName}
+            actualLabel={data.actualLabel}
             correct={correct}
           />
         )}
 
         {winner && breakdown.some((b) => b.share > 0) && (
-          <ContributionBar driverCode={winner.driver.code} breakdown={breakdown} featureMeta={SPRINT_FEATURE_META} accent={SPRINT_ACCENT} />
+          <ContributionBar driverCode={winner.driver.code} breakdown={breakdown} featureMeta={featureMeta} accent={accent} />
         )}
 
         <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
           <PredictionDriverTable
             drivers={prediction.drivers}
-            results={sprintDetail?.results}
+            results={results}
             predictedWinnerId={prediction.predictedWinner.id}
-            actualWinnerId={sprintWinner?.driver.id}
+            actualWinnerId={actualWinner?.driver.id}
             raceYear={raceYear}
-            accent={SPRINT_ACCENT}
-            gridColLabel="Grid"
-            actualWinnerLabel="sprint winner"
+            accent={accent}
+            gridColLabel={data.gridColLabel}
+            actualWinnerLabel={data.actualWinnerLabel}
           />
 
           <div class="space-y-6">
-            <DriverRadarCompare drivers={prediction.drivers} features={RADAR_FEATURES} accent={SPRINT_ACCENT} />
-            <ModelWeightsGrid
-              heading="./sprint weights"
-              featureMeta={SPRINT_FEATURE_META}
-              accent={SPRINT_ACCENT}
-              note="Grid position weighted higher — no pit stop strategy in ~17 lap sprint."
-              class="hidden xl:block"
-            />
+            <DriverRadarCompare drivers={prediction.drivers} features={radarFeatures} accent={accent} />
+            <ModelWeightsGrid heading={data.weightsHeading} featureMeta={featureMeta} accent={accent} note={data.weightsNote} class="hidden xl:block" />
           </div>
         </div>
 
         <WhatIfLab
           drivers={prediction.drivers}
-          featureMeta={SPRINT_FEATURE_META}
-          weights={SPRINT_WEIGHTS}
-          accent={SPRINT_ACCENT}
-          sliderMax={35}
-          blurb="Drag the weights to see how the predicted sprint order shifts. Recomputed live in your browser — the model itself is unchanged."
+          featureMeta={featureMeta}
+          weights={weights}
+          accent={accent}
+          sliderMax={data.sliderMax}
+          blurb={data.whatIfBlurb}
         />
 
         <ModelWeightsGrid
-          heading="./sprint weights"
-          featureMeta={SPRINT_FEATURE_META}
-          accent={SPRINT_ACCENT}
+          heading={data.weightsHeading}
+          featureMeta={featureMeta}
+          accent={accent}
           gridClass="grid-cols-2 sm:grid-cols-4"
           class="xl:hidden"
         />

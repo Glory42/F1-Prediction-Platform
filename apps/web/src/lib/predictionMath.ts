@@ -1,5 +1,6 @@
-type FeatureInput = Record<string, string | number | null | undefined>;
-type Weights = Record<string, number>;
+// unknown (not string|number|null) so PredictionDriverVM['features'] passes through directly.
+type FeatureInput = Record<string, unknown>;
+export type Weights = Record<string, number>;
 
 export const FEATURE_META: Record<string, { label: string; weight: number }> = {
   carPerformance:           { label: 'Car Performance',    weight: 20 },

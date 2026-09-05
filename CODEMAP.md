@@ -256,6 +256,9 @@ apps/web/
 │   ├── features/
 │   │   ├── predictions/              # Shared prediction UI — GP + sprint pages compose these (accent prop)
 │   │   │   ├── types.ts               # PredictionAccent, GP_ACCENT/SPRINT_ACCENT, view-model interfaces
+│   │   │   ├── buildPredictionPageData.ts  # buildPredictionPageData(kind, raceId) — the fetch/winner-pick/
+│   │   │   │                          #   view-model assembly both prediction/[id].astro and prediction/sprint/[id].astro
+│   │   │   │                          #   call; every GP-vs-sprint difference lives in its one KIND_CONFIG table
 │   │   │   └── components/
 │   │   │       ├── PredictionHeader.astro          # Round kicker + title + ConfidenceBadge + circuit/model lines
 │   │   │       ├── PredictionOutcomeBanner.astro   # Predicted → actual winner banner
