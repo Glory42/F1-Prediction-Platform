@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { castSeverity } from '../../../../src/modules/quality/quality.service';
+import { castSeverity } from '../../../../src/modules/quality/quality';
 import type { QualitySeverity } from '../../../../src/common/types';
 
 describe('castSeverity', () => {

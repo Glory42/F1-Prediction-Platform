@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Db } from '../config/database';
 import { seasons } from '../db/schema';
-import { toKeyedMap } from './collections';
 
 export type Season = typeof seasons.$inferSelect;
 
@@ -31,7 +30,7 @@ export function buildStandings<Entity, StatsRow, Stats extends ChampionshipStats
   emptyStats: Stats,
   toOutput: (entity: Entity, stats: Stats) => Out
 ): Out[] {
-  const statsById = toKeyedMap(statsRows, getStatsEntityId);
+  const statsById = new Map(statsRows.map((row) => [getStatsEntityId(row), row]));
   const result = entityRows.map((entity) => {
     const statsRow = statsById.get(getEntityId(entity));
     return toOutput(entity, statsRow ? toStats(statsRow) : emptyStats);
@@ -47,7 +46,7 @@ export function buildCareerStats<Entry, StatsRow, Stats, Out>(
   toStats: (statsRow: StatsRow) => Stats,
   toOutput: (entry: Entry, stats: Stats | null) => Out
 ): Out[] {
-  const statsById = toKeyedMap(statsRows, getStatsEntryId);
+  const statsById = new Map(statsRows.map((row) => [getStatsEntryId(row), row]));
   return entries.map((entry) => {
     const statsRow = statsById.get(getEntryId(entry));
     return toOutput(entry, statsRow ? toStats(statsRow) : null);

@@ -47,7 +47,6 @@ apps/api/
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
 │   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult() — canonical row→DTO mappers used by all services
-│   ├── common/collections.ts      # toKeyedMap(rows, keyFn, valueFn?) — shared Map-by-id builder used by all services
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
 │   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
@@ -106,17 +105,12 @@ apps/api/
 │       │   ├── sprint.controller.ts
 │       │   └── sprint.module.ts   # GET /upcoming, /race/:id
 │       ├── seasons/
-│       │   ├── seasons.service.ts # Season list
-│       │   ├── seasons.controller.ts
-│       │   └── seasons.module.ts  # GET /
-│       └── search/
-│           ├── search.service.ts  # Global search query — unique drivers, teams, circuits
-│           ├── search.controller.ts
-│           └── search.module.ts   # GET /
+│       │   └── seasons.ts         # One file: GET / — season list. Too small for a service/controller/module split
+│       ├── search/
+│       │   └── search.ts          # One file: GET / — global search query (unique drivers, teams, circuits)
 │       └── quality/
-│           ├── quality.service.ts # Latest data-quality report (reads data_quality_runs/issues)
-│           ├── quality.controller.ts
-│           └── quality.module.ts  # GET / — dev-only reporting (no write path)
+│           └── quality.ts         # One file: GET / — latest data-quality report (dev-only, no write path);
+│                                   #   exports castSeverity() for its own test
 ├── drizzle/
 │   └── migrations/                # Generated SQL migration files + Drizzle metadata
 │       ├── 0000_glamorous_galactus.sql  # Initial schema
@@ -125,11 +119,10 @@ apps/api/
 ├── tests/
 │   ├── unit/
 │   │   ├── modules/
-│   │   │   ├── quality/           # quality.service test (severity casting)
+│   │   │   ├── quality/           # castSeverity() test (severity casting)
 │   │   │   └── predictions/       # intel-standings.helpers test (feature averaging + standings normalise)
 │   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │   │       ├── mappers.test.ts
-│   │       ├── collections.test.ts
 │   │       ├── standings.test.ts
 │   │       ├── prediction-response.test.ts
 │   │       ├── prediction-history.test.ts
