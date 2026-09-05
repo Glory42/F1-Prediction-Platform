@@ -253,6 +253,8 @@ apps/web/
 │   │   │   │                          #   view-model assembly both prediction/[id].astro and prediction/sprint/[id].astro
 │   │   │   │                          #   call; every GP-vs-sprint difference lives in its one KIND_CONFIG table
 │   │   │   └── components/
+│   │   │       ├── PredictionPageBody.astro        # Full page body (header→banner→table→radar→WhatIfLab); both
+│   │   │       │                                   #   [id].astro routes reduce to a fetch + <PredictionPageBody data={data} />
 │   │   │       ├── PredictionHeader.astro          # Round kicker + title + ConfidenceBadge + circuit/model lines
 │   │   │       ├── PredictionOutcomeBanner.astro   # Predicted → actual winner banner
 │   │   │       ├── ContributionBar.astro           # "why {CODE}" — stacked bar of each feature's weighted-score share

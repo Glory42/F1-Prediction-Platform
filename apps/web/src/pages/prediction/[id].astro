@@ -1,99 +1,12 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { buildPredictionPageData } from '@/features/predictions/buildPredictionPageData';
-import PredictionHeader from '@/features/predictions/components/PredictionHeader.astro';
-import PredictionOutcomeBanner from '@/features/predictions/components/PredictionOutcomeBanner.astro';
-import ContributionBar from '@/features/predictions/components/ContributionBar.astro';
-import PredictionDriverTable from '@/features/predictions/components/PredictionDriverTable.astro';
-import DriverRadarCompare from '@/features/predictions/components/DriverRadarCompare.astro';
-import ModelWeightsGrid from '@/features/predictions/components/ModelWeightsGrid.astro';
-import WhatIfLab from '@/features/predictions/components/WhatIfLab.astro';
+import PredictionPageBody from '@/features/predictions/components/PredictionPageBody.astro';
 
 const { id } = Astro.params;
 const data = await buildPredictionPageData('gp', Number(id));
-const {
-  race, prediction, results, error, raceYear, actualWinner, correct,
-  winner, breakdown, radarFeatures, weights, featureMeta, accent,
-} = data;
 ---
 
 <BaseLayout title={data.title}>
-  <div class="mt-7 space-y-8">
-
-    <div class="mb-6 flex items-center gap-4">
-      <a href="/prediction" class="font-mono text-[9px] tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-150">
-        ← prediction hub
-      </a>
-    </div>
-
-    {error && !prediction ? (
-      <div class="border border-white/[0.06] p-10 text-center">
-        <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">{data.notFoundMessage}</p>
-        <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">{error}</p>
-      </div>
-    ) : prediction && race ? (
-      <>
-        <PredictionHeader
-          title={race.name}
-          kicker={data.kicker}
-          city={race.circuit.city}
-          country={race.circuit.country}
-          date={data.date ?? race.raceDate}
-          modelVersion={prediction.modelVersion}
-          computedAt={prediction.computedAt}
-          p1={Number(prediction.drivers[0]?.winProbability)}
-          p2={prediction.drivers[1] ? Number(prediction.drivers[1].winProbability) : null}
-          accent={accent}
-        />
-
-        {correct !== null && actualWinner && (
-          <PredictionOutcomeBanner
-            predictedName={prediction.predictedWinner.fullName}
-            actualName={actualWinner.driver.fullName}
-            actualLabel={data.actualLabel}
-            correct={correct}
-          />
-        )}
-
-        {winner && breakdown.some((b) => b.share > 0) && (
-          <ContributionBar driverCode={winner.driver.code} breakdown={breakdown} featureMeta={featureMeta} accent={accent} />
-        )}
-
-        <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
-          <PredictionDriverTable
-            drivers={prediction.drivers}
-            results={results}
-            predictedWinnerId={prediction.predictedWinner.id}
-            actualWinnerId={actualWinner?.driver.id}
-            raceYear={raceYear}
-            accent={accent}
-            gridColLabel={data.gridColLabel}
-            actualWinnerLabel={data.actualWinnerLabel}
-          />
-
-          <div class="space-y-6">
-            <DriverRadarCompare drivers={prediction.drivers} features={radarFeatures} accent={accent} />
-            <ModelWeightsGrid heading={data.weightsHeading} featureMeta={featureMeta} accent={accent} note={data.weightsNote} class="hidden xl:block" />
-          </div>
-        </div>
-
-        <WhatIfLab
-          drivers={prediction.drivers}
-          featureMeta={featureMeta}
-          weights={weights}
-          accent={accent}
-          sliderMax={data.sliderMax}
-          blurb={data.whatIfBlurb}
-        />
-
-        <ModelWeightsGrid
-          heading={data.weightsHeading}
-          featureMeta={featureMeta}
-          accent={accent}
-          gridClass="grid-cols-2 sm:grid-cols-4"
-          class="xl:hidden"
-        />
-      </>
-    ) : null}
-  </div>
+  <PredictionPageBody data={data} />
 </BaseLayout>
