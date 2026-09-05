@@ -3,7 +3,6 @@ import type { Db } from '../../config/database';
 import { races, circuits, raceResults, qualifyingResults, lapTimes, drivers, teams, raceStatusEnum } from '../../db/schema';
 import type { Race, RaceDetailResponse, RaceResult, QualifyingResult, LapSummary, CircuitDetailResponse } from '../../common/types';
 import { toDriver, toRace, toCircuit, toRaceResult, toQualifyingResult } from '../../common/mappers';
-import { toKeyedMap } from '../../common/collections';
 import { aggregateEraWins, buildDominanceByEra } from './circuit-era.helpers';
 import { backfillDriverHeadshots } from './circuit-headshot-backfill';
 import {
@@ -85,8 +84,8 @@ export class RacesService {
       ]);
     }
 
-    const winnerMap = toKeyedMap(winnerRows, (w) => w.race_results.raceId);
-    const raceMap = toKeyedMap(raceRows, (r) => r.id);
+    const winnerMap = new Map(winnerRows.map((w) => [w.race_results.raceId, w]));
+    const raceMap = new Map(raceRows.map((r) => [r.id, r]));
     const raceOrder = new Map(raceIds.map((id, idx) => [id, idx]));
 
     const { teamWinsByEra, driverWinsByEra } = aggregateEraWins(winnerRows, raceMap, raceOrder);
@@ -150,7 +149,7 @@ export class RacesService {
         .groupBy(lapTimes.driverId),
     ]);
 
-    const driverMap = toKeyedMap(resultsRows, (r) => r.drivers.id, (r) => toDriver(r.drivers, r.teams));
+    const driverMap = new Map(resultsRows.map((r) => [r.drivers.id, toDriver(r.drivers, r.teams)]));
 
     const results: RaceResult[] = resultsRows.map(toRaceResult);
     const qualifying: QualifyingResult[] = qualifyingRows.map(toQualifyingResult);

@@ -9,7 +9,6 @@ import type {
   PredictionResponse,
   PredictionHistoryItem, IntelStandingRow, ModelInfo, SeasonAccuracy,
 } from '../../common/types';
-import { toKeyedMap } from '../../common/collections';
 import { resolveSeason } from '../../common/standings';
 import { aggregateAccuracyBySeason } from '../../common/accuracy';
 import {
@@ -178,7 +177,7 @@ export class PredictionsService {
           ))
       : [];
 
-    return buildIntelStandingRows(aggregated, toKeyedMap(sprintStatsRows, (s) => s.driverId));
+    return buildIntelStandingRows(aggregated, new Map(sprintStatsRows.map((s) => [s.driverId, s])));
   }
 
   async getModelInfo(db: Db): Promise<ModelInfo> {

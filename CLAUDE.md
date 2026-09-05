@@ -151,14 +151,17 @@ apps/api/src/
 │   ├── teams/{controller,service,module}.ts
 │   ├── predictions/{controller,service,module}.ts
 │   ├── sprint/{controller,service,module}.ts
-│   ├── seasons/{controller,service,module}.ts
-│   └── search/{controller,service,module}.ts
+│   ├── seasons/seasons.ts             # single file — one route, too small for the 3-file split
+│   ├── search/search.ts               # single file, same reason
+│   └── quality/quality.ts             # single file, dev-only reporting route
 └── main.ts                            # Entry point, route registration
 ```
 
 - **service** — DB queries (Drizzle, no Hono context)
 - **controller** — parses Hono context, calls service, returns JSON
 - **module** — Hono sub-router that wires controller handlers to routes
+- A module with one route and a handful of query lines (`seasons`, `search`, `quality`) skips
+  the split — one file holding the router + query is more readable than three near-empty ones.
 
 ### Environment Variables
 | Variable | Where set |

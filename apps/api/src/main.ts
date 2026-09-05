@@ -7,10 +7,10 @@ import racesModule from './modules/races/races.module';
 import driversModule from './modules/drivers/drivers.module';
 import teamsModule from './modules/teams/teams.module';
 import predictionsModule from './modules/predictions/predictions.module';
-import seasonsModule from './modules/seasons/seasons.module';
+import seasonsModule from './modules/seasons/seasons';
 import sprintModule from './modules/sprint/sprint.module';
-import searchModule from './modules/search/search.module';
-import qualityModule from './modules/quality/quality.module';
+import searchModule from './modules/search/search';
+import qualityModule from './modules/quality/quality';
 import type { Bindings } from './common/types';
 
 const app = new Hono<{ Bindings: Bindings }>();
