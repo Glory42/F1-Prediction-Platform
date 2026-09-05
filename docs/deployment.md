@@ -31,15 +31,28 @@ order: 6
 
 Set this as a **Secret** (not plaintext) so it's encrypted at rest.
 
-### Frontend — Cloudflare Pages Dashboard
+### Frontend — `apps/web/wrangler.toml` (not the Pages dashboard)
 
 | Variable | How to set | Notes |
 |----------|-----------|-------|
-| `PUBLIC_API_URL` | Pages → Settings → Environment Variables | Full Worker URL |
+| `PUBLIC_API_URL` | `[vars]` in `apps/web/wrangler.toml` | Full Worker URL |
 
-Example value: `https://f1-intelligence-api.gorkemkaryol.workers.dev`
+**This is set in the committed `wrangler.toml`, not the Cloudflare Pages dashboard.** A Pages
+project's `wrangler.toml` `[vars]` block overrides whatever is set in Settings → Environment
+Variables — setting `PUBLIC_API_URL` in the dashboard has no effect while this file also sets it.
+(This is the opposite of `apps/api`, where secrets *are* dashboard-only — see below.)
 
-Pages configs don't support `keep_vars` (and don't need it — Pages deployments never erase dashboard-set variables), so `apps/web/wrangler.toml` omits it.
+Get the real value from the API Worker's own deploy output (`wrangler deploy` prints the live
+URL), not from a copy-pasted example — it must match `apps/api/wrangler.toml`'s `name` field plus
+your Cloudflare account's `workers.dev` subdomain. Renaming the Worker in `apps/api/wrangler.toml`
+does **not** update this value automatically; it's a separate file that silently goes stale if you
+forget to update it too (this happened for real — the Worker was renamed
+`f1-intelligence-api` → `f1-prediction-platform-api` on 2026-06-01 and this file kept the old URL
+for months before anyone noticed the API calls were failing).
+
+Pages configs don't support `keep_vars` (and don't need it for *secrets* — Pages deployments never
+erase dashboard-set secrets), so `apps/web/wrangler.toml` omits it. `PUBLIC_API_URL` isn't a
+secret, so it lives directly in this file instead of the dashboard either way.
 
 ### Data Engine — Render Dashboard
 
@@ -94,7 +107,8 @@ python src/main.py --job sync_season   --year 2025 --round 1
    directory" to `apps/web`).
 2. Set build command: `bun run build`
 3. Set output directory: `dist`
-4. Add environment variable `PUBLIC_API_URL` pointing to your Worker URL.
+4. Set `PUBLIC_API_URL` in `apps/web/wrangler.toml`'s `[vars]` block (not the Pages dashboard —
+   see the Environment Variables section above) to your deployed API Worker's URL.
 5. Push to `master` to trigger the first deploy.
 
 ### 4. Data Engine (Render)

@@ -6,7 +6,7 @@ order: 5
 
 # API Reference
 
-**Base URL:** `https://f1-intelligence-api.gorkemkaryol.workers.dev`  
+**Base URL:** `https://f1-prediction-platform-api.gorkemkaryol03.workers.dev`  
 **Local dev:** `http://localhost:8787`
 
 All responses follow this envelope:
