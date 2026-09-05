@@ -80,49 +80,59 @@ class Action:
     ready: bool
     label: str
     steps: tuple[JobStep, ...]
+    ready_at: Optional[datetime] = None
 
 
-def _is_ready(session_date_utc: Any, delay_hours: float, now: datetime) -> bool:
+def _is_ready(session_date_utc: Any, delay_hours: float, now: datetime) -> tuple[bool, Optional[datetime]]:
     # FastF1 returns timezone-naive pandas Timestamps in UTC; None/NaT collapse to pd.NaT here.
     session_ts = pd.Timestamp(session_date_utc)
     if session_ts is pd.NaT:
-        return False
+        return False, None
     session_time = session_ts.to_pydatetime().replace(tzinfo=timezone.utc)
-    return now >= session_time + timedelta(hours=delay_hours)
+    ready_at = session_time + timedelta(hours=delay_hours)
+    return now >= ready_at, ready_at
 
 
 def decide_next_action(status: str, is_sprint: bool, event: pd.Series, now: datetime) -> Optional[Action]:
     """Pure — no I/O — so it's testable with fake inputs, no FastF1/DB mocking needed."""
     if is_sprint and status == "scheduled":
+        ready, ready_at = _is_ready(event["Session2DateUtc"], delay_hours=1.5, now=now)
         return Action(
             kind=ActionKind.SPRINT_QUALIFYING,
-            ready=_is_ready(event["Session2DateUtc"], delay_hours=1.5, now=now),
+            ready=ready,
             label="Sprint Qualifying",
             steps=_ACTION_JOBS[ActionKind.SPRINT_QUALIFYING],
+            ready_at=ready_at,
         )
 
     if is_sprint and status == "sprint_qualifying_done":
+        ready, ready_at = _is_ready(event["Session3DateUtc"], delay_hours=1.5, now=now)
         return Action(
             kind=ActionKind.SPRINT_RACE,
-            ready=_is_ready(event["Session3DateUtc"], delay_hours=1.5, now=now),
+            ready=ready,
             label="Sprint Race",
             steps=_ACTION_JOBS[ActionKind.SPRINT_RACE],
+            ready_at=ready_at,
         )
 
     if (not is_sprint and status == "scheduled") or (is_sprint and status == "sprint_done"):
+        ready, ready_at = _is_ready(event["Session4DateUtc"], delay_hours=2.0, now=now)
         return Action(
             kind=ActionKind.MAIN_QUALIFYING,
-            ready=_is_ready(event["Session4DateUtc"], delay_hours=2.0, now=now),
+            ready=ready,
             label="Main Qualifying",
             steps=_ACTION_JOBS[ActionKind.MAIN_QUALIFYING],
+            ready_at=ready_at,
         )
 
     if status == "qualifying_done":
+        ready, ready_at = _is_ready(event["Session5DateUtc"], delay_hours=3.0, now=now)
         return Action(
             kind=ActionKind.MAIN_RACE,
-            ready=_is_ready(event["Session5DateUtc"], delay_hours=3.0, now=now),
+            ready=ready,
             label="Main Race",
             steps=_ACTION_JOBS[ActionKind.MAIN_RACE],
+            ready_at=ready_at,
         )
 
     return None
@@ -214,7 +224,12 @@ IDLE_POLL_SECONDS = 6 * 60 * 60
 
 
 def _default_schedule_fetcher(now_utc: datetime) -> "pd.DataFrame":
-    return fastf1.get_event_schedule(now_utc.year, include_testing=False)
+    # FastF1's HTTP cache keeps responses for up to 12h (see fastf1.req._Cache),
+    # long enough for a stale session-time revision to block readiness for hours.
+    # This fetch is small and infrequent (one poll per ACTIVE_POLL_SECONDS), so
+    # always going to the network keeps the race-weekend gate accurate.
+    with fastf1.Cache.disabled():
+        return fastf1.get_event_schedule(now_utc.year, include_testing=False)
 
 
 @dataclass(frozen=True)
@@ -327,7 +342,11 @@ def run_cycle(
                 # Opportunistically backfill FP2 (see _backfill_fp2) while waiting for the race.
                 if status == "qualifying_done" and action.kind == ActionKind.MAIN_RACE:
                     _backfill_fp2(log_func, conn, ctx)
-                log_func(f"[auto_runner] {action.label} not finished yet or hasn't reached delay threshold. Exiting.")
+                ready_at_str = f"{action.ready_at:%Y-%m-%d %H:%MZ}" if action.ready_at else "unknown (session time missing from schedule)"
+                log_func(
+                    f"[auto_runner] {action.label} not finished yet or hasn't reached delay threshold "
+                    f"(ready at {ready_at_str}, now {now_utc:%Y-%m-%d %H:%MZ}). Exiting."
+                )
                 return CycleResult(window=window, schedule_available=schedule_available)
             else:
                 log_func(f"[auto_runner] {action.label} time passed. Attempting ingestion...")
