@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+  compareReducer,
+  createInitialCompareState,
+  type CompareAction,
+  type CompareState,
+  type CompareResult,
+} from './compareReducer';
 
 export interface CompareLocationAdapter {
   getSearchParams(): URLSearchParams;
@@ -23,9 +30,7 @@ interface CompareControllerConfig<T extends { id: number }, TDetail, TYearStats>
   fetchCareer: (id: number) => Promise<TYearStats[]>;
 }
 
-export type CompareResult<TDetail, TYearStats> =
-  | { mode: 'season'; a: TDetail; b: TDetail }
-  | { mode: 'career'; a: TYearStats[]; b: TYearStats[] };
+export type { CompareResult };
 
 export interface CompareControllerActions {
   setYear: (year: number) => void;
@@ -49,171 +54,100 @@ export interface CompareControllerResult<T, TDetail, TYearStats> {
 }
 
 export function useCompareController<T extends { id: number }, TDetail, TYearStats>(
-  {
-    defaultYear,
-    initialItems,
-    allItems,
-    entityLabel,
-    fetchItemsForYear,
-    fetchDetail,
-    fetchCareer,
-  }: CompareControllerConfig<T, TDetail, TYearStats>,
+  config: CompareControllerConfig<T, TDetail, TYearStats>,
   locationAdapter: CompareLocationAdapter = browserLocationAdapter
 ): CompareControllerResult<T, TDetail, TYearStats> {
-  const [year, setYear] = useState<number>(defaultYear);
-  const [items, setItems] = useState<T[]>(initialItems);
-  const [aId, setAId] = useState<number>(initialItems[0]?.id || 0);
-  const [bId, setBId] = useState<number>(initialItems[1]?.id || initialItems[0]?.id || 0);
-  const [isCareer, setIsCareer] = useState<boolean>(false);
+  const { defaultYear, initialItems, allItems } = config;
+  const reducerConfig = useMemo(() => ({ defaultYear, initialItems, allItems }), [defaultYear, initialItems, allItems]);
 
-  const [seasonA, setSeasonA] = useState<TDetail | null>(null);
-  const [seasonB, setSeasonB] = useState<TDetail | null>(null);
-  const [careerA, setCareerA] = useState<TYearStats[] | null>(null);
-  const [careerB, setCareerB] = useState<TYearStats[] | null>(null);
+  const [state, dispatch] = useReducer(
+    (s: CompareState<T, TDetail, TYearStats>, a: CompareAction<T, TDetail, TYearStats>) => compareReducer(s, a, reducerConfig),
+    createInitialCompareState<T, TDetail, TYearStats>(reducerConfig),
+  );
 
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Mount-hydration sets `year`, which triggers the year-tracking effect's fetch — stash
-  // desired a/b here so that one fetch applies them, instead of two racing fetches.
-  const pendingHydrationRef = useRef<{ aId?: number; bId?: number } | null>(null);
+  // Effects read config/adapter via these refs, not as deps — no re-fetch on a fresh
+  // per-render identity, and no eslint-disable needed.
+  const configRef = useRef(config);
+  configRef.current = config;
+  const adapterRef = useRef(locationAdapter);
+  adapterRef.current = locationAdapter;
 
   useEffect(() => {
-    const params = locationAdapter.getSearchParams();
+    const params = adapterRef.current.getSearchParams();
     const paramYear = params.get('year');
     const paramA = params.get('a');
     const paramB = params.get('b');
-    const paramCareer = params.get('career');
-
-    const isCareerMode = paramCareer === 'true';
-    if (paramYear) setYear(parseInt(paramYear));
-    if (isCareerMode) setIsCareer(true);
-
-    if (isCareerMode) {
-      setItems(allItems);
-      if (paramA) setAId(parseInt(paramA));
-      if (paramB) setBId(parseInt(paramB));
-    } else if (paramYear && parseInt(paramYear) !== defaultYear) {
-      // Let the year-tracking effect perform the fetch for this year; hand it
-      // the a/b ids to apply once that fetch resolves.
-      pendingHydrationRef.current = {
-        aId: paramA ? parseInt(paramA) : undefined,
-        bId: paramB ? parseInt(paramB) : undefined,
-      };
-    } else {
-      if (paramA) setAId(parseInt(paramA));
-      if (paramB) setBId(parseInt(paramB));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    dispatch({
+      type: 'HYDRATE',
+      year: paramYear ? parseInt(paramYear) : undefined,
+      aId: paramA ? parseInt(paramA) : undefined,
+      bId: paramB ? parseInt(paramB) : undefined,
+      isCareer: params.get('career') === 'true' ? true : undefined,
+    });
   }, []);
 
   useEffect(() => {
-    if (isCareer) {
-      setItems(allItems);
-      return;
-    }
+    const newUrl = `${adapterRef.current.getPathname()}?${new URLSearchParams({
+      year: state.year.toString(),
+      a: state.aId.toString(),
+      b: state.bId.toString(),
+      ...(state.isCareer ? { career: 'true' } : {}),
+    }).toString()}`;
+    adapterRef.current.replaceUrl(newUrl);
+  }, [state.year, state.aId, state.bId, state.isCareer]);
 
-    let active = true;
-    if (year === defaultYear) {
-      setItems(initialItems);
-      if (initialItems.length > 0) {
-        if (!initialItems.some((i) => i.id === aId)) setAId(initialItems[0].id);
-        if (!initialItems.some((i) => i.id === bId)) setBId(initialItems[1]?.id || initialItems[0].id);
-      }
-      return;
-    }
-    fetchItemsForYear(year)
-      .then((data) => {
-        if (!active) return;
-        setItems(data);
-        if (data.length === 0) return;
-
-        const pending = pendingHydrationRef.current;
-        pendingHydrationRef.current = null;
-
-        if (pending?.aId !== undefined) setAId(pending.aId);
-        else if (!data.some((i) => i.id === aId)) setAId(data[0].id);
-
-        if (pending?.bId !== undefined) setBId(pending.bId);
-        else if (!data.some((i) => i.id === bId)) setBId(data[1]?.id || data[0].id);
-      })
-      .catch((err) => {
-        console.error(`Failed to load ${entityLabel} for year`, year, err);
-      });
-
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCareer, year, initialItems, allItems, defaultYear]);
+  const { itemsFetch, detailFetch } = state;
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    params.set('year', year.toString());
-    params.set('a', aId.toString());
-    params.set('b', bId.toString());
-    if (isCareer) params.set('career', 'true');
-
-    const newUrl = `${locationAdapter.getPathname()}?${params.toString()}`;
-    locationAdapter.replaceUrl(newUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, aId, bId, isCareer]);
+    if (!itemsFetch) return;
+    const { year, requestId } = itemsFetch;
+    configRef.current
+      .fetchItemsForYear(year)
+      .then((items) => dispatch({ type: 'ITEMS_LOADED', requestId, items }))
+      .catch((err) => console.error(`Failed to load ${configRef.current.entityLabel} for year`, year, err));
+  }, [itemsFetch]);
 
   useEffect(() => {
-    if (!aId || !bId) return;
+    if (!detailFetch) return;
+    const { aId, bId, year, isCareer, requestId } = detailFetch;
+    const load = isCareer
+      ? Promise.all([configRef.current.fetchCareer(aId), configRef.current.fetchCareer(bId)]).then(
+          ([a, b]) => ({ mode: 'career' as const, a, b }),
+        )
+      : Promise.all([configRef.current.fetchDetail(aId, year), configRef.current.fetchDetail(bId, year)]).then(
+          ([a, b]) => ({ mode: 'season' as const, a, b }),
+        );
+    load
+      .then((result) => dispatch({ type: 'DETAIL_LOADED', requestId, result }))
+      .catch((err) =>
+        dispatch({ type: 'DETAIL_FAILED', requestId, message: err instanceof Error ? err.message : 'Failed to fetch details' }),
+      );
+  }, [detailFetch]);
 
-    let active = true;
-    setLoading(true);
-    setError(null);
+  const itemA = useMemo(() => state.items.find((i) => i.id === state.aId), [state.items, state.aId]);
+  const itemB = useMemo(() => state.items.find((i) => i.id === state.bId), [state.items, state.bId]);
 
-    const promises: Promise<TDetail | TYearStats[]>[] = isCareer
-      ? [fetchCareer(aId), fetchCareer(bId)]
-      : [fetchDetail(aId, year), fetchDetail(bId, year)];
-
-    Promise.all(promises)
-      .then(([resA, resB]) => {
-        if (!active) return;
-        if (isCareer) {
-          setCareerA(resA as TYearStats[]);
-          setCareerB(resB as TYearStats[]);
-          setSeasonA(null);
-          setSeasonB(null);
-        } else {
-          setSeasonA(resA as TDetail);
-          setSeasonB(resB as TDetail);
-          setCareerA(null);
-          setCareerB(null);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : 'Failed to fetch details');
-        setLoading(false);
-      });
-
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aId, bId, year, isCareer]);
-
-  const itemA = useMemo(() => items.find((i) => i.id === aId), [items, aId]);
-  const itemB = useMemo(() => items.find((i) => i.id === bId), [items, bId]);
-
-  const comparison = useMemo<CompareResult<TDetail, TYearStats> | null>(() => {
-    if (!isCareer && seasonA && seasonB) return { mode: 'season', a: seasonA, b: seasonB };
-    if (isCareer && careerA && careerB) return { mode: 'career', a: careerA, b: careerB };
-    return null;
-  }, [isCareer, seasonA, seasonB, careerA, careerB]);
+  const actions = useMemo<CompareControllerActions>(
+    () => ({
+      setYear: (year) => dispatch({ type: 'YEAR_CHANGED', year }),
+      setAId: (id) => dispatch({ type: 'A_SELECTED', id }),
+      setBId: (id) => dispatch({ type: 'B_SELECTED', id }),
+      setIsCareer: (isCareer) => dispatch({ type: 'MODE_CHANGED', isCareer }),
+    }),
+    [],
+  );
 
   return {
-    year,
-    items,
-    aId,
-    bId,
+    year: state.year,
+    items: state.items,
+    aId: state.aId,
+    bId: state.bId,
     itemA,
     itemB,
-    isCareer,
-    comparison,
-    loading,
-    error,
-    actions: { setYear, setAId, setBId, setIsCareer },
+    isCareer: state.isCareer,
+    comparison: state.comparison,
+    loading: state.loading,
+    error: state.error,
+    actions,
   };
 }

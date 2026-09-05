@@ -301,7 +301,10 @@ apps/web/
 │   │   │   │   └── CompareStatus.tsx      # Loading/error/empty-stats status display
 │   │   │   ├── compareStats.ts        # aggregateCareerStats() + DEFAULT_COMPARE_YEAR — career stat aggregation
 │   │   │   ├── driverCompareConfig.ts # seasonStatConfig + careerStatConfig — the driver stat rows
-│   │   │   └── useCompareController.ts # Generic compare-tool state hook — URL sync via injectable locationAdapter, discriminated season/career `comparison` result
+│   │   │   ├── compareReducer.ts      # Pure compareReducer(state, action, config) — hydrate/year/selection/mode
+│   │   │   │                          #   transitions + stale-request guarding; no React import, tested directly
+│   │   │   └── useCompareController.ts # Thin useReducer wiring over compareReducer.ts — URL sync via injectable
+│   │   │                              #   locationAdapter, discriminated season/career `comparison` result
 │   │   └── search/
 │   │       ├── components/
 │   │       │   └── GlobalSearch.tsx   # React global search palette (cmdk) — render only
@@ -335,7 +338,10 @@ apps/web/
 ├── tests/
 │   ├── unit/
 │   │   ├── compare/
-│   │   │   ├── compareStats.test.ts          # aggregateCareerStats() — pure, `node` env
+│   │   │   └── compareStats.test.ts          # aggregateCareerStats() — pure, `node` env
+│   │   ├── features/compare/
+│   │   │   ├── compareReducer.test.ts        # pure, `node` env — hydrate/year/mode transitions, stale-request
+│   │   │   │                                 #   guarding, explicit 6bf3415 hydration-race regression case
 │   │   │   └── useCompareController.test.ts  # jsdom — URL hydration, career mode, location-adapter seam
 │   │   ├── lib/
 │   │   │   ├── teamColors.test.ts            # pure, `node` env
@@ -388,7 +394,8 @@ apps/web/
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
 | `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
-| `features/compare/useCompareController.ts` | Generic hook powering both compare tools — item list, A/B selection, discriminated `comparison` (season/career) result, URL sync through an injectable `locationAdapter` seam. |
+| `features/compare/compareReducer.ts` | Pure `compareReducer(state, action, config)` — every hydrate/year-change/selection/mode transition and stale-fetch-response guard, as one reducer with no React dependency; unit-tested directly. |
+| `features/compare/useCompareController.ts` | Generic hook powering both compare tools — wraps `compareReducer` in `useReducer` plus the URL-hydrate, URL-sync, and fetch effects. Item list, A/B selection, discriminated `comparison` (season/career) result, URL sync through an injectable `locationAdapter` seam. |
 | `features/search/useGlobalSearch.ts` | Hook powering `GlobalSearch` — open/close state, Cmd/Ctrl+K + Escape keyboard shortcut, `open-global-search` event bridge from `Navbar.astro`, fetch-on-first-open, close-animation timing. |
 
 ---
