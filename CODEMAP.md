@@ -480,7 +480,8 @@ data-engine/
 │       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
 │       ├── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
 │       │                          # grid map, start_pos, driver/team season stats) behind both feature jobs
-│       ├── quality_utils.py       # health_from_issues() + resolve_issue_actions() — pure audit/repair scoring logic
+│       ├── quality_utils.py       # health_from_issues() + ISSUE_REPAIR_STEPS manifest (is_fixable()/resolve_issue_actions()
+│       │                          #   both derive from it — single source of truth for what's fixable and how)
 │       └── schedule_window.py     # race_weekend_window() — pure race-weekend window from the FastF1 calendar, no DB
 ├── scripts/                       # One-off/operational scripts — not imported by src/
 │   ├── run_backfill.py            # Full historical backfill runner — sync + ingest + compute, per year range
@@ -495,7 +496,7 @@ data-engine/
 │   ├── support/
 │   │   └── fake_db.py              # FakeCursor/FakeConnection — scripted RealDictCursor-shaped rows, no real DB
 │   ├── test_math_utils.py          # normalize_minmax, softmax, bayesian_win_rate, clamp, weighted_sum
-│   ├── test_quality_utils.py       # health_from_issues + resolve_issue_actions
+│   ├── test_quality_utils.py       # health_from_issues + is_fixable/resolve_issue_actions (both derive from ISSUE_REPAIR_STEPS)
 │   ├── test_feature_helpers_pure.py # car_rank, circuit_adj_start_pos
 │   ├── test_feature_helpers_db.py  # compute_weather_score, compute_luck_score — via fake_db
 │   ├── test_feature_context.py     # build_feature_context, build_driver_code_map — via fake_db
