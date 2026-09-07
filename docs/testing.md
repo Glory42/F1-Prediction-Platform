@@ -53,7 +53,11 @@ pytest, config in `pyproject.toml` (`pythonpath = ["."]`, `testpaths = ["tests"]
   list of result sets and hands one out per `with conn.cursor()` block, in call order. This covers
   `compute_weather_score`, `compute_luck_score`, `build_feature_context`, `build_driver_code_map`, and
   `ingest_runner.py`'s two shared runners (`run_ingest_job`, `run_qualifying_ingest_job`) — the latter via
-  monkeypatched per-job callables and FastF1 helpers, no real session data needed.
+  monkeypatched per-job callables and FastF1 helpers, no real session data needed. The same double
+  covers `data_quality_audit._audit_race` (per-status gate/threshold branching),
+  `data_quality_repair.run` (issue grouping + resolve/rollback, with the owning jobs mocked),
+  `main.py`'s `auto_detect_*` helpers, and — with FastF1's schedule/session mocked — `sync_schedule`
+  and `sync_season`.
 - `conftest.py` sets a placeholder `DATABASE_URL` so importing a job module (which reads it at import
   time) works with or without a local `.env`. Tests never open a real connection.
 - `upsert.py` and `prediction_runner.py` write via `psycopg2.extras.execute_batch`, which renders SQL
@@ -66,8 +70,10 @@ pytest, config in `pyproject.toml` (`pythonpath = ["."]`, `testpaths = ["tests"]
 
 `bun test`, no DB, no network. Mirrors `src/` by domain — mostly the shared `src/common/` transform
 layer (`mappers`, `collections`, `standings`, `prediction-response`, `prediction-history`,
-`accuracy`, `cache`) plus module-local pure helpers (`modules/predictions/intel-standings.helpers`,
-`modules/quality`). Fixtures are plain objects typed as `typeof <table>.$inferSelect`; see
+`accuracy`, `cache`, `featureManifest`) plus module-local pure helpers
+(`modules/predictions/intel-standings.helpers`, `modules/races/circuit-era.helpers`,
+`modules/races/circuit-stats.helpers`, `modules/quality`). Fixtures are plain objects typed as
+`typeof <table>.$inferSelect`; see
 `prediction-response.test.ts` for the pattern.
 
 Anything pure that a service delegates to — row→DTO mapping, aggregation, normalisation — belongs
@@ -90,7 +96,7 @@ branch**.
 - **Lifecycle** — each test file calls `truncateAll(db)` in `beforeAll` and `afterAll`, seeds its
   own fixtures (typically under a sentinel year like `2097`/`2099`), and asserts on the JSON
   response. `truncateAll` is a single `TRUNCATE … RESTART IDENTITY CASCADE` over every table.
-- **Covered**: `races`, `drivers`, `teams`, `seasons`, `search`. Not yet: `predictions`, `sprint`,
+- **Covered**: `races`, `drivers`, `teams`, `seasons`, `search`, `predictions`, `sprint`. Not yet:
   `quality`.
 
 ## Web unit (`apps/web/tests/unit/`)
@@ -123,9 +129,9 @@ Playwright, its own `package.json` and `playwright.config.ts` (see
 - The fixture server sends CORS headers because `GlobalSearch` / `DriverCompareTool` /
   `TeamCompareTool` fetch client-side — a genuine cross-origin browser request. Every other route is
   only ever hit server-side.
-- Smoke specs cover `/prediction`, `/races/[id]`, `/drivers/[id]`, `/teams/[id]`,
-  `/drivers/compare`, and the global search palette — each asserts key content renders and no
-  "failed to load" appears.
+- Smoke specs cover `/prediction`, `/races/[id]`, `/races/[id]/sprint`, `/drivers/[id]`,
+  `/teams/[id]`, `/drivers/compare`, `/teams/compare`, `/prediction/sprint/[id]`, and the global
+  search palette — each asserts key content renders and no "failed to load" appears.
 
 ## CI (`.github/workflows/test.yml`)
 

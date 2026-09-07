@@ -120,12 +120,14 @@ apps/api/
 │   ├── unit/
 │   │   ├── modules/
 │   │   │   ├── quality/           # castSeverity() test (severity casting)
+│   │   │   ├── races/             # circuit-era.helpers + circuit-stats.helpers tests (era win aggregation, per-response stat computations)
 │   │   │   └── predictions/       # intel-standings.helpers test (feature averaging + standings normalise)
 │   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │   │       ├── mappers.test.ts
 │   │       ├── standings.test.ts
 │   │       ├── prediction-response.test.ts
 │   │       ├── prediction-history.test.ts
+│   │       ├── featureManifest.test.ts
 │   │       ├── cache.test.ts
 │   │       └── accuracy.test.ts
 │   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
@@ -133,11 +135,13 @@ apps/api/
 │   │   ├── drivers/drivers.test.ts # list/filter/standings/detail
 │   │   ├── teams/teams.test.ts     # list/standings/detail
 │   │   ├── seasons/seasons.test.ts # race-count aggregation
-│   │   └── search/search.test.ts   # cross-season dedup
+│   │   ├── search/search.test.ts   # cross-season dedup
+│   │   ├── predictions/predictions.test.ts # upcoming/by-id/history/standings/accuracy/model-info
+│   │   └── sprint/sprint.test.ts   # upcoming/by-id/detail, conventional-race guard
 │   └── support/
 │       ├── app/request.ts          # apiRequest() — in-process app.request() with TEST_DATABASE_URL env
 │       ├── db/test-db.ts           # getTestDb()/truncateAll() — refuses to truncate if TEST_DATABASE_URL === DATABASE_URL
-│       └── factories/              # one insert helper per table, FK chain: season → team/circuit → driver → race → results
+│       └── factories/              # one insert helper per table, FK chain: season → team/circuit → driver → race → results (+ prediction/sprint feature factories)
 ├── eslint.config.js               # Flat config — tiered `max-lines` (controller 80 / module 50 / service+helpers 200 / common 150 / default 150; schema+seed+types.ts+tests off), run via `bun run lint`
 ├── wrangler.toml                  # CF Workers config — keep_vars = true
 ├── drizzle.config.ts              # schema: src/db/schema, out: drizzle/migrations
@@ -420,7 +424,10 @@ apps/e2e/
 │       ├── driver-detail.spec.ts   # /drivers/10 — stats grid + recent results
 │       ├── team-detail.spec.ts     # /teams/1 — stats + driver roster
 │       ├── global-search.spec.ts   # Cmd/Ctrl+K opens, shows results, Escape closes (client-side fetch)
-│       └── driver-compare.spec.ts  # /drivers/compare — URL-param-driven season comparison (client-side fetch)
+│       ├── driver-compare.spec.ts  # /drivers/compare — URL-param-driven season comparison (client-side fetch)
+│       ├── teams-compare.spec.ts   # /teams/compare — URL-param-driven constructor comparison (client-side fetch)
+│       ├── sprint-prediction.spec.ts # /prediction/sprint/2 — sprint prediction detail page
+│       └── race-sprint.spec.ts     # /races/2/sprint — sprint results + prediction panel + tabs
 ├── playwright.config.ts           # webServer: [fixture server, `astro dev` in ../web]
 ├── tsconfig.json
 └── package.json
@@ -508,7 +515,13 @@ data-engine/
 │   ├── test_upsert.py              # upsert() param shape + no-op-on-empty — via fake_db + monkeypatched execute_batch
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
 │   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
-│   └── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
+│   ├── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
+│   ├── test_data_quality_audit.py  # _audit_race gate/threshold branching per race status — via fake_db
+│   ├── test_data_quality_repair.py # run() audit-run selection, per-race issue grouping + step dedup, resolve/rollback — mocked jobs
+│   ├── test_main_auto_detect.py    # auto_detect_race/sprint_qualifying/sprint — row→(year,round), exit(1), query filters
+│   ├── test_sync_schedule.py       # _to_utc_iso + run() circuit-key resolution (Madrid/Spielberg year overrides), status-preserving upsert
+│   ├── test_sync_season.py         # run() team-key normalise, driver-code fallbacks, team_id remap — mocked FastF1 session
+│   └── test_compute_sprint_features.py # _compute_short_run_pace SQ-time source, main-quali fallback, min-max inversion
 ├── render.yaml                    # Render cron job definitions
 ├── requirements.txt               # Python dependencies
 ├── requirements-dev.txt           # requirements.txt + pytest

@@ -4,6 +4,8 @@ import type {
   PredictionHistoryItem, IntelStandingRow, SeasonSummary, ModelInfo, CircuitDetailResponse,
   DriverSeasonStats, DriverYearStats, DriverDetailResponse, TeamSeasonStats, TeamYearStats,
   TeamDetailResponse, DriverStanding,
+  SprintFeatureScores, DriverSprintPrediction, SprintPredictionResponse,
+  SprintResult, SprintDetailResponse,
 } from '../../web/src/types';
 
 export const circuit: Circuit = {
@@ -159,6 +161,21 @@ export const teamDetailResponse: TeamDetailResponse = {
   team, seasonStats: teamSeasonStats, drivers: [driver],
 };
 
+const teamBSeasonStats: TeamSeasonStats = {
+  ...teamSeasonStats, wins: 4, podiums: 10, totalPoints: '410', championshipPosition: 2,
+  avgFinishPosition: '4.8', carPerformanceScore: '0.78', reliabilityScore: '0.86',
+};
+
+export const teamBCareer: TeamYearStats[] = [
+  { year: 2026, teamId: 2, stats: teamBSeasonStats },
+];
+
+export const teamBDetailResponse: TeamDetailResponse = {
+  team: teamB, seasonStats: teamBSeasonStats, drivers: [driverB],
+};
+
+export const teamsListResponse: Team[] = [team, teamB];
+
 export const driverStandingsResponse: DriverStanding[] = [
   { driver, stats: driverSeasonStats },
   { driver: driverB, stats: driverBSeasonStats },
@@ -183,4 +200,52 @@ export const circuitDetailResponse: CircuitDetailResponse = {
   weatherStats: { dry: 8, wet: 1, mixed: 0, unknown: 0 },
   qualifyingImpact: { poleToWinRate: 0.5, avgWinnerGridPos: 1.8 },
   safetyCarStats: { avgScLaps: 2.1, scRaceRate: 0.4 },
+};
+
+export const sprintRace: Race = {
+  ...race, id: 2, roundNumber: 17, name: 'São Paulo Grand Prix',
+  raceDate: '2025-11-09', raceDateUtc: '2025-11-09T17:00:00.000Z',
+  status: 'sprint_done', eventFormat: 'sprint', hasSprint: true,
+  sprintDate: '2025-11-08T14:00:00.000Z', sprintQualifyingDate: '2025-11-07T18:00:00.000Z',
+  sprintWeather: 'dry', sprintSafetyCarLaps: 1, sprintVscLaps: 0,
+  sprintAirTempAvg: '22.0', sprintTrackTempAvg: '35.0', sprintHumidityAvg: '55.0',
+};
+
+const sprintFeatureScores: SprintFeatureScores = {
+  carPerformance: '0.82000', startingPosition: '0.88000', driverRating: '0.76000',
+  trackOvertake: '0.45000', shortRunPace: '0.70000', weatherImpact: '0.50000',
+  winRate: '0.66000', luckFactor: '0.52000',
+  circuitAdjStartPos: '0.74000', sqQualifyingDelta: '0.61000',
+};
+
+const sprintDriverPredictions: DriverSprintPrediction[] = [
+  { driver, winProbability: '0.58000', predictedPosition: 1, features: sprintFeatureScores },
+  { driver: driverB, winProbability: '0.42000', predictedPosition: 2, features: sprintFeatureScores },
+];
+
+export const sprintPredictionResponse: SprintPredictionResponse = {
+  race: sprintRace, predictedWinner: driver, computedAt: '2025-11-07T20:00:00.000Z',
+  modelVersion: 'sprint-v2', drivers: sprintDriverPredictions,
+};
+
+const sprintResults: SprintResult[] = [
+  {
+    id: 1, raceId: 2, driverId: 10, finishPosition: 1, gridPosition: 1, points: '8',
+    status: 'Finished', fastestLap: true,
+    sq1TimeMs: 70200, sq2TimeMs: 69800, sq3TimeMs: 69500,
+    sqSector1Ms: 23000, sqSector2Ms: 23200, sqSector3Ms: 23300, sqSpeedSt: '320.5', driver,
+  },
+  {
+    id: 2, raceId: 2, driverId: 11, finishPosition: 2, gridPosition: 2, points: '7',
+    status: 'Finished', fastestLap: false,
+    sq1TimeMs: 70400, sq2TimeMs: 70000, sq3TimeMs: 69700,
+    sqSector1Ms: 23100, sqSector2Ms: 23300, sqSector3Ms: 23300, sqSpeedSt: '319.0', driver: driverB,
+  },
+];
+
+export const sprintDetailResponse: SprintDetailResponse = {
+  race: sprintRace,
+  prediction: sprintPredictionResponse,
+  results: sprintResults,
+  laps: [],
 };

@@ -43,12 +43,16 @@ class FakeConnection:
         self.cursors: list[FakeCursor] = []
         self.closed = False
         self.commits = 0
+        self.rollbacks = 0
 
     def close(self):
         self.closed = True
 
     def commit(self):
         self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
 
     def cursor(self):
         next_rows = self._queue.pop(0) if self._queue else []

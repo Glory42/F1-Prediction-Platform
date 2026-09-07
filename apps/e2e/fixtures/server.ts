@@ -4,6 +4,8 @@ import {
   driverCareer, driverBCareer, driverDetailResponse, driverBDetailResponse,
   teamCareer, teamDetailResponse, driverStandingsResponse, driversListResponse,
   globalSearchResponse,
+  teamsListResponse, teamBDetailResponse, teamBCareer,
+  sprintPredictionResponse, sprintDetailResponse,
 } from './data';
 
 const PORT = Number(process.env.FIXTURE_API_PORT ?? 4310);
@@ -36,6 +38,8 @@ Bun.serve({
     if (url.pathname === '/api/predictions/standings') return ok(intelStandings);
     if (url.pathname === '/api/seasons') return ok(seasons);
     if (url.pathname === '/api/sprint/upcoming') return notFound();
+    if (url.pathname === '/api/sprint/race/2') return ok(sprintPredictionResponse);
+    if (url.pathname === '/api/sprint/race/2/detail') return ok(sprintDetailResponse);
 
     if (url.pathname === '/api/races/1') return ok(raceDetailResponse);
     if (url.pathname === '/api/predictions/race/1') return ok(predictionResponse);
@@ -50,8 +54,11 @@ Bun.serve({
     if (url.pathname === '/api/drivers/11/career') return ok(driverBCareer);
     if (url.pathname === '/api/drivers/standings') return ok(driverStandingsResponse);
 
+    if (url.pathname === '/api/teams') return ok(teamsListResponse);
     if (url.pathname === '/api/teams/1') return ok(teamDetailResponse);
     if (url.pathname === '/api/teams/1/career') return ok(teamCareer);
+    if (url.pathname === '/api/teams/2') return ok(teamBDetailResponse);
+    if (url.pathname === '/api/teams/2/career') return ok(teamBCareer);
 
     return notFound();
   },
