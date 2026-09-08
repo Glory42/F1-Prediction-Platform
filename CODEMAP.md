@@ -444,8 +444,9 @@ data-engine/
 ├── src/
 │   ├── auto_runner.py             # Orchestrates ETL jobs via state machine; reverts status on failure.
 │   │                              # Schedule-gated: skips the DB entirely outside a race-weekend window
-│   ├── server.py                  # HTTP server exposing a live dashboard and /health for UptimeRobot;
+│   ├── server.py                  # HTTP server: login-gated live dashboard + HEAD health check for UptimeRobot;
 │   │                              # worker loop polls ~20 min in-window, ~6 h otherwise
+│   ├── dashboard.py               # Renders the /login and status-dashboard HTML (styled to match apps/web)
 │   ├── main.py                    # CLI entry point — --job, --year, --round, --race_id
 │   │                              # Also auto-detects current race if year/round omitted
 │   ├── config.py                  # FastF1 cache setup, environment loading

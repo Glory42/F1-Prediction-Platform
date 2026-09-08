@@ -62,7 +62,7 @@ secret, so it lives directly in this file instead of the dashboard either way.
 | `DASHBOARD_PASSWORD` | Render → Service → Environment → Environment Variables |
 | `DASHBOARD_USER` | Render → Service → Environment → Environment Variables (optional, defaults to `admin`) |
 
-`DASHBOARD_PASSWORD` gates the live activity dashboard with HTTP Basic Auth. Without it set, the dashboard route returns 401 for everyone — the `HEAD` health-check endpoint used by UptimeRobot stays open regardless.
+`DASHBOARD_PASSWORD` gates the live activity dashboard behind a login form at `/login` that sets a signed session cookie (7-day expiry, keyed on `DASHBOARD_PASSWORD` — rotating the password signs everyone out). Without it set, the dashboard returns 503 for everyone — the `HEAD` health-check endpoint used by UptimeRobot stays open regardless.
 
 ---
 
@@ -118,7 +118,7 @@ python src/main.py --job sync_season   --year 2025 --round 1
 3. Configure as a **Web Service** (not a cron job) to utilize the free tier.
 4. Set the Build Command: `pip install -r requirements.txt`
 5. Set the Start Command: `python -m src.server`
-6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data automatically. The root URL only responds to `HEAD` for the uptime ping — navigating to it in a browser prompts for the `DASHBOARD_USER`/`DASHBOARD_PASSWORD` credentials before showing the live HTML dashboard of the engine's activities and logs.
+6. **Important**: Since Render free tier web services spin down after 15 minutes of inactivity, set up an UptimeRobot HTTP monitor pointing to your Render URL (e.g. `https://f1-data-engine.onrender.com/`) to ping it every 5 minutes. This keeps the worker alive so it can check for new FastF1 data automatically. The root URL only responds to `HEAD` for the uptime ping — navigating to it in a browser redirects to `/login`, where the `DASHBOARD_USER`/`DASHBOARD_PASSWORD` credentials unlock the live HTML dashboard of the engine's activities and logs.
 
    The worker is **schedule-gated** to keep Neon compute inside the free tier: it derives the current/next Grand Prix's race-weekend window purely from the FastF1 calendar (no DB), polls `auto_runner` every ~20 min while inside that window, and every ~6 h otherwise. Outside a race weekend it never opens a Neon connection, so the database stays scaled to zero. See `src/utils/schedule_window.py` and `auto_runner.poll_interval_for_window()`.
 

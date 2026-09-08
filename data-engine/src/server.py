@@ -1,18 +1,48 @@
-import base64
+import hashlib
+import hmac
 import os
 import secrets
 import time
 import threading
-import json
 from datetime import datetime, timezone
+from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 
 from src import auto_runner
 from src.auto_runner import run_cycle as auto_runner_run_cycle
+from src.dashboard import render_dashboard, render_login
 from src.utils.logging_utils import log_job_failure
 
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "admin")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
+SESSION_COOKIE = "de_session"
+SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
+
+
+def _session_key() -> bytes:
+    # Sessions are signed with the dashboard password; rotating it logs everyone out.
+    return hashlib.sha256((DASHBOARD_PASSWORD or "").encode()).digest()
+
+
+def _issue_session() -> str:
+    expiry = str(int(time.time()) + SESSION_TTL_SECONDS)
+    sig = hmac.new(_session_key(), expiry.encode(), hashlib.sha256).hexdigest()
+    return f"{expiry}.{sig}"
+
+
+def _session_valid(token: str) -> bool:
+    try:
+        expiry, sig = token.split(".", 1)
+    except ValueError:
+        return False
+    expected = hmac.new(_session_key(), expiry.encode(), hashlib.sha256).hexdigest()
+    if not secrets.compare_digest(sig, expected):
+        return False
+    try:
+        return int(expiry) > time.time()
+    except ValueError:
+        return False
 
 STATE = {
     "status": "Starting up...",
@@ -29,88 +59,89 @@ def log_update(msg):
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_HEAD(self):
+        # Unauthenticated on purpose — UptimeRobot only needs a 200 liveness signal.
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
-    def _is_authorized(self):
+    def _authed(self) -> bool:
         if not DASHBOARD_PASSWORD:
             return False
-        auth_header = self.headers.get("Authorization", "")
-        if not auth_header.startswith("Basic "):
-            return False
         try:
-            decoded = base64.b64decode(auth_header[len("Basic "):]).decode("utf-8")
-            user, _, password = decoded.partition(":")
-        except Exception:
+            jar = SimpleCookie(self.headers.get("Cookie", ""))
+        except CookieError:
             return False
-        return secrets.compare_digest(user, DASHBOARD_USER) and secrets.compare_digest(password, DASHBOARD_PASSWORD)
+        morsel = jar.get(SESSION_COOKIE)
+        return bool(morsel and _session_valid(morsel.value))
 
-    def do_GET(self):
-        if not self._is_authorized():
-            self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="F1 Data Engine"')
-            self.send_header("Content-type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"Unauthorized")
-            return
+    def _send_html(self, body: str, status: int = 200):
+        encoded = body.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
 
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
+    def _redirect(self, location: str, set_cookie: str | None = None):
+        self.send_response(303)
+        self.send_header("Location", location)
+        if set_cookie:
+            self.send_header("Set-Cookie", set_cookie)
         self.end_headers()
 
-        logs_html = "".join([f"<li><span class='time local-time' data-iso='{l['time']}'>[{l['time']}]</span> {l['msg']}</li>" for l in reversed(STATE['logs'])])
-        
-        html = f"""
-        <html>
-        <head>
-            <title>F1 Data Engine Status</title>
-            <meta http-equiv="refresh" content="30">
-            <style>
-                body {{ font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 20px; }}
-                h2 {{ color: #569cd6; }}
-                .status-val {{ font-weight: bold; color: #4ec9b0; }}
-                .error-val {{ color: #f44747; }}
-                .time {{ color: #858585; }}
-                ul {{ list-style-type: none; padding: 0; }}
-                li {{ margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }}
-            </style>
-        </head>
-        <body>
-            <h2>F1 Data Engine</h2>
-            <p><strong>Status:</strong> <span class="status-val">{STATE['status']}</span></p>
-            <p><strong>Last Check:</strong> <span class="local-time" data-iso="{STATE['last_check'] or ''}">{STATE['last_check'] or 'Never'}</span></p>
-            <p><strong>Last Error:</strong> <span class="error-val">{STATE['last_error'] or 'None'}</span></p>
-            <h3>Live Activity Logs (Auto-refresh every 30s):</h3>
-            <ul>
-                {logs_html}
-            </ul>
-            <script>
-                document.querySelectorAll('.local-time').forEach(el => {{
-                    const iso = el.getAttribute('data-iso');
-                    if (iso) {{
-                        const d = new Date(iso);
-                        if (!isNaN(d.getTime())) {{
-                            const formatted = d.getFullYear() + '-' + 
-                                String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-                                String(d.getDate()).padStart(2, '0') + ' ' + 
-                                String(d.getHours()).padStart(2, '0') + ':' + 
-                                String(d.getMinutes()).padStart(2, '0') + ':' + 
-                                String(d.getSeconds()).padStart(2, '0');
-                            if (el.classList.contains('time')) {{
-                                el.textContent = '[' + formatted + ']';
-                            }} else {{
-                                el.textContent = formatted;
-                            }}
-                        }}
-                    }}
-                }});
-            </script>
-        </body>
-        </html>
-        """
-        self.wfile.write(html.encode('utf-8'))
-        
+    def do_GET(self):
+        route = urlparse(self.path)
+        path = route.path
+
+        if not DASHBOARD_PASSWORD:
+            self._send_html(render_login(error="Dashboard password is not configured."), status=503)
+            return
+
+        if path == "/logout":
+            cleared = f"{SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+            self._redirect("/login", set_cookie=cleared)
+            return
+
+        if path == "/login":
+            if self._authed():
+                self._redirect("/")
+                return
+            failed = "error" in parse_qs(route.query)
+            self._send_html(render_login(error="Invalid credentials." if failed else None))
+            return
+
+        if not self._authed():
+            self._redirect("/login")
+            return
+
+        self._send_html(render_dashboard(STATE))
+
+    def do_POST(self):
+        if self.path != "/login" or not DASHBOARD_PASSWORD:
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        length = int(self.headers.get("Content-Length") or 0)
+        form = parse_qs(self.rfile.read(length).decode("utf-8"))
+        user = form.get("username", [""])[0]
+        password = form.get("password", [""])[0]
+        try:
+            ok = secrets.compare_digest(user, DASHBOARD_USER) and secrets.compare_digest(
+                password, DASHBOARD_PASSWORD
+            )
+        except TypeError:
+            ok = False
+
+        if not ok:
+            self._redirect("/login?error=1")
+            return
+
+        flags = f"Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_TTL_SECONDS}"
+        if self.headers.get("X-Forwarded-Proto", "http") == "https":
+            flags += "; Secure"
+        self._redirect("/", set_cookie=f"{SESSION_COOKIE}={_issue_session()}; {flags}")
+
     def log_message(self, format, *args):
         pass
 
