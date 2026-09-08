@@ -63,7 +63,7 @@ mirroring the source path being tested.
 | DB driver (Workers) | `@neondatabase/serverless` | HTTP driver — mandatory for CF Workers |
 | DB driver (Python) | `psycopg2` | TCP — fine on Render |
 | Data source | FastF1 | Python library for F1 session data |
-| Python runtime | Python 3.11+ | `data-engine/` |
+| Python runtime | Python 3.12 (pinned via `data-engine/.python-version` + `PYTHON_VERSION` in `render.yaml`) | newer Pythons have no numpy/pandas wheels — source builds OOM Render's free tier |
 
 ---
 
