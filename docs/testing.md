@@ -104,7 +104,8 @@ branch**.
 Vitest, config in `vitest.config.ts` (include `tests/unit/**/*.test.{ts,tsx}`, `@` alias, setup file).
 
 - **Default environment is `node`** — pure logic runs there: `lib/predictionMath.ts` (all exports),
-  `lib/teamColors` / `lib/teamLogos`, `features/compare/compareStats.ts`.
+  `lib/teamColors` / `lib/teamLogos`, `features/compare/compareStats.ts`,
+  `features/predictions/{buildPredictionPageData,predictionCopy}` (API mocked with `vi.mock`, not MSW).
 - **jsdom is opt-in per file** via a `// @vitest-environment jsdom` docblock on line 1 — used for
   hook/component tests (`useCompareController`, `useGlobalSearch`, `GlobalSearch`) with Testing
   Library.

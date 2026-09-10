@@ -1,12 +1,15 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { buildPredictionPageData } from '@/features/predictions/buildPredictionPageData';
+import { PREDICTION_COPY } from '@/features/predictions/predictionCopy';
 import PredictionPageBody from '@/features/predictions/components/PredictionPageBody.astro';
 
 const { id } = Astro.params;
 const data = await buildPredictionPageData('sprint', Number(id));
+const copy = PREDICTION_COPY.sprint;
+const title = data.race ? copy.pageTitle(data.race.name) : copy.fallbackTitle;
 ---
 
-<BaseLayout title={data.title}>
-  <PredictionPageBody data={data} />
+<BaseLayout title={title}>
+  <PredictionPageBody data={data} copy={copy} />
 </BaseLayout>

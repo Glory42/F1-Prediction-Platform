@@ -10,6 +10,13 @@ const toStats = (row: StatsRow): Stats => ({ championshipPosition: row.position,
 const emptyStats: Stats = { championshipPosition: null, totalPoints: '0' };
 const toOutput = (entity: Entity, stats: Stats): Out => ({ name: entity.name, stats });
 
+const adapter = {
+  entityId: (e: Entity) => e.id,
+  statsEntityId: (s: StatsRow) => s.entityId,
+  toStats,
+  emptyStats,
+};
+
 type Standing = { stats: { championshipPosition: number | null; totalPoints: string } };
 
 describe('sortByChampionshipStanding', () => {
@@ -43,12 +50,12 @@ describe('buildStandings', () => {
       { entityId: 1, points: '150', position: 2 },
       { entityId: 2, points: '200', position: 1 },
     ];
-    const result = buildStandings(entities, statsRows, (e) => e.id, (s) => s.entityId, toStats, emptyStats, toOutput);
+    const result = buildStandings(entities, statsRows, adapter, toOutput);
     expect(result.map((r) => r.name)).toEqual(['Beta', 'Alpha']);
   });
 
   test('entities with no matching stats row get emptyStats', () => {
-    const result = buildStandings(entities, [], (e) => e.id, (s) => s.entityId, toStats, emptyStats, toOutput);
+    const result = buildStandings(entities, [], adapter, toOutput);
     expect(result.every((r) => r.stats === emptyStats)).toBe(true);
   });
 });
@@ -60,13 +67,13 @@ describe('buildCareerStats', () => {
       { id: 2, name: 'Year 2024' },
     ];
     const statsRows: StatsRow[] = [{ entityId: 2, points: '50', position: 5 }];
-    const result = buildCareerStats(entries, statsRows, (e) => e.id, (s) => s.entityId, toStats, (e, stats) => ({ name: e.name, stats }));
+    const result = buildCareerStats(entries, statsRows, adapter, (e, stats) => ({ name: e.name, stats }));
     expect(result.map((r) => r.name)).toEqual(['Year 2023', 'Year 2024']);
   });
 
   test('missing stats row maps to null', () => {
     const entries: Entity[] = [{ id: 1, name: 'Year 2023' }];
-    const result = buildCareerStats(entries, [], (e) => e.id, (s) => s.entityId, toStats, (e, stats) => ({ name: e.name, stats }));
+    const result = buildCareerStats(entries, [], adapter, (e, stats) => ({ name: e.name, stats }));
     expect(result[0].stats).toBeNull();
   });
 });

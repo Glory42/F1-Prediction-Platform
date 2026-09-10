@@ -9,10 +9,8 @@ import {
   type FeatureContribution,
   type Weights,
 } from '@/lib/predictionMath';
-import { GP_ACCENT, SPRINT_ACCENT, type PredictionAccent, type PredictionDriverVM, type FeatureMeta } from './types';
+import { GP_ACCENT, SPRINT_ACCENT, type PredictionAccent, type PredictionDriverVM, type FeatureMeta, type PredictionPageKind } from './types';
 import type { Race, Driver } from '@/types';
-
-export type PredictionPageKind = 'gp' | 'sprint';
 
 interface RawResultRow {
   driver: { id: number; fullName: string };
@@ -33,31 +31,20 @@ interface RawDetail {
   results?: RawResultRow[];
 }
 
-interface KindConfig {
+// The behavioural axis between the GP and sprint prediction pages: which endpoints to
+// hit, which weights/meta to score with, which race field holds the date. Wording lives
+// in predictionCopy.ts; the fetch, winner-pick and assembly below are identical for both.
+interface PredictionBehaviour {
   fetchPrediction: (raceId: number) => Promise<RawPrediction>;
   fetchDetail: (raceId: number) => Promise<RawDetail>;
   weights: Weights;
   featureMeta: FeatureMeta;
   accent: PredictionAccent;
   radarShortLabels: Partial<Record<string, string>>;
-  pageTitle: (raceName: string) => string;
-  fallbackTitle: string;
-  kicker: (roundNumber: number) => string;
   dateField: (race: Race) => string;
-  notFoundMessage: string;
-  fetchErrorMessage: string;
-  actualLabel: string;
-  actualWinnerLabel: string;
-  gridColLabel: string;
-  weightsHeading: string;
-  weightsNote?: string;
-  sliderMax: number;
-  whatIfBlurb: string;
 }
 
-// Only real differences between the GP and sprint prediction pages live here — the fetch,
-// winner-pick, and view-model assembly below is identical for both.
-const KIND_CONFIG: Record<PredictionPageKind, KindConfig> = {
+const PREDICTION_BEHAVIOUR: Record<PredictionPageKind, PredictionBehaviour> = {
   gp: {
     fetchPrediction: api.getPredictionByRace,
     fetchDetail: api.getRaceById,
@@ -70,19 +57,7 @@ const KIND_CONFIG: Record<PredictionPageKind, KindConfig> = {
       circuitAdjPositionGain: 'Adj. Pos Gain',
       weatherImpact: 'Weather',
     },
-    pageTitle: (raceName) => `${raceName} Prediction`,
-    fallbackTitle: 'Race Prediction',
-    kicker: (roundNumber) => `./round-${String(roundNumber).padStart(2, '0')}`,
     dateField: (race) => race.raceDate,
-    notFoundMessage: 'No prediction for this race',
-    fetchErrorMessage: 'No prediction available for this race',
-    actualLabel: 'actual winner',
-    actualWinnerLabel: 'actual winner',
-    gridColLabel: 'Qual Pos',
-    weightsHeading: './model weights',
-    sliderMax: 30,
-    whatIfBlurb:
-      'Drag the weights to see how the predicted order shifts. Recomputed live in your browser — the model itself is unchanged.',
   },
   sprint: {
     fetchPrediction: api.getSprintByRaceId,
@@ -94,31 +69,16 @@ const KIND_CONFIG: Record<PredictionPageKind, KindConfig> = {
       circuitAdjStartPos: 'Adj. Grid Pos',
       weatherImpact: 'Weather',
     },
-    pageTitle: (raceName) => `Sprint Prediction · ${raceName}`,
-    fallbackTitle: 'Sprint Prediction',
-    kicker: (roundNumber) => `./round-${String(roundNumber).padStart(2, '0')} · sprint prediction`,
     dateField: (race) => race.sprintDate ?? race.raceDate,
-    notFoundMessage: 'No sprint prediction for this race',
-    fetchErrorMessage: 'No sprint prediction available for this race',
-    actualLabel: 'actual sprint winner',
-    actualWinnerLabel: 'sprint winner',
-    gridColLabel: 'Grid',
-    weightsHeading: './sprint weights',
-    weightsNote: 'Grid position weighted higher — no pit stop strategy in ~17 lap sprint.',
-    sliderMax: 35,
-    whatIfBlurb:
-      'Drag the weights to see how the predicted sprint order shifts. Recomputed live in your browser — the model itself is unchanged.',
   },
 };
 
 export interface PredictionPageData {
-  title: string;
-  kicker: string;
   race: Race | null;
   date: string | null;
   prediction: RawPrediction | null;
   results: RawResultRow[] | undefined;
-  error: string | null;
+  predictionFailed: boolean;
   raceYear: number;
   actualWinner: RawResultRow | null;
   correct: boolean | null;
@@ -128,30 +88,22 @@ export interface PredictionPageData {
   weights: Weights;
   featureMeta: FeatureMeta;
   accent: PredictionAccent;
-  notFoundMessage: string;
-  actualLabel: string;
-  actualWinnerLabel: string;
-  gridColLabel: string;
-  weightsHeading: string;
-  weightsNote?: string;
-  sliderMax: number;
-  whatIfBlurb: string;
 }
 
 export async function buildPredictionPageData(kind: PredictionPageKind, raceId: number): Promise<PredictionPageData> {
-  const config = KIND_CONFIG[kind];
+  const behaviour = PREDICTION_BEHAVIOUR[kind];
 
   let prediction: RawPrediction | null = null;
   let detail: RawDetail | null = null;
-  let error: string | null = null;
+  let predictionFailed = false;
 
   const [predResult, detailResult] = await Promise.allSettled([
-    config.fetchPrediction(raceId),
-    config.fetchDetail(raceId),
+    behaviour.fetchPrediction(raceId),
+    behaviour.fetchDetail(raceId),
   ]);
 
   if (predResult.status === 'fulfilled') prediction = predResult.value;
-  else error = config.fetchErrorMessage;
+  else predictionFailed = true;
   if (detailResult.status === 'fulfilled') detail = detailResult.value;
 
   const race = prediction?.race ?? detail?.race ?? null;
@@ -163,32 +115,22 @@ export async function buildPredictionPageData(kind: PredictionPageKind, raceId: 
   const winner = prediction
     ? (prediction.drivers.find((d) => d.driver.id === prediction!.predictedWinner.id) ?? prediction.drivers[0] ?? null)
     : null;
-  const breakdown = winner ? contributions(winner.features, config.weights) : [];
+  const breakdown = winner ? contributions(winner.features, behaviour.weights) : [];
 
   return {
-    title: race ? config.pageTitle(race.name) : config.fallbackTitle,
-    kicker: race ? config.kicker(race.roundNumber) : '',
     race,
-    date: race ? config.dateField(race) : null,
+    date: race ? behaviour.dateField(race) : null,
     prediction,
     results,
-    error,
+    predictionFailed,
     raceYear,
     actualWinner,
     correct,
     winner,
     breakdown,
-    radarFeatures: radarFeatures(config.featureMeta, config.radarShortLabels),
-    weights: config.weights,
-    featureMeta: config.featureMeta,
-    accent: config.accent,
-    notFoundMessage: config.notFoundMessage,
-    actualLabel: config.actualLabel,
-    actualWinnerLabel: config.actualWinnerLabel,
-    gridColLabel: config.gridColLabel,
-    weightsHeading: config.weightsHeading,
-    weightsNote: config.weightsNote,
-    sliderMax: config.sliderMax,
-    whatIfBlurb: config.whatIfBlurb,
+    radarFeatures: radarFeatures(behaviour.featureMeta, behaviour.radarShortLabels),
+    weights: behaviour.weights,
+    featureMeta: behaviour.featureMeta,
+    accent: behaviour.accent,
   };
 }

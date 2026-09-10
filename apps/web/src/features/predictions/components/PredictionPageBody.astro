@@ -7,16 +7,19 @@ import DriverRadarCompare from './DriverRadarCompare.astro';
 import ModelWeightsGrid from './ModelWeightsGrid.astro';
 import WhatIfLab from './WhatIfLab.astro';
 import type { PredictionPageData } from '../buildPredictionPageData';
+import type { PredictionCopy } from '../predictionCopy';
 
 interface Props {
   data: PredictionPageData;
+  copy: PredictionCopy;
 }
 
-const { data } = Astro.props;
+const { data, copy } = Astro.props;
 const {
-  race, prediction, results, error, raceYear, actualWinner, correct,
+  race, prediction, results, predictionFailed, raceYear, actualWinner, correct,
   winner, breakdown, radarFeatures, weights, featureMeta, accent,
 } = data;
+const kicker = race ? copy.kicker(race.roundNumber) : '';
 ---
 
 <div class="mt-7 space-y-8">
@@ -27,16 +30,16 @@ const {
     </a>
   </div>
 
-  {error && !prediction ? (
+  {predictionFailed && !prediction ? (
     <div class="border border-white/[0.06] p-10 text-center">
-      <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">{data.notFoundMessage}</p>
-      <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">{error}</p>
+      <p class="font-mono text-[9px] text-muted-foreground tracking-[0.25em] uppercase">{copy.notFoundMessage}</p>
+      <p class="mt-2 font-mono text-[8px] text-muted-foreground/50">{copy.fetchErrorMessage}</p>
     </div>
   ) : prediction && race ? (
     <>
       <PredictionHeader
         title={race.name}
-        kicker={data.kicker}
+        kicker={kicker}
         city={race.circuit.city}
         country={race.circuit.country}
         date={data.date ?? race.raceDate}
@@ -51,7 +54,7 @@ const {
         <PredictionOutcomeBanner
           predictedName={prediction.predictedWinner.fullName}
           actualName={actualWinner.driver.fullName}
-          actualLabel={data.actualLabel}
+          actualLabel={copy.actualLabel}
           correct={correct}
         />
       )}
@@ -68,13 +71,13 @@ const {
           actualWinnerId={actualWinner?.driver.id}
           raceYear={raceYear}
           accent={accent}
-          gridColLabel={data.gridColLabel}
-          actualWinnerLabel={data.actualWinnerLabel}
+          gridColLabel={copy.gridColLabel}
+          actualWinnerLabel={copy.actualWinnerLabel}
         />
 
         <div class="space-y-6">
           <DriverRadarCompare drivers={prediction.drivers} features={radarFeatures} accent={accent} />
-          <ModelWeightsGrid heading={data.weightsHeading} featureMeta={featureMeta} accent={accent} note={data.weightsNote} class="hidden xl:block" />
+          <ModelWeightsGrid heading={copy.weightsHeading} featureMeta={featureMeta} accent={accent} note={copy.weightsNote} class="hidden xl:block" />
         </div>
       </div>
 
@@ -83,12 +86,12 @@ const {
         featureMeta={featureMeta}
         weights={weights}
         accent={accent}
-        sliderMax={data.sliderMax}
-        blurb={data.whatIfBlurb}
+        sliderMax={copy.sliderMax}
+        blurb={copy.whatIfBlurb}
       />
 
       <ModelWeightsGrid
-        heading={data.weightsHeading}
+        heading={copy.weightsHeading}
         featureMeta={featureMeta}
         accent={accent}
         gridClass="grid-cols-2 sm:grid-cols-4"

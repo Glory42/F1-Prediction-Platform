@@ -3,7 +3,7 @@ import type { Db } from '../../config/database';
 import { teams, seasons, drivers, teamSeasonStats } from '../../db/schema';
 import type { Team, Driver, TeamDetailResponse, TeamStanding, TeamYearStats } from '../../common/types';
 import { toTeam, toDriver } from '../../common/mappers';
-import { resolveSeason, buildStandings, buildCareerStats } from '../../common/standings';
+import { resolveSeason, buildStandings, buildCareerStats, type StatsAdapter } from '../../common/standings';
 
 function toTeamStats(s: typeof teamSeasonStats.$inferSelect) {
   return {
@@ -19,6 +19,26 @@ const emptyTeamStats = {
   championshipPosition: null, avgFinishPosition: null, carPerformanceScore: null,
   dnfCount: 0, reliabilityScore: null,
 };
+
+// Standings pass raw `teams` rows; career passes `{ teams, seasons }` entries — so the
+// two share the stats half and differ only in how they reach the team id.
+const teamStatsPart = {
+  statsEntityId: (s: typeof teamSeasonStats.$inferSelect) => s.teamId,
+  toStats: toTeamStats,
+  emptyStats: emptyTeamStats,
+};
+
+const teamStandingsAdapter: StatsAdapter<
+  typeof teams.$inferSelect,
+  typeof teamSeasonStats.$inferSelect,
+  ReturnType<typeof toTeamStats>
+> = { ...teamStatsPart, entityId: (t) => t.id };
+
+const teamCareerAdapter: StatsAdapter<
+  { teams: { id: number } },
+  typeof teamSeasonStats.$inferSelect,
+  ReturnType<typeof toTeamStats>
+> = { ...teamStatsPart, entityId: (e) => e.teams.id };
 
 export class TeamsService {
   async findAll(db: Db, year: number): Promise<Team[]> {
@@ -47,10 +67,7 @@ export class TeamsService {
     return buildStandings(
       teamRows,
       statsRows,
-      (t) => t.id,
-      (s) => s.teamId,
-      toTeamStats,
-      emptyTeamStats,
+      teamStandingsAdapter,
       (t, stats): TeamStanding => ({ team: toTeam(t), stats })
     );
   }
@@ -79,9 +96,7 @@ export class TeamsService {
     return buildCareerStats(
       allEntries,
       statsRows,
-      (e) => e.teams.id,
-      (s) => s.teamId,
-      toTeamStats,
+      teamCareerAdapter,
       (e, stats): TeamYearStats => ({
         year: e.seasons.year,
         teamId: e.teams.id,

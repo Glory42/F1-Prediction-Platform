@@ -21,19 +21,26 @@ export function sortByChampionshipStanding<T extends { stats: ChampionshipStats 
   return Number(b.stats.totalPoints) - Number(a.stats.totalPoints);
 }
 
+// The domain-constant half of a standings/career aggregation: how to key an entity
+// and its stats row, how to map a row to stats, and the sentinel for "no row". The
+// per-endpoint output shape stays a separate `toOutput` arg — it varies by route.
+export type StatsAdapter<Entity, StatsRow, Stats> = {
+  entityId: (entity: Entity) => number;
+  statsEntityId: (statsRow: StatsRow) => number;
+  toStats: (statsRow: StatsRow) => Stats;
+  emptyStats: Stats;
+};
+
 export function buildStandings<Entity, StatsRow, Stats extends ChampionshipStats, Out extends { stats: Stats }>(
   entityRows: Entity[],
   statsRows: StatsRow[],
-  getEntityId: (entity: Entity) => number,
-  getStatsEntityId: (statsRow: StatsRow) => number,
-  toStats: (statsRow: StatsRow) => Stats,
-  emptyStats: Stats,
+  adapter: StatsAdapter<Entity, StatsRow, Stats>,
   toOutput: (entity: Entity, stats: Stats) => Out
 ): Out[] {
-  const statsById = new Map(statsRows.map((row) => [getStatsEntityId(row), row]));
+  const statsById = new Map(statsRows.map((row) => [adapter.statsEntityId(row), row]));
   const result = entityRows.map((entity) => {
-    const statsRow = statsById.get(getEntityId(entity));
-    return toOutput(entity, statsRow ? toStats(statsRow) : emptyStats);
+    const statsRow = statsById.get(adapter.entityId(entity));
+    return toOutput(entity, statsRow ? adapter.toStats(statsRow) : adapter.emptyStats);
   });
   return result.sort(sortByChampionshipStanding);
 }
@@ -41,14 +48,12 @@ export function buildStandings<Entity, StatsRow, Stats extends ChampionshipStats
 export function buildCareerStats<Entry, StatsRow, Stats, Out>(
   entries: Entry[],
   statsRows: StatsRow[],
-  getEntryId: (entry: Entry) => number,
-  getStatsEntryId: (statsRow: StatsRow) => number,
-  toStats: (statsRow: StatsRow) => Stats,
+  adapter: StatsAdapter<Entry, StatsRow, Stats>,
   toOutput: (entry: Entry, stats: Stats | null) => Out
 ): Out[] {
-  const statsById = new Map(statsRows.map((row) => [getStatsEntryId(row), row]));
+  const statsById = new Map(statsRows.map((row) => [adapter.statsEntityId(row), row]));
   return entries.map((entry) => {
-    const statsRow = statsById.get(getEntryId(entry));
-    return toOutput(entry, statsRow ? toStats(statsRow) : null);
+    const statsRow = statsById.get(adapter.entityId(entry));
+    return toOutput(entry, statsRow ? adapter.toStats(statsRow) : null);
   });
 }

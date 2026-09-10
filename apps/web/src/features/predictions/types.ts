@@ -25,3 +25,5 @@ export interface PredictionResultRow {
 }
 
 export type FeatureMeta = Record<string, { label: string; weight: number }>;
+
+export type PredictionPageKind = 'gp' | 'sprint';

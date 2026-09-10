@@ -3,7 +3,7 @@ import type { Db } from '../../config/database';
 import { drivers, teams, seasons, driverSeasonStats, raceResults, races } from '../../db/schema';
 import type { Driver, DriverDetailResponse, DriverStanding, DriverYearStats } from '../../common/types';
 import { toDriver } from '../../common/mappers';
-import { resolveSeason, buildStandings, buildCareerStats } from '../../common/standings';
+import { resolveSeason, buildStandings, buildCareerStats, type StatsAdapter } from '../../common/standings';
 
 function toDriverStats(s: typeof driverSeasonStats.$inferSelect) {
   return {
@@ -24,6 +24,17 @@ const emptyDriverStats = {
   winRate: null, avgPositionGain: null, dnfCount: 0, dnfRate: null,
   avgSector1Ms: null, avgSector2Ms: null, avgSector3Ms: null,
   topSpeedAvg: null, teammateQualiDelta: null,
+};
+
+const driverStatsAdapter: StatsAdapter<
+  { drivers: { id: number } },
+  typeof driverSeasonStats.$inferSelect,
+  ReturnType<typeof toDriverStats>
+> = {
+  entityId: (r) => r.drivers.id,
+  statsEntityId: (s) => s.driverId,
+  toStats: toDriverStats,
+  emptyStats: emptyDriverStats,
 };
 
 export class DriversService {
@@ -68,10 +79,7 @@ export class DriversService {
     return buildStandings(
       rows,
       statsRows,
-      (r) => r.drivers.id,
-      (s) => s.driverId,
-      toDriverStats,
-      emptyDriverStats,
+      driverStatsAdapter,
       (r, stats): DriverStanding => ({ driver: toDriver(r.drivers, r.teams), stats })
     );
   }
@@ -106,9 +114,7 @@ export class DriversService {
     return buildCareerStats(
       allEntries,
       statsRows,
-      (e) => e.drivers.id,
-      (s) => s.driverId,
-      toDriverStats,
+      driverStatsAdapter,
       (e, stats): DriverYearStats => ({
         year: e.seasons.year,
         driverId: e.drivers.id,

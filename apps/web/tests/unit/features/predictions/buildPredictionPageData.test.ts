@@ -108,10 +108,8 @@ describe('buildPredictionPageData — gp', () => {
 
     const data = await buildPredictionPageData('gp', 1);
 
-    expect(data.error).toBeNull();
+    expect(data.predictionFailed).toBe(false);
     expect(data.race?.id).toBe(1);
-    expect(data.title).toBe('Italian Grand Prix Prediction');
-    expect(data.kicker).toBe('./round-05');
     expect(data.date).toBe(race.raceDate);
     expect(data.results).toHaveLength(2);
     expect(data.actualWinner?.driver.id).toBe(driver.id);
@@ -119,11 +117,6 @@ describe('buildPredictionPageData — gp', () => {
     expect(data.winner?.driver.id).toBe(driver.id);
     expect(data.breakdown.length).toBeGreaterThan(0);
     expect(data.radarFeatures).toHaveLength(12);
-    expect(data.gridColLabel).toBe('Qual Pos');
-    expect(data.actualWinnerLabel).toBe('actual winner');
-    expect(data.weightsHeading).toBe('./model weights');
-    expect(data.weightsNote).toBeUndefined();
-    expect(data.sliderMax).toBe(30);
   });
 
   test('prediction fetch failure falls back to the race detail response', async () => {
@@ -132,7 +125,7 @@ describe('buildPredictionPageData — gp', () => {
 
     const data = await buildPredictionPageData('gp', 1);
 
-    expect(data.error).toBe('No prediction available for this race');
+    expect(data.predictionFailed).toBe(true);
     expect(data.prediction).toBeNull();
     expect(data.race?.id).toBe(1);
     expect(data.winner).toBeNull();
@@ -145,7 +138,7 @@ describe('buildPredictionPageData — gp', () => {
 
     const data = await buildPredictionPageData('gp', 1);
 
-    expect(data.error).toBeNull();
+    expect(data.predictionFailed).toBe(false);
     expect(data.race?.id).toBe(1);
     expect(data.results).toBeUndefined();
     expect(data.actualWinner).toBeNull();
@@ -172,46 +165,39 @@ describe('buildPredictionPageData — gp', () => {
     expect(data.correct).toBe(false);
   });
 
-  test('title and kicker fall back when no race is resolvable from either response', async () => {
+  test('no race is resolvable when both responses fail', async () => {
     vi.mocked(api.getPredictionByRace).mockRejectedValue(new Error('500'));
     vi.mocked(api.getRaceById).mockRejectedValue(new Error('500'));
 
     const data = await buildPredictionPageData('gp', 1);
 
     expect(data.race).toBeNull();
-    expect(data.title).toBe('Race Prediction');
-    expect(data.kicker).toBe('');
     expect(data.date).toBeNull();
+    expect(data.predictionFailed).toBe(true);
+    expect(data.winner).toBeNull();
   });
 });
 
 describe('buildPredictionPageData — sprint', () => {
-  test('happy path uses the sprint config axis (weights, accent, labels, radar count)', async () => {
+  test('happy path uses the sprint behaviour axis (date field, radar count)', async () => {
     vi.mocked(api.getSprintByRaceId).mockResolvedValue(sprintPrediction());
     vi.mocked(api.getSprintDetail).mockResolvedValue(sprintDetail());
 
     const data = await buildPredictionPageData('sprint', 1);
 
-    expect(data.title).toBe('Sprint Prediction · Italian Grand Prix');
-    expect(data.kicker).toBe('./round-05 · sprint prediction');
+    expect(data.predictionFailed).toBe(false);
     expect(data.date).toBe(race.sprintDate);
-    expect(data.gridColLabel).toBe('Grid');
-    expect(data.actualWinnerLabel).toBe('sprint winner');
-    expect(data.actualLabel).toBe('actual sprint winner');
-    expect(data.weightsHeading).toBe('./sprint weights');
-    expect(data.weightsNote).toContain('Grid position weighted higher');
-    expect(data.sliderMax).toBe(35);
     expect(data.radarFeatures).toHaveLength(8);
     expect(data.correct).toBe(true);
   });
 
-  test('sprint fetch failure produces the sprint-specific not-found message', async () => {
+  test('sprint fetch failure flags predictionFailed with no prediction', async () => {
     vi.mocked(api.getSprintByRaceId).mockRejectedValue(new Error('500'));
     vi.mocked(api.getSprintDetail).mockResolvedValue(sprintDetail());
 
     const data = await buildPredictionPageData('sprint', 1);
 
-    expect(data.error).toBe('No sprint prediction available for this race');
-    expect(data.notFoundMessage).toBe('No sprint prediction for this race');
+    expect(data.predictionFailed).toBe(true);
+    expect(data.prediction).toBeNull();
   });
 });

@@ -47,7 +47,7 @@ apps/api/
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
 │   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult() — canonical row→DTO mappers used by all services
-│   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions
+│   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions; drivers/teams pass a StatsAdapter (entityId/statsEntityId/toStats/emptyStats) instead of loose lambdas
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
 │   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
 │   ├── common/cache.ts             # cacheControlForStatus(), cacheControlForYear() — Cache-Control header rules for completed vs in-progress races
@@ -252,13 +252,14 @@ apps/web/
 │   │       └── search-select.tsx  # Generic autocomplete combobox; shared by Driver/TeamCompareTool
 │   ├── features/
 │   │   ├── predictions/              # Shared prediction UI — GP + sprint pages compose these (accent prop)
-│   │   │   ├── types.ts               # PredictionAccent, GP_ACCENT/SPRINT_ACCENT, view-model interfaces
+│   │   │   ├── types.ts               # PredictionAccent, GP_ACCENT/SPRINT_ACCENT, PredictionPageKind, view-model interfaces
 │   │   │   ├── buildPredictionPageData.ts  # buildPredictionPageData(kind, raceId) — the fetch/winner-pick/
 │   │   │   │                          #   view-model assembly both prediction/[id].astro and prediction/sprint/[id].astro
-│   │   │   │                          #   call; every GP-vs-sprint difference lives in its one KIND_CONFIG table
+│   │   │   │                          #   call; returns facts + a slim PREDICTION_BEHAVIOUR axis (fetchers, weights, meta, date field)
+│   │   │   ├── predictionCopy.ts       # PREDICTION_COPY[kind] — all GP-vs-sprint wording (titles, kicker, labels, headings, blurbs); the views own it
 │   │   │   └── components/
 │   │   │       ├── PredictionPageBody.astro        # Full page body (header→banner→table→radar→WhatIfLab); both
-│   │   │       │                                   #   [id].astro routes reduce to a fetch + <PredictionPageBody data={data} />
+│   │   │       │                                   #   [id].astro routes reduce to a fetch + <PredictionPageBody data={data} copy={copy} />
 │   │   │       ├── PredictionHeader.astro          # Round kicker + title + ConfidenceBadge + circuit/model lines
 │   │   │       ├── PredictionOutcomeBanner.astro   # Predicted → actual winner banner
 │   │   │       ├── ContributionBar.astro           # "why {CODE}" — stacked bar of each feature's weighted-score share
