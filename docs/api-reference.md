@@ -160,7 +160,7 @@ Returns the prediction for the next `qualifying_done` race with `race_date >= to
   "data": {
     "race": { "id": 200, "name": "Monaco Grand Prix", "raceDate": "2026-06-07", "hasSprint": false, ... },
     "predictedWinner": { "id": 42, "fullName": "Max Verstappen", ... },
-    "modelVersion": "weighted-v2",
+    "modelVersion": "weighted-v3",
     "drivers": [
       {
         "predictedPosition": 1,

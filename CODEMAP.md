@@ -9,7 +9,8 @@ F1-prediction/
 ├── CLAUDE.md              # Agent guidelines, constraints, and project conventions
 ├── CODEMAP.md             # This file — codebase structure reference
 ├── CONTRIBUTING.md        # Contribution guidelines
-├── DECISIONS.md           # Key architectural decisions and rationale
+├── CONTEXT.md             # Domain glossary — ubiquitous language for the project
+├── DECISIONS.md           # Key architectural decisions and rationale (predates docs/adr/)
 ├── README.md              # Project overview and getting started
 ├── LICENSE                # GPL-3.0
 ├── docs/                  # Project documentation
@@ -21,7 +22,8 @@ F1-prediction/
 │   ├── api-reference.md   # All endpoints, params, and response shapes
 │   ├── frontend.md        # Astro app — routing, server-only fetch rule, component layout
 │   ├── deployment.md      # Env vars, Cloudflare setup, first-time steps
-│   └── testing.md         # The five test suites — coverage, how to run, CI
+│   ├── testing.md         # The five test suites — coverage, how to run, CI
+│   └── adr/               # Numbered architectural decision records (new decisions go here, not DECISIONS.md)
 ├── apps/                  # JS/Bun-only convention — orchestrated by root package.json, no workspaces
 │   ├── api/               # Hono REST API — Cloudflare Workers; also owns Drizzle schema + migrations
 │   ├── web/               # Astro SSR frontend — Cloudflare Pages

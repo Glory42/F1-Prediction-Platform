@@ -181,5 +181,12 @@ selection is the bottleneck), the concrete signal gaps are:
 
 - Rule feature computation: `data-engine/src/jobs/compute_features.py`
 - Backfill driver invoked via `src/main.py` (jobs: `compute_features`, `compute_season_stats`).
-- Benchmark eval: `.venv/bin/python experiments/sprint19/evaluate.py`
-- Latest selector attempts: `experiments/sprint{13,16,19,20,21}/<SPRINT*_REPORT.md>`
+- Benchmark eval: `data-engine/scripts/benchmark_car_perf.py` — replays predictions against completed
+  races under an old vs. new formula, reports Top-1 accuracy, then restores DB state.
+
+Note: earlier revisions of this doc referenced `experiments/sprint{13,16,19,20,21}/` report
+folders and a specific 58.28% / 163-race benchmark figure. That `experiments/` directory has
+never existed in this repo's git history — those were local, untracked run reports. Treat the
+"RuleBased Top-1" figure and the sprint post-mortem numbers below as historical/unverified
+until a new benchmark run (via `benchmark_car_perf.py` or a successor script) reproduces them
+and the result is committed somewhere in this repo.

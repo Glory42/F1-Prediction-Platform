@@ -2,6 +2,9 @@
 
 Key non-obvious choices made in this project and why. Read this before proposing changes to the stack or structure.
 
+This file predates `docs/adr/` and stays as the record for decisions made before that convention existed.
+New decisions go in `docs/adr/` as numbered files (see `docs/adr/0001-*.md` onward) — don't add new entries here.
+
 ---
 
 ## Cloudflare Workers — HTTP driver only, no TCP
