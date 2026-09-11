@@ -29,7 +29,7 @@ f1-prediction/
 └── docs/          # Architecture, API reference, schema, pipeline, deployment
 ```
 
-See [CODEMAP.md](./CODEMAP.md) for the full file-level reference and [DECISIONS.md](./DECISIONS.md) for architectural rationale.
+See [CODEMAP.md](./CODEMAP.md) for the full file-level reference and [docs/adr/](./docs/adr/) for architectural rationale.
 
 ## Local Development
 

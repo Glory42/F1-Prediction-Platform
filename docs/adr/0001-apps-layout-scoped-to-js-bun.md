@@ -6,7 +6,7 @@ unified `bun run dev` and shared root tooling (husky + lint-staged running `tsc 
 Python on Render, not a bun-orchestrated process, and it has no "dev server" — its jobs run once and
 exit, so it doesn't fit the `apps/` convention or the root `dev` script the way api/web do. `docs/`
 also stays at the root rather than moving under `apps/web/docs`, because it's plain reference
-content (also read by `CLAUDE.md`, `DECISIONS.md`, and Claude itself), not a standalone deployable
+content (also read by `CLAUDE.md`, `docs/adr/0000-legacy-decisions.md`, and Claude itself), not a standalone deployable
 site the way Interis's `apps/docs` (a full Astro Starlight app) is — `web/src/content/config.ts`
 just points its content collection `base` at `../../docs`.
 
