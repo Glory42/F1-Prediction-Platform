@@ -18,7 +18,7 @@ const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.te
 {overtakes.length === 0 ? (
   <p class="text-sm text-muted-foreground px-4 py-6">No overtake data available.</p>
 ) : (
-  <ol class="divide-y divide-white/[0.06]">
+  <ol class="divide-y divide-white/[0.06] max-h-[520px] overflow-y-auto">
     {overtakes.map((o) => {
       const gaining = driverOf(o.overtakingDriverId);
       const losing = driverOf(o.overtakenDriverId);
