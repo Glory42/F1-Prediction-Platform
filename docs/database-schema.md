@@ -33,6 +33,7 @@ seasons
         └── qualifying_results      (FK → drivers)
         └── race_results            (FK → drivers)
         └── race_control_messages   (no driver FK — driver_number is a raw OpenF1 car number)
+        └── race_overtakes          (two FKs → drivers: overtaking_driver_id, overtaken_driver_id)
         └── lap_times               (FK → drivers)
         └── driver_prediction_features (FK → drivers)
         └── race_predictions        (FK → drivers)
@@ -216,6 +217,24 @@ OpenF1's live-data window.
 | `sector` | integer | Nullable |
 | `message` | text | Raw OpenF1 message text |
 | UNIQUE | `(race_id, date, message)` | |
+
+---
+
+### `race_overtakes`
+One row per on-track position exchange per race, sourced from OpenF1 — same 2023+/completed/
+past-live-window coverage as `race_control_messages`. Unlike that table, OpenF1's driver
+numbers here are resolved to `drivers.id` at ingest time (via `build_driver_number_map`),
+since both sides of the exchange are needed for a usable UI.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `race_id` | FK → races | |
+| `date` | timestamptz | Overtake timestamp, from OpenF1 |
+| `overtaking_driver_id` | FK → drivers | The driver who gained the position |
+| `overtaken_driver_id` | FK → drivers | The driver who lost the position |
+| `position` | integer | Track position after the overtake |
+| UNIQUE | `(race_id, date, overtaking_driver_id, overtaken_driver_id)` | |
 
 ---
 

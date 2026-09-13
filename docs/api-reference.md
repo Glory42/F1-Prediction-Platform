@@ -87,6 +87,14 @@ Returns race-control messages (flags, safety car/VSC, incidents) for a race, ord
 timestamp ascending. Empty until `ingest_race_control` has run for that race — sourced from
 OpenF1, which only has data for completed races from 2023 onward.
 
+### `GET /api/races/:id/overtakes`
+
+Returns on-track overtakes for a race, ordered by timestamp ascending. `overtakingDriverId`/
+`overtakenDriverId` reference `drivers.id` (already resolved from OpenF1's car numbers) —
+look them up in the race's own `results`/`qualifying` response rather than re-fetching driver
+details. Empty until `ingest_overtakes` has run — same OpenF1 2023+/completed-only coverage
+as race-control.
+
 ### `GET /api/races/circuits`
 
 Returns a list of all circuits in the database, ordered alphabetically by name.

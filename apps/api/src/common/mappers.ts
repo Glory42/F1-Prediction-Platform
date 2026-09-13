@@ -1,8 +1,10 @@
 import type {
-  drivers, teams, races, circuits, raceResults, qualifyingResults, sprintResults, raceControlMessages,
+  drivers, teams, races, circuits, raceResults, qualifyingResults, sprintResults,
+  raceControlMessages, raceOvertakes,
 } from '../db/schema';
 import type {
-  Driver, Team, Race, Circuit, RaceResult, QualifyingResult, SprintResult, RaceControlMessage,
+  Driver, Team, Race, Circuit, RaceResult, QualifyingResult, SprintResult,
+  RaceControlMessage, RaceOvertake,
 } from './types';
 import { SPRINT_FORMATS } from './constants';
 
@@ -117,6 +119,17 @@ export function toRaceControlMessage(m: typeof raceControlMessages.$inferSelect)
     scope: m.scope ?? null,
     sector: m.sector ?? null,
     message: m.message,
+  };
+}
+
+export function toRaceOvertake(o: typeof raceOvertakes.$inferSelect): RaceOvertake {
+  return {
+    id: o.id,
+    raceId: o.raceId,
+    date: o.date.toISOString(),
+    overtakingDriverId: o.overtakingDriverId,
+    overtakenDriverId: o.overtakenDriverId,
+    position: o.position,
   };
 }
 

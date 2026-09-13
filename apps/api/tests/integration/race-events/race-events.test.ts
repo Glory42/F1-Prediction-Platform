@@ -3,8 +3,11 @@ import { apiRequest } from '../../support/app/request';
 import { getTestDb, truncateAll } from '../../support/db/test-db';
 import { createSeason } from '../../support/factories/season.factory';
 import { createCircuit } from '../../support/factories/circuit.factory';
+import { createTeam } from '../../support/factories/team.factory';
+import { createDriver } from '../../support/factories/driver.factory';
 import { createRace } from '../../support/factories/race.factory';
 import { createRaceControlMessage } from '../../support/factories/raceControlMessage.factory';
+import { createRaceOvertake } from '../../support/factories/raceOvertake.factory';
 
 describe('race-events (integration)', () => {
   const db = getTestDb();
@@ -15,6 +18,9 @@ describe('race-events (integration)', () => {
 
     const season = await createSeason(db, { year: 2098 });
     const circuit = await createCircuit(db, { circuitKey: 'race-events-test-circuit', name: 'Race Events Test Circuit' });
+    const team = await createTeam(db, season.id);
+    const driverA = await createDriver(db, season.id, team.id, { driverNumber: 1, code: 'AAA' });
+    const driverB = await createDriver(db, season.id, team.id, { driverNumber: 2, code: 'BBB' });
     const race = await createRace(db, season.id, circuit.id, {
       roundNumber: 1,
       name: 'Race Events Test Grand Prix',
@@ -36,6 +42,15 @@ describe('race-events (integration)', () => {
       message: 'SAFETY CAR DEPLOYED',
     });
 
+    await createRaceOvertake(db, race.id, driverA.id, driverB.id, {
+      date: new Date('2098-03-01T14:05:00Z'),
+      position: 3,
+    });
+    await createRaceOvertake(db, race.id, driverB.id, driverA.id, {
+      date: new Date('2098-03-01T14:01:00Z'),
+      position: 7,
+    });
+
     raceId = race.id;
   });
 
@@ -54,6 +69,23 @@ describe('race-events (integration)', () => {
 
   it('returns 404 for a race that does not exist', async () => {
     const res = await apiRequest('/api/races/999999999/race-control');
+    expect(res.status).toBe(404);
+    const { data, error } = (await res.json()) as { data: null; error: { code: string } };
+    expect(data).toBeNull();
+    expect(error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns overtakes ordered by date ascending', async () => {
+    const res = await apiRequest(`/api/races/${raceId}/overtakes`);
+    expect(res.status).toBe(200);
+    const { data } = (await res.json()) as { data: Array<{ position: number }> };
+    expect(data).toHaveLength(2);
+    expect(data[0].position).toBe(7);
+    expect(data[1].position).toBe(3);
+  });
+
+  it('returns 404 for overtakes on a race that does not exist', async () => {
+    const res = await apiRequest('/api/races/999999999/overtakes');
     expect(res.status).toBe(404);
     const { data, error } = (await res.json()) as { data: null; error: { code: string } };
     expect(data).toBeNull();

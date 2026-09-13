@@ -1,6 +1,6 @@
 import { describe, expect, test, afterEach } from 'bun:test';
-import { toTeam, toDriver, toCircuit, toRace, toRaceControlMessage } from '../../../src/common/mappers';
-import type { teams, drivers, races, circuits, raceControlMessages } from '../../../src/db/schema';
+import { toTeam, toDriver, toCircuit, toRace, toRaceControlMessage, toRaceOvertake } from '../../../src/common/mappers';
+import type { teams, drivers, races, circuits, raceControlMessages, raceOvertakes } from '../../../src/db/schema';
 
 type TeamRow = typeof teams.$inferSelect;
 type DriverRow = typeof drivers.$inferSelect;
@@ -176,6 +176,33 @@ describe('toRaceControlMessage', () => {
     expect(result.driverNumber).toBeNull();
     expect(result.scope).toBeNull();
     expect(result.sector).toBeNull();
+  });
+});
+
+describe('toRaceOvertake', () => {
+  const overtakeRow: typeof raceOvertakes.$inferSelect = {
+    id: 1,
+    raceId: 100,
+    date: new Date('2025-09-07T13:50:07Z'),
+    overtakingDriverId: 10,
+    overtakenDriverId: 11,
+    position: 3,
+    createdAt: new Date('2025-09-07T14:00:00Z'),
+  };
+
+  test('converts the date column to an ISO string', () => {
+    expect(toRaceOvertake(overtakeRow).date).toBe('2025-09-07T13:50:07.000Z');
+  });
+
+  test('maps all columns through', () => {
+    expect(toRaceOvertake(overtakeRow)).toEqual({
+      id: 1,
+      raceId: 100,
+      date: '2025-09-07T13:50:07.000Z',
+      overtakingDriverId: 10,
+      overtakenDriverId: 11,
+      position: 3,
+    });
   });
 });
 

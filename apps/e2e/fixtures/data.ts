@@ -5,7 +5,7 @@ import type {
   DriverSeasonStats, DriverYearStats, DriverDetailResponse, TeamSeasonStats, TeamYearStats,
   TeamDetailResponse, DriverStanding,
   SprintFeatureScores, DriverSprintPrediction, SprintPredictionResponse,
-  SprintResult, SprintDetailResponse, RaceControlMessage,
+  SprintResult, SprintDetailResponse, RaceControlMessage, RaceOvertake,
 } from '../../web/src/types';
 
 export const circuit: Circuit = {
@@ -94,6 +94,10 @@ export const raceControlMessages: RaceControlMessage[] = [
     flag: 'YELLOW', lapNumber: 5, driverNumber: 16, scope: 'Sector', sector: 4,
     message: 'YELLOW IN TRACK SECTOR 4',
   },
+];
+
+export const raceOvertakes: RaceOvertake[] = [
+  { id: 1, raceId: 1, date: '2025-09-07T13:20:07.000Z', overtakingDriverId: 10, overtakenDriverId: 11, position: 2 },
 ];
 
 export const predictionHistory: PredictionHistoryItem[] = [

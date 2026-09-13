@@ -71,6 +71,7 @@ apps/api/
 │   │   │   ├── qualifying_results.ts
 │   │   │   ├── race_results.ts
 │   │   │   ├── race_control_messages.ts  # OpenF1 flags/SC/VSC/incident log per race (free/historical only, no live data)
+│   │   │   ├── race_overtakes.ts  # OpenF1 on-track overtakes per race — two driver FKs (overtaking/overtaken)
 │   │   │   ├── lap_times.ts
 │   │   │   ├── sprint_results.ts  # Sprint finish + SQ1/SQ2/SQ3 times + sq sector times
 │   │   │   ├── sprint_lap_times.ts# Per-lap sprint data
@@ -91,9 +92,9 @@ apps/api/
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── race-events/           # OpenF1-sourced race data, separate from races/ to keep its controller under budget
-│       │   ├── race-events.service.ts    # getRaceControlMessages(), raceExists()
+│       │   ├── race-events.service.ts    # getRaceControlMessages(), getOvertakes(), raceExists()
 │       │   ├── race-events.controller.ts
-│       │   └── race-events.module.ts     # GET /:id/race-control (mounted at /api/races)
+│       │   └── race-events.module.ts     # GET /:id/race-control, /:id/overtakes (mounted at /api/races)
 │       ├── drivers/
 │       │   ├── drivers.service.ts # Driver list, standings, detail, career stats
 │       │   ├── drivers.controller.ts
@@ -140,7 +141,7 @@ apps/api/
 │   │       └── accuracy.test.ts
 │   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
 │   │   ├── races/races.test.ts     # list/filter/detail/circuit-history joins
-│   │   ├── race-events/race-events.test.ts # race-control message list, ordering, 404
+│   │   ├── race-events/race-events.test.ts # race-control message + overtakes lists, ordering, 404
 │   │   ├── drivers/drivers.test.ts # list/filter/standings/detail
 │   │   ├── teams/teams.test.ts     # list/standings/detail
 │   │   ├── seasons/seasons.test.ts # race-count aggregation
@@ -181,6 +182,7 @@ Each module follows the same three-file pattern:
 | GET | `/api/races/circuit/:circuitKey` | — |
 | GET | `/api/races/:id` | — |
 | GET | `/api/races/:id/race-control` | — |
+| GET | `/api/races/:id/overtakes` | — |
 | GET | `/api/drivers` | `year`, `team_id` |
 | GET | `/api/drivers/standings` | `year` |
 | GET | `/api/drivers/:id` | `year` |
@@ -284,6 +286,7 @@ apps/web/
 │   │   │   └── components/
 │   │   │       ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
 │   │       ├── RaceControlTimeline.astro # Flags/SC/VSC/incident log, ordered by session time
+│   │       ├── OvertakesList.astro    # On-track overtakes list; resolves driver codes via a driverMap prop built from race results
 │   │   │       ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
 │   │   │       ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   │       ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
@@ -340,7 +343,7 @@ apps/web/
 │   │                              #   IntelStandingRow, CircuitHistoryItem (hasSprint), SeasonSummary,
 │   │                              #   SprintResult, SprintFeatureScores, DriverSprintPrediction,
 │   │                              #   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
-│   │                              #   RaceControlMessage
+│   │                              #   RaceControlMessage, RaceOvertake
 │   ├── styles/
 │   │   └── globals.css            # Tailwind base + CSS custom properties
 │   └── env.d.ts                   # Astro env type declarations
@@ -473,6 +476,7 @@ data-engine/
 │   │   ├── ingest_qualifying_legacy.py # Qualifying from Ergast — pre-2018
 │   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
 │   │   ├── ingest_race_control.py      # OpenF1 race-control messages (flags/SC/VSC) — completed races only, post-live-window
+│   │   ├── ingest_overtakes.py         # OpenF1 overtakes → race_overtakes; resolves driver_number via build_driver_number_map
 │   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
 │   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
 │   │   ├── ingest_fp2.py               # Practice long-run stint data → fp2_long_run_times (FP2 primary; FP1 fallback on sprint weekends)
@@ -493,8 +497,8 @@ data-engine/
 │       │                          # SOFTMAX_TEMPERATURE derive from it; checked against docs/feature-weights.json
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp(), weighted_sum()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
-│       ├── driver_map.py          # build_driver_code_map(conn, season_id) — shared driver code→id lookup for ingest jobs
-│       ├── openf1_client.py       # get_session_key(), fetch_race_control() — thin OpenF1 REST client (free/historical tier only)
+│       ├── driver_map.py          # build_driver_code_map(), build_driver_number_map(conn, season_id) — shared driver code/number→id lookups for ingest jobs
+│       ├── openf1_client.py       # get_session_key(), fetch_race_control(), fetch_overtakes() — thin OpenF1 REST client (free/historical tier only)
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
 │       ├── ingest_runner.py       # Two seams: run_ingest_job(...) — shared headshot/results/lap-time/status logic for
 │       │                          # ingest_race + ingest_sprint; run_qualifying_ingest_job(...) — shared logic for
@@ -512,6 +516,7 @@ data-engine/
 │   ├── backfill_sprint.py         # Sprint-only backfill for specific years
 │   ├── backfill_fp2.py            # Backfill FP2 long-run data for 2018+ completed races
 │   ├── backfill_race_control.py   # Backfill OpenF1 race-control messages for a year range (2023+ only — no OpenF1 coverage before)
+│   ├── backfill_overtakes.py      # Backfill OpenF1 overtakes for a year range (2023+ only — no OpenF1 coverage before)
 │   ├── backfill_all_predictions.py # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
 │   ├── backfill_historical.sh     # Shell loop over sync_schedule/ingest/compute for a year range
 │   └── populate_all.sh            # One-time population run for 2021–2025
@@ -523,7 +528,7 @@ data-engine/
 │   ├── test_quality_utils.py       # health_from_issues + is_fixable/resolve_issue_actions (both derive from ISSUE_REPAIR_STEPS)
 │   ├── test_feature_helpers_pure.py # car_rank, circuit_adj_start_pos
 │   ├── test_feature_helpers_db.py  # compute_weather_score, compute_luck_score — via fake_db
-│   ├── test_feature_context.py     # build_feature_context, build_driver_code_map — via fake_db
+│   ├── test_feature_context.py     # build_feature_context, build_driver_code_map, build_driver_number_map — via fake_db
 │   ├── test_fastf1_helpers.py      # ms_to_int (the one pure function in fastf1_helpers.py)
 │   ├── test_weights.py             # WEIGHTS sum-to-1 + positivity, assemble_scores() key-drift guard,
 │   │                                #   both models checked against docs/feature-weights.json
@@ -534,7 +539,8 @@ data-engine/
 │   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
 │   ├── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
 │   ├── test_ingest_race_control.py # ingest_race_control run() — completed/live-window guards, upsert — via fake_db
-│   ├── test_openf1_client.py       # get_session_key (date match, pre-2023 no-coverage), fetch_race_control
+│   ├── test_ingest_overtakes.py    # ingest_overtakes run() — same guards + unknown-driver-number row skipping — via fake_db
+│   ├── test_openf1_client.py       # get_session_key (date match incl. 1-day drift, pre-2023 no-coverage), fetch_race_control, fetch_overtakes
 │   ├── test_data_quality_audit.py  # _audit_race gate/threshold branching per race status — via fake_db
 │   ├── test_data_quality_repair.py # run() audit-run selection, per-race issue grouping + step dedup, resolve/rollback — mocked jobs
 │   ├── test_main_auto_detect.py    # auto_detect_race/sprint_qualifying/sprint — row→(year,round), exit(1), query filters
@@ -562,6 +568,7 @@ data-engine/
 | `ingest_fp2` | `--year --round` | Practice long-run stints → `fp2_long_run_times` (FP2 primary, FP1 fallback on sprint weekends); used as primary long-run pace signal |
 | `ingest_sprint` | `--year --round` | Sprint results + sprint_lap_times + sprint conditions; sprint weekends only |
 | `ingest_race_control` | `--year --round` | OpenF1 flags/SC/VSC/incident messages — completed races only, 2023+ (no OpenF1 coverage before), gated past OpenF1's live window |
+| `ingest_overtakes` | `--year --round` | OpenF1 on-track overtakes — same 2023+/completed/live-window gating; skips rows whose driver number can't be resolved |
 | `compute_season_stats` | `--year` | Rolling aggregates for drivers and teams, including sprint stats |
 | `compute_features` | `--race_id` | 12 feature scores per driver for a GP |
 | `compute_predictions` | `--race_id` | Softmax → GP win probabilities and predicted positions |

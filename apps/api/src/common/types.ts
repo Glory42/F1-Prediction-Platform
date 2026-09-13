@@ -199,6 +199,15 @@ export type RaceControlMessage = {
   message: string;
 };
 
+export type RaceOvertake = {
+  id: number;
+  raceId: number;
+  date: string;
+  overtakingDriverId: number;
+  overtakenDriverId: number;
+  position: number;
+};
+
 export type DriverDetailResponse = {
   driver: Driver;
   seasonStats: DriverSeasonStats;

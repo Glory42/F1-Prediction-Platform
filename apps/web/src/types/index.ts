@@ -77,6 +77,10 @@ export type RaceControlMessage = {
   lapNumber: number | null; driverNumber: number | null; scope: string | null;
   sector: number | null; message: string;
 };
+export type RaceOvertake = {
+  id: number; raceId: number; date: string;
+  overtakingDriverId: number; overtakenDriverId: number; position: number;
+};
 export type DriverDetailResponse = {
   driver: Driver; seasonStats: DriverSeasonStats;
   recentResults: (RaceResult & { race: { name: string; raceDate: string } })[];

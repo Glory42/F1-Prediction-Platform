@@ -1,0 +1,47 @@
+---
+import type { RaceOvertake, Driver } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
+
+interface Props {
+  overtakes: RaceOvertake[];
+  driverMap: Map<number, Driver>;
+}
+const { overtakes, driverMap } = Astro.props;
+
+// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
+// avoids a timezone-dependent Date parse just to show the session clock time.
+const timeOf = (iso: string) => iso.slice(11, 19);
+const driverOf = (id: number) => driverMap.get(id);
+const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.team.teamKey) : '#6B7280';
+---
+
+{overtakes.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No overtake data available.</p>
+) : (
+  <ol class="divide-y divide-white/[0.06] max-h-[520px] overflow-y-auto">
+    {overtakes.map((o) => {
+      const gaining = driverOf(o.overtakingDriverId);
+      const losing = driverOf(o.overtakenDriverId);
+      const gainingCode = gaining?.code ?? '???';
+      const losingCode = losing?.code ?? '???';
+      return (
+        <li class="flex items-center gap-4 px-4 py-3">
+          <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase shrink-0">
+            {timeOf(o.date)}
+          </span>
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="size-2 rounded-full shrink-0" style={`background:${dotColor(gaining)}`} />
+            <span class="font-bold text-[#a855f7] truncate">{gainingCode}</span>
+            <span class="text-sm text-muted-foreground shrink-0">passed</span>
+            <span class="size-2 rounded-full shrink-0" style={`background:${dotColor(losing)}`} />
+            <span class="font-bold truncate">{losingCode}</span>
+          </div>
+          <div class="flex items-center gap-3 font-mono text-[9px] tracking-widest uppercase shrink-0">
+            <span class="text-[#a855f7]">{gainingCode} → P{o.position}</span>
+            <span class="text-muted-foreground">{losingCode} → P{o.position + 1}</span>
+          </div>
+        </li>
+      );
+    })}
+  </ol>
+)}
