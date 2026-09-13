@@ -1,5 +1,5 @@
 import {
-  predictionResponse, raceDetailResponse, raceControlMessages, raceOvertakes, predictionHistory, intelStandings,
+  predictionResponse, raceDetailResponse, raceControlMessages, raceOvertakes, teamRadioClips, predictionHistory, intelStandings,
   seasons, modelInfo, circuitDetailResponse,
   driverCareer, driverBCareer, driverDetailResponse, driverBDetailResponse,
   teamCareer, teamDetailResponse, driverStandingsResponse, driversListResponse,
@@ -44,6 +44,7 @@ Bun.serve({
     if (url.pathname === '/api/races/1') return ok(raceDetailResponse);
     if (url.pathname === '/api/races/1/race-control') return ok(raceControlMessages);
     if (url.pathname === '/api/races/1/overtakes') return ok(raceOvertakes);
+    if (url.pathname === '/api/races/1/team-radio') return ok(teamRadioClips);
     if (url.pathname === '/api/predictions/race/1') return ok(predictionResponse);
     if (url.pathname === '/api/races/circuit/monza') return ok(circuitDetailResponse);
 

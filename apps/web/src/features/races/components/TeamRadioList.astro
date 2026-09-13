@@ -1,0 +1,39 @@
+---
+import type { TeamRadioClip, Driver } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
+
+interface Props {
+  clips: TeamRadioClip[];
+  driverMap: Map<number, Driver>;
+}
+const { clips, driverMap } = Astro.props;
+
+// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
+// avoids a timezone-dependent Date parse just to show the session clock time.
+const timeOf = (iso: string) => iso.slice(11, 19);
+const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.team.teamKey) : '#6B7280';
+---
+
+{clips.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No team radio clips available.</p>
+) : (
+  <ol class="divide-y divide-white/[0.06] max-h-[520px] overflow-y-auto">
+    {clips.map((clip) => {
+      const driver = driverMap.get(clip.driverId);
+      return (
+        <li class="flex items-center gap-4 px-4 py-3">
+          <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase shrink-0">
+            {timeOf(clip.date)}
+          </span>
+          <div class="flex items-center gap-2 w-24 shrink-0">
+            <span class="size-2 rounded-full shrink-0" style={`background:${dotColor(driver)}`} />
+            <span class="font-bold truncate">{driver?.code ?? '???'}</span>
+          </div>
+          <audio controls preload="none" class="h-8 flex-1 min-w-0">
+            <source src={clip.recordingUrl} type="audio/mpeg" />
+          </audio>
+        </li>
+      );
+    })}
+  </ol>
+)}

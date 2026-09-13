@@ -7,6 +7,7 @@ export * from './qualifying_results';
 export * from './race_results';
 export * from './race_control_messages';
 export * from './race_overtakes';
+export * from './team_radio_clips';
 export * from './sprint_results';
 export * from './sprint_lap_times';
 export * from './lap_times';

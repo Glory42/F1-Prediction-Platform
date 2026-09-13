@@ -1,7 +1,7 @@
 import pytest
 
 import src.utils.openf1_client as openf1_client
-from src.utils.openf1_client import fetch_overtakes, fetch_race_control, get_session_key
+from src.utils.openf1_client import fetch_overtakes, fetch_race_control, fetch_team_radio, get_session_key
 
 
 class _FakeResponse:
@@ -66,3 +66,11 @@ class TestFetchOvertakes:
         monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(overtakes))
 
         assert fetch_overtakes(9636) == overtakes
+
+
+class TestFetchTeamRadio:
+    def test_returns_parsed_json(self, monkeypatch):
+        clips = [{"driver_number": 4, "recording_url": "https://example.com/clip.mp3"}]
+        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(clips))
+
+        assert fetch_team_radio(9636) == clips

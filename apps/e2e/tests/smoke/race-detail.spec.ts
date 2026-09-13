@@ -30,3 +30,12 @@ test('renders the overtakes tab with driver codes and before/after positions', a
   await expect(panel.getByText('VER → P2')).toBeVisible();
   await expect(panel.getByText('LEC → P3')).toBeVisible();
 });
+
+test('renders the team radio tab with a playable clip', async ({ page }) => {
+  await page.goto('/races/1');
+
+  await page.getByRole('tab', { name: 'Team Radio' }).click();
+  const panel = page.locator('#panel-team-radio');
+  await expect(panel.getByText('VER', { exact: true })).toBeVisible();
+  await expect(panel.locator('audio source')).toHaveAttribute('src', 'https://example.com/clip-ver.mp3');
+});

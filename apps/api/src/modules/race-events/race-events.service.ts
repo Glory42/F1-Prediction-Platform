@@ -1,8 +1,8 @@
 import { eq, asc } from 'drizzle-orm';
 import type { Db } from '../../config/database';
-import { races, raceControlMessages, raceOvertakes } from '../../db/schema';
-import type { RaceControlMessage, RaceOvertake } from '../../common/types';
-import { toRaceControlMessage, toRaceOvertake } from '../../common/mappers';
+import { races, raceControlMessages, raceOvertakes, teamRadioClips } from '../../db/schema';
+import type { RaceControlMessage, RaceOvertake, TeamRadioClip } from '../../common/types';
+import { toRaceControlMessage, toRaceOvertake, toTeamRadioClip } from '../../common/openf1-mappers';
 
 export class RaceEventsService {
   async raceExists(db: Db, raceId: number): Promise<boolean> {
@@ -28,5 +28,15 @@ export class RaceEventsService {
       .orderBy(asc(raceOvertakes.date));
 
     return rows.map(toRaceOvertake);
+  }
+
+  async getTeamRadio(db: Db, raceId: number): Promise<TeamRadioClip[]> {
+    const rows = await db
+      .select()
+      .from(teamRadioClips)
+      .where(eq(teamRadioClips.raceId, raceId))
+      .orderBy(asc(teamRadioClips.date));
+
+    return rows.map(toTeamRadioClip);
   }
 }

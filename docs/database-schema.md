@@ -34,6 +34,7 @@ seasons
         └── race_results            (FK → drivers)
         └── race_control_messages   (no driver FK — driver_number is a raw OpenF1 car number)
         └── race_overtakes          (two FKs → drivers: overtaking_driver_id, overtaken_driver_id)
+        └── team_radio_clips        (FK → drivers)
         └── lap_times               (FK → drivers)
         └── driver_prediction_features (FK → drivers)
         └── race_predictions        (FK → drivers)
@@ -235,6 +236,22 @@ since both sides of the exchange are needed for a usable UI.
 | `overtaken_driver_id` | FK → drivers | The driver who lost the position |
 | `position` | integer | Track position after the overtake |
 | UNIQUE | `(race_id, date, overtaking_driver_id, overtaken_driver_id)` | |
+
+---
+
+### `team_radio_clips`
+One row per team radio clip per race, sourced from OpenF1 — same 2023+/completed/
+past-live-window coverage as the other OpenF1 tables. F1 doesn't release radio for every
+session, so sparse or missing coverage for a given race is expected, not a data gap.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | Resolved from OpenF1's car number via `build_driver_number_map` |
+| `date` | timestamptz | Clip timestamp, from OpenF1 |
+| `recording_url` | text | Direct link to F1's own audio CDN |
+| UNIQUE | `(race_id, driver_id, date)` | |
 
 ---
 
