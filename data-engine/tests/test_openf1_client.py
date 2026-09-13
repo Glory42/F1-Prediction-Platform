@@ -26,8 +26,17 @@ class TestGetSessionKey:
 
         assert get_session_key(2024, "2024-09-01") == 9590
 
+    def test_matches_across_a_one_day_utc_drift(self, monkeypatch):
+        # Las Vegas races at night local time, so OpenF1's UTC date_start lands one
+        # calendar day after our (local-date) race_date.
+        sessions = [{"session_key": 9189, "date_start": "2023-11-19T06:00:00+00:00"}]
+        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(sessions))
+
+        assert get_session_key(2023, "2023-11-18") == 9189
+
     def test_no_matching_session_raises(self, monkeypatch):
-        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse([]))
+        sessions = [{"session_key": 9515, "date_start": "2024-05-19T13:00:00+00:00"}]
+        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(sessions))
 
         with pytest.raises(ValueError, match="No OpenF1 Race session found"):
             get_session_key(2024, "2024-09-01")
