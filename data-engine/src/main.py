@@ -181,6 +181,15 @@ def _dispatch(job: str, args) -> None:
         from src.jobs.ingest_race_control import run
         run(year, round_num)
 
+    elif job == "ingest_overtakes":
+        from src.db.client import get_conn
+        conn = get_conn()
+        year, round_num = (args.year, args.round_num) if args.year and args.round_num \
+            else auto_detect_completed_race(args.year, conn)
+        conn.close()
+        from src.jobs.ingest_overtakes import run
+        run(year, round_num)
+
     elif job == "compute_season_stats":
         if not args.year:
             print("--year required for compute_season_stats", file=sys.stderr)
@@ -236,6 +245,7 @@ def main() -> None:
         "ingest_sprint",
         "ingest_race",
         "ingest_race_control",
+        "ingest_overtakes",
         "compute_season_stats",
         "compute_sprint_features",
         "compute_sprint_predictions",

@@ -46,9 +46,11 @@ its end, so these jobs self-skip until a race is `completed` and safely past tha
 | Job | Purpose |
 |-----|---------|
 | `ingest_race_control` | Ingests OpenF1 flags/safety-car/VSC/incident messages into `race_control_messages` — 2023+ only |
+| `ingest_overtakes` | Ingests OpenF1 on-track overtakes into `race_overtakes`, resolving each driver number to a `drivers.id` via `build_driver_number_map` — 2023+ only |
 
-Backfill across a year range with `python scripts/backfill_race_control.py <start> <end>`
-(data-engine/, paced to stay under OpenF1's free-tier rate limit).
+Backfill across a year range with `python scripts/backfill_race_control.py <start> <end>` or
+`python scripts/backfill_overtakes.py <start> <end>` (data-engine/, paced to stay under
+OpenF1's free-tier rate limit).
 
 ---
 

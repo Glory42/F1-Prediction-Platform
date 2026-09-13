@@ -1,0 +1,35 @@
+---
+import type { RaceOvertake, Driver } from '@/types';
+
+interface Props {
+  overtakes: RaceOvertake[];
+  driverMap: Map<number, Driver>;
+}
+const { overtakes, driverMap } = Astro.props;
+
+// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
+// avoids a timezone-dependent Date parse just to show the session clock time.
+const timeOf = (iso: string) => iso.slice(11, 19);
+const codeOf = (driverId: number) => driverMap.get(driverId)?.code ?? '???';
+---
+
+{overtakes.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No overtake data available.</p>
+) : (
+  <ol class="divide-y divide-white/[0.06]">
+    {overtakes.map((o) => (
+      <li class="flex items-center gap-3 px-4 py-2.5">
+        <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase shrink-0">
+          {timeOf(o.date)}
+        </span>
+        <span class="font-mono text-[8px] tracking-widest uppercase border border-white/[0.08] text-muted-foreground px-1.5 py-0.5 shrink-0">
+          P{o.position}
+        </span>
+        <span class="text-sm leading-snug">
+          <span class="font-bold text-[#a855f7]">{codeOf(o.overtakingDriverId)}</span> passed{' '}
+          <span class="font-bold">{codeOf(o.overtakenDriverId)}</span>
+        </span>
+      </li>
+    ))}
+  </ol>
+)}

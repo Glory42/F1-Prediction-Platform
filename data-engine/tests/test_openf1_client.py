@@ -1,7 +1,7 @@
 import pytest
 
 import src.utils.openf1_client as openf1_client
-from src.utils.openf1_client import fetch_race_control, get_session_key
+from src.utils.openf1_client import fetch_overtakes, fetch_race_control, get_session_key
 
 
 class _FakeResponse:
@@ -58,3 +58,11 @@ class TestFetchRaceControl:
         monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(messages))
 
         assert fetch_race_control(9636) == messages
+
+
+class TestFetchOvertakes:
+    def test_returns_parsed_json(self, monkeypatch):
+        overtakes = [{"overtaking_driver_number": 63, "overtaken_driver_number": 4, "position": 1}]
+        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(overtakes))
+
+        assert fetch_overtakes(9636) == overtakes
