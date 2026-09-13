@@ -23,7 +23,7 @@ const timeOf = (iso: string) => iso.slice(11, 19);
 {messages.length === 0 ? (
   <p class="text-sm text-muted-foreground px-4 py-6">No race control messages available.</p>
 ) : (
-  <ol class="divide-y divide-white/[0.06]">
+  <ol class="divide-y divide-white/[0.06] max-h-[520px] overflow-y-auto">
     {messages.map((m) => (
       <li class="flex items-start gap-3 px-4 py-2.5">
         <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase pt-0.5 shrink-0">
