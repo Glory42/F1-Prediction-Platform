@@ -49,7 +49,8 @@ apps/api/
 │   ├── main.ts                    # Entry point — registers CORS, logger, modules
 │   ├── common/types.ts            # Bindings + all response types
 │   ├── common/constants.ts        # SPRINT_FORMATS — single source of truth shared by all services
-│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult(), toRaceControlMessage() — canonical row→DTO mappers used by all services
+│   ├── common/mappers.ts          # toDriver(), toTeam(), toRace(), toCircuit(), toRaceResult(), toQualifyingResult(), toSprintResult() — canonical row→DTO mappers used by all services
+│   ├── common/openf1-mappers.ts   # toRaceControlMessage(), toRaceOvertake(), toTeamRadioClip() — split out from mappers.ts once the OpenF1-sourced DTOs pushed it over the 150-line budget
 │   ├── common/standings.ts        # resolveSeason(), buildStandings(), buildCareerStats(), sortByChampionshipStanding() — shared standings/career-stats pipeline for drivers, teams, predictions; drivers/teams pass a StatsAdapter (entityId/statsEntityId/toStats/emptyStats) instead of loose lambdas
 │   ├── common/prediction-response.ts  # buildPredictionResponse(db, config) — shared GP/sprint prediction pipeline (winner lookup, feature mapping, response assembly); used by predictions.service.ts + sprint.service.ts
 │   ├── common/prediction-history.ts   # buildHistoryItems(), buildWinnerMap(), buildProbPosMaps(), mergeHistoryByDateDesc() — pure GP/sprint prediction-history assembly for predictions.service.findHistory()
@@ -72,6 +73,7 @@ apps/api/
 │   │   │   ├── race_results.ts
 │   │   │   ├── race_control_messages.ts  # OpenF1 flags/SC/VSC/incident log per race (free/historical only, no live data)
 │   │   │   ├── race_overtakes.ts  # OpenF1 on-track overtakes per race — two driver FKs (overtaking/overtaken)
+│   │   │   ├── team_radio_clips.ts  # OpenF1 team radio audio URLs per race — one driver FK; coverage is inherently patchy (F1 doesn't release every clip)
 │   │   │   ├── lap_times.ts
 │   │   │   ├── sprint_results.ts  # Sprint finish + SQ1/SQ2/SQ3 times + sq sector times
 │   │   │   ├── sprint_lap_times.ts# Per-lap sprint data
@@ -92,9 +94,9 @@ apps/api/
 │       │   ├── races.controller.ts# Parses context, calls service, returns JSON
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── race-events/           # OpenF1-sourced race data, separate from races/ to keep its controller under budget
-│       │   ├── race-events.service.ts    # getRaceControlMessages(), getOvertakes(), raceExists()
+│       │   ├── race-events.service.ts    # getRaceControlMessages(), getOvertakes(), getTeamRadio(), raceExists()
 │       │   ├── race-events.controller.ts
-│       │   └── race-events.module.ts     # GET /:id/race-control, /:id/overtakes (mounted at /api/races)
+│       │   └── race-events.module.ts     # GET /:id/race-control, /:id/overtakes, /:id/team-radio (mounted at /api/races)
 │       ├── drivers/
 │       │   ├── drivers.service.ts # Driver list, standings, detail, career stats
 │       │   ├── drivers.controller.ts
@@ -133,6 +135,7 @@ apps/api/
 │   │   │   └── predictions/       # intel-standings.helpers test (feature averaging + standings normalise)
 │   │   └── common/                # bun test — mirrors src/common/, one *.test.ts per file
 │   │       ├── mappers.test.ts
+│   │       ├── openf1-mappers.test.ts # toRaceControlMessage/toRaceOvertake/toTeamRadioClip
 │   │       ├── standings.test.ts
 │   │       ├── prediction-response.test.ts
 │   │       ├── prediction-history.test.ts
@@ -141,7 +144,7 @@ apps/api/
 │   │       └── accuracy.test.ts
 │   ├── integration/                # bun test — real Hono `app.request()` against a dedicated Neon test branch
 │   │   ├── races/races.test.ts     # list/filter/detail/circuit-history joins
-│   │   ├── race-events/race-events.test.ts # race-control message + overtakes lists, ordering, 404
+│   │   ├── race-events/race-events.test.ts # race-control message + overtakes + team-radio lists, ordering, 404
 │   │   ├── drivers/drivers.test.ts # list/filter/standings/detail
 │   │   ├── teams/teams.test.ts     # list/standings/detail
 │   │   ├── seasons/seasons.test.ts # race-count aggregation
@@ -183,6 +186,7 @@ Each module follows the same three-file pattern:
 | GET | `/api/races/:id` | — |
 | GET | `/api/races/:id/race-control` | — |
 | GET | `/api/races/:id/overtakes` | — |
+| GET | `/api/races/:id/team-radio` | — |
 | GET | `/api/drivers` | `year`, `team_id` |
 | GET | `/api/drivers/standings` | `year` |
 | GET | `/api/drivers/:id` | `year` |
@@ -287,6 +291,7 @@ apps/web/
 │   │   │       ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
 │   │       ├── RaceControlTimeline.astro # Flags/SC/VSC/incident log, ordered by session time
 │   │       ├── OvertakesList.astro    # On-track overtakes list; resolves driver codes via a driverMap prop built from race results
+│   │       ├── TeamRadioList.astro    # Team radio clip list with <audio> playback; first audio usage in apps/web, driverMap resolved the same way as OvertakesList
 │   │   │       ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
 │   │   │       ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   │       ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
@@ -343,7 +348,7 @@ apps/web/
 │   │                              #   IntelStandingRow, CircuitHistoryItem (hasSprint), SeasonSummary,
 │   │                              #   SprintResult, SprintFeatureScores, DriverSprintPrediction,
 │   │                              #   SprintPredictionResponse, SprintDetailResponse, ModelInfo,
-│   │                              #   RaceControlMessage, RaceOvertake
+│   │                              #   RaceControlMessage, RaceOvertake, TeamRadioClip
 │   ├── styles/
 │   │   └── globals.css            # Tailwind base + CSS custom properties
 │   └── env.d.ts                   # Astro env type declarations
@@ -477,6 +482,7 @@ data-engine/
 │   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
 │   │   ├── ingest_race_control.py      # OpenF1 race-control messages (flags/SC/VSC) — completed races only, post-live-window
 │   │   ├── ingest_overtakes.py         # OpenF1 overtakes → race_overtakes; resolves driver_number via build_driver_number_map
+│   │   ├── ingest_team_radio.py        # OpenF1 team radio → team_radio_clips; same driver_number resolution, empty/partial results are normal
 │   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
 │   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
 │   │   ├── ingest_fp2.py               # Practice long-run stint data → fp2_long_run_times (FP2 primary; FP1 fallback on sprint weekends)
@@ -498,7 +504,7 @@ data-engine/
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp(), weighted_sum()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(), build_driver_number_map(conn, season_id) — shared driver code/number→id lookups for ingest jobs
-│       ├── openf1_client.py       # get_session_key(), fetch_race_control(), fetch_overtakes() — thin OpenF1 REST client (free/historical tier only)
+│       ├── openf1_client.py       # get_session_key(), fetch_race_control(), fetch_overtakes(), fetch_team_radio() — thin OpenF1 REST client (free/historical tier only)
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
 │       ├── ingest_runner.py       # Two seams: run_ingest_job(...) — shared headshot/results/lap-time/status logic for
 │       │                          # ingest_race + ingest_sprint; run_qualifying_ingest_job(...) — shared logic for
@@ -517,6 +523,7 @@ data-engine/
 │   ├── backfill_fp2.py            # Backfill FP2 long-run data for 2018+ completed races
 │   ├── backfill_race_control.py   # Backfill OpenF1 race-control messages for a year range (2023+ only — no OpenF1 coverage before)
 │   ├── backfill_overtakes.py      # Backfill OpenF1 overtakes for a year range (2023+ only — no OpenF1 coverage before)
+│   ├── backfill_team_radio.py     # Backfill OpenF1 team radio clips for a year range (2023+ only — no OpenF1 coverage before)
 │   ├── backfill_all_predictions.py # Recompute GP + sprint predictions for all races (weighted-v3 / sprint-v2)
 │   ├── backfill_historical.sh     # Shell loop over sync_schedule/ingest/compute for a year range
 │   └── populate_all.sh            # One-time population run for 2021–2025
@@ -540,7 +547,8 @@ data-engine/
 │   ├── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
 │   ├── test_ingest_race_control.py # ingest_race_control run() — completed/live-window guards, upsert — via fake_db
 │   ├── test_ingest_overtakes.py    # ingest_overtakes run() — same guards + unknown-driver-number row skipping — via fake_db
-│   ├── test_openf1_client.py       # get_session_key (date match incl. 1-day drift, pre-2023 no-coverage), fetch_race_control, fetch_overtakes
+│   ├── test_ingest_team_radio.py   # ingest_team_radio run() — same guards + unknown-driver-number skipping + empty-result handling — via fake_db
+│   ├── test_openf1_client.py       # get_session_key (date match incl. 1-day drift, pre-2023 no-coverage), fetch_race_control, fetch_overtakes, fetch_team_radio
 │   ├── test_data_quality_audit.py  # _audit_race gate/threshold branching per race status — via fake_db
 │   ├── test_data_quality_repair.py # run() audit-run selection, per-race issue grouping + step dedup, resolve/rollback — mocked jobs
 │   ├── test_main_auto_detect.py    # auto_detect_race/sprint_qualifying/sprint — row→(year,round), exit(1), query filters
@@ -569,6 +577,7 @@ data-engine/
 | `ingest_sprint` | `--year --round` | Sprint results + sprint_lap_times + sprint conditions; sprint weekends only |
 | `ingest_race_control` | `--year --round` | OpenF1 flags/SC/VSC/incident messages — completed races only, 2023+ (no OpenF1 coverage before), gated past OpenF1's live window |
 | `ingest_overtakes` | `--year --round` | OpenF1 on-track overtakes — same 2023+/completed/live-window gating; skips rows whose driver number can't be resolved |
+| `ingest_team_radio` | `--year --round` | OpenF1 team radio clips — same 2023+/completed/live-window gating; F1 doesn't release radio for every session, so a partial or empty result is normal |
 | `compute_season_stats` | `--year` | Rolling aggregates for drivers and teams, including sprint stats |
 | `compute_features` | `--race_id` | 12 feature scores per driver for a GP |
 | `compute_predictions` | `--race_id` | Softmax → GP win probabilities and predicted positions |

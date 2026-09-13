@@ -43,3 +43,11 @@ def fetch_overtakes(session_key: int) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_team_radio(session_key: int) -> list[dict]:
+    resp = requests.get(
+        f"{BASE_URL}/team_radio", params={"session_key": session_key}, timeout=_TIMEOUT_S
+    )
+    resp.raise_for_status()
+    return resp.json()

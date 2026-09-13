@@ -35,4 +35,18 @@ export const RaceEventsController = {
     c.header('Cache-Control', CACHE_COMPLETED);
     return c.json({ data, error: null });
   },
+
+  getTeamRadio: async (c: Context<{ Bindings: Bindings }>) => {
+    const id = Number(c.req.param('id'));
+    if (isNaN(id)) {
+      return c.json({ data: null, error: { code: 'INVALID_ID', message: 'id must be a number' } }, 400);
+    }
+    const db = createDb(c.env.DATABASE_URL);
+    if (!(await service.raceExists(db, id))) {
+      return c.json({ data: null, error: { code: 'NOT_FOUND', message: `Race ${id} not found` } }, 404);
+    }
+    const data = await service.getTeamRadio(db, id);
+    c.header('Cache-Control', CACHE_COMPLETED);
+    return c.json({ data, error: null });
+  },
 };

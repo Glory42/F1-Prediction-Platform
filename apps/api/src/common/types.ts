@@ -208,6 +208,14 @@ export type RaceOvertake = {
   position: number;
 };
 
+export type TeamRadioClip = {
+  id: number;
+  raceId: number;
+  driverId: number;
+  date: string;
+  recordingUrl: string;
+};
+
 export type DriverDetailResponse = {
   driver: Driver;
   seasonStats: DriverSeasonStats;

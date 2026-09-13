@@ -8,6 +8,7 @@ import { createDriver } from '../../support/factories/driver.factory';
 import { createRace } from '../../support/factories/race.factory';
 import { createRaceControlMessage } from '../../support/factories/raceControlMessage.factory';
 import { createRaceOvertake } from '../../support/factories/raceOvertake.factory';
+import { createTeamRadioClip } from '../../support/factories/teamRadioClip.factory';
 
 describe('race-events (integration)', () => {
   const db = getTestDb();
@@ -51,6 +52,15 @@ describe('race-events (integration)', () => {
       position: 7,
     });
 
+    await createTeamRadioClip(db, race.id, driverA.id, {
+      date: new Date('2098-03-01T14:12:00Z'),
+      recordingUrl: 'https://example.com/clip-a.mp3',
+    });
+    await createTeamRadioClip(db, race.id, driverB.id, {
+      date: new Date('2098-03-01T14:02:00Z'),
+      recordingUrl: 'https://example.com/clip-b.mp3',
+    });
+
     raceId = race.id;
   });
 
@@ -86,6 +96,23 @@ describe('race-events (integration)', () => {
 
   it('returns 404 for overtakes on a race that does not exist', async () => {
     const res = await apiRequest('/api/races/999999999/overtakes');
+    expect(res.status).toBe(404);
+    const { data, error } = (await res.json()) as { data: null; error: { code: string } };
+    expect(data).toBeNull();
+    expect(error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns team radio clips ordered by date ascending', async () => {
+    const res = await apiRequest(`/api/races/${raceId}/team-radio`);
+    expect(res.status).toBe(200);
+    const { data } = (await res.json()) as { data: Array<{ recordingUrl: string }> };
+    expect(data).toHaveLength(2);
+    expect(data[0].recordingUrl).toBe('https://example.com/clip-b.mp3');
+    expect(data[1].recordingUrl).toBe('https://example.com/clip-a.mp3');
+  });
+
+  it('returns 404 for team radio on a race that does not exist', async () => {
+    const res = await apiRequest('/api/races/999999999/team-radio');
     expect(res.status).toBe(404);
     const { data, error } = (await res.json()) as { data: null; error: { code: string } };
     expect(data).toBeNull();

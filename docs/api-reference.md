@@ -95,6 +95,13 @@ look them up in the race's own `results`/`qualifying` response rather than re-fe
 details. Empty until `ingest_overtakes` has run — same OpenF1 2023+/completed-only coverage
 as race-control.
 
+### `GET /api/races/:id/team-radio`
+
+Returns team radio clips for a race, ordered by timestamp ascending. `driverId` references
+`drivers.id` (resolved from OpenF1's car number) — look it up the same way as overtakes.
+`recordingUrl` points directly at F1's own CDN. F1 doesn't release radio for every session,
+so an empty or partial list is expected, not an error.
+
 ### `GET /api/races/circuits`
 
 Returns a list of all circuits in the database, ordered alphabetically by name.

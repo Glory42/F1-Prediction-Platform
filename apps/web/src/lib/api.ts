@@ -1,7 +1,7 @@
 import type {
   PredictionResponse, RaceDetailResponse, DriverDetailResponse, TeamDetailResponse,
   Race, Driver, Team, DriverStanding, TeamStanding, Circuit,
-  PredictionHistoryItem, IntelStandingRow, CircuitDetailResponse, RaceControlMessage, RaceOvertake,
+  PredictionHistoryItem, IntelStandingRow, CircuitDetailResponse, RaceControlMessage, RaceOvertake, TeamRadioClip,
   DriverYearStats, TeamYearStats, SeasonSummary,
   SprintPredictionResponse, SprintDetailResponse, ModelInfo, SeasonAccuracy,
   QualityReport,
@@ -34,6 +34,7 @@ export const api = {
   getRaceById: (id: number) => get<RaceDetailResponse>(`/api/races/${id}`),
   getRaceControlMessages: (raceId: number) => get<RaceControlMessage[]>(`/api/races/${raceId}/race-control`),
   getOvertakes: (raceId: number) => get<RaceOvertake[]>(`/api/races/${raceId}/overtakes`),
+  getTeamRadio: (raceId: number) => get<TeamRadioClip[]>(`/api/races/${raceId}/team-radio`),
   getCircuitDetails: (circuitKey: string) => get<CircuitDetailResponse>(`/api/races/circuit/${circuitKey}`),
   getCircuits: () => get<Circuit[]>('/api/races/circuits'),
 

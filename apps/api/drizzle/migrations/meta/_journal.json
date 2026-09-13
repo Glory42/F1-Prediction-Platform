@@ -127,6 +127,13 @@
       "when": 1789294336008,
       "tag": "0017_graceful_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789297848974,
+      "tag": "0018_misty_steve_rogers",
+      "breakpoints": true
     }
   ]
 }

@@ -5,11 +5,12 @@ import { QualifyingGrid } from '@/features/races/components/QualifyingGrid';
 import LapChart from '@/features/races/components/LapChart.astro';
 import RaceControlTimeline from '@/features/races/components/RaceControlTimeline.astro';
 import OvertakesList from '@/features/races/components/OvertakesList.astro';
+import TeamRadioList from '@/features/races/components/TeamRadioList.astro';
 import RaceHeroInfo from '@/features/races/components/RaceHeroInfo.astro';
 import RacePredictionPanel from '@/features/races/components/RacePredictionPanel.astro';
 import { api } from '@/lib/api';
 import { formatDate, formatMs } from '@/lib/utils';
-import type { PredictionResponse, CircuitHistoryItem, RaceControlMessage, RaceOvertake, Driver } from '@/types';
+import type { PredictionResponse, CircuitHistoryItem, RaceControlMessage, RaceOvertake, TeamRadioClip, Driver } from '@/types';
 import { RotateCcw, Gauge, Zap, Flag, CornerDownRight, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { GP_ACCENT } from '@/features/predictions/types';
@@ -21,6 +22,7 @@ let prediction: PredictionResponse | null = null;
 let circuitHistory: CircuitHistoryItem[] = [];
 let raceControlMessages: RaceControlMessage[] = [];
 let overtakes: RaceOvertake[] = [];
+let teamRadio: TeamRadioClip[] = [];
 let error = null;
 
 try {
@@ -32,16 +34,18 @@ try {
 const race = raceData?.race;
 
 if (race) {
-  const [predResult, histResult, raceControlResult, overtakesResult] = await Promise.allSettled([
+  const [predResult, histResult, raceControlResult, overtakesResult, teamRadioResult] = await Promise.allSettled([
     api.getPredictionByRace(race.id),
     api.getCircuitDetails(race.circuit.circuitKey),
     api.getRaceControlMessages(race.id),
     api.getOvertakes(race.id),
+    api.getTeamRadio(race.id),
   ]);
   if (predResult.status === 'fulfilled') prediction = predResult.value;
   if (histResult.status === 'fulfilled') circuitHistory = histResult.value.history;
   if (raceControlResult.status === 'fulfilled') raceControlMessages = raceControlResult.value;
   if (overtakesResult.status === 'fulfilled') overtakes = overtakesResult.value;
+  if (teamRadioResult.status === 'fulfilled') teamRadio = teamRadioResult.value;
 }
 
 const isCompleted = race?.status === 'completed';
@@ -53,6 +57,7 @@ const hasQualifying = (raceData?.qualifying?.length ?? 0) > 0;
 const hasLaps = (raceData?.laps?.length ?? 0) > 0;
 const hasIncidents = raceControlMessages.length > 0;
 const hasOvertakes = overtakes.length > 0;
+const hasTeamRadio = teamRadio.length > 0;
 const driverMap = new Map<number, Driver>((raceData?.results ?? []).map((r) => [r.driverId, r.driver]));
 
 type Tab = { id: string; label: string };
@@ -62,6 +67,7 @@ if (hasQualifying) tabs.push({ id: 'qualifying', label: 'Qualifying' });
 if (isCompleted && hasLaps) tabs.push({ id: 'laps', label: 'Lap Chart' });
 if (isCompleted && hasIncidents) tabs.push({ id: 'incidents', label: 'Incidents' });
 if (isCompleted && hasOvertakes) tabs.push({ id: 'overtakes', label: 'Overtakes' });
+if (isCompleted && hasTeamRadio) tabs.push({ id: 'team-radio', label: 'Team Radio' });
 tabs.push({ id: 'circuit', label: 'Circuit' });
 
 const circuitYearItems = [...circuitHistory]
@@ -228,6 +234,14 @@ const circuitStats: Array<{ Icon: LucideIcon; label: string; val: string | numbe
               <div id="panel-overtakes" role="tabpanel" aria-labelledby="tab-overtakes" class={`tab-panel ${defaultTab !== 'overtakes' ? 'hidden' : ''}`}>
                 <div class="border border-white/[0.06] overflow-hidden">
                   <OvertakesList overtakes={overtakes} driverMap={driverMap} />
+                </div>
+              </div>
+            )}
+
+            {hasTeamRadio && (
+              <div id="panel-team-radio" role="tabpanel" aria-labelledby="tab-team-radio" class={`tab-panel ${defaultTab !== 'team-radio' ? 'hidden' : ''}`}>
+                <div class="border border-white/[0.06] overflow-hidden">
+                  <TeamRadioList clips={teamRadio} driverMap={driverMap} />
                 </div>
               </div>
             )}
