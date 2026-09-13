@@ -92,6 +92,31 @@ def auto_detect_sprint(year: int | None) -> tuple[int, int]:
     return int(row["year"]), int(row["round_number"])
 
 
+def auto_detect_completed_race(year: int | None, conn) -> tuple[int, int]:
+    """Finds the most recent 'completed' race — for post-race-only jobs (e.g.
+    ingest_race_control) that must run after ingest_race, unlike auto_detect_race which
+    explicitly excludes completed races."""
+    from src.db.client import get_conn
+    conn = conn or get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.round_number, s.year FROM races r
+            JOIN seasons s ON r.season_id = s.id
+            WHERE r.status = 'completed'
+              AND (%s IS NULL OR s.year = %s)
+            ORDER BY r.race_date DESC
+            LIMIT 1
+            """,
+            (year, year),
+        )
+        row = cur.fetchone()
+    if not row:
+        print("[auto-detect-completed-race] No completed race found", file=sys.stderr)
+        sys.exit(1)
+    return int(row["year"]), int(row["round_number"])
+
+
 def _dispatch(job: str, args) -> None:
     if job == "sync_schedule":
         if not args.year:
@@ -145,6 +170,15 @@ def _dispatch(job: str, args) -> None:
             else auto_detect_race(args.year, conn)
         conn.close()
         from src.jobs.ingest_race import run
+        run(year, round_num)
+
+    elif job == "ingest_race_control":
+        from src.db.client import get_conn
+        conn = get_conn()
+        year, round_num = (args.year, args.round_num) if args.year and args.round_num \
+            else auto_detect_completed_race(args.year, conn)
+        conn.close()
+        from src.jobs.ingest_race_control import run
         run(year, round_num)
 
     elif job == "compute_season_stats":
@@ -201,6 +235,7 @@ def main() -> None:
         "ingest_sprint_qualifying",
         "ingest_sprint",
         "ingest_race",
+        "ingest_race_control",
         "compute_season_stats",
         "compute_sprint_features",
         "compute_sprint_predictions",

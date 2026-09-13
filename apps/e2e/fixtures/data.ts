@@ -5,7 +5,7 @@ import type {
   DriverSeasonStats, DriverYearStats, DriverDetailResponse, TeamSeasonStats, TeamYearStats,
   TeamDetailResponse, DriverStanding,
   SprintFeatureScores, DriverSprintPrediction, SprintPredictionResponse,
-  SprintResult, SprintDetailResponse,
+  SprintResult, SprintDetailResponse, RaceControlMessage,
 } from '../../web/src/types';
 
 export const circuit: Circuit = {
@@ -82,6 +82,19 @@ const laps: LapSummary[] = [
 export const raceDetailResponse: RaceDetailResponse = {
   race, results: raceResults, qualifying: qualifyingResults, laps,
 };
+
+export const raceControlMessages: RaceControlMessage[] = [
+  {
+    id: 1, raceId: 1, date: '2025-09-07T13:00:01.000Z', category: 'SafetyCar',
+    flag: null, lapNumber: 1, driverNumber: null, scope: null, sector: null,
+    message: 'SAFETY CAR DEPLOYED',
+  },
+  {
+    id: 2, raceId: 1, date: '2025-09-07T13:12:30.000Z', category: 'Flag',
+    flag: 'YELLOW', lapNumber: 5, driverNumber: 16, scope: 'Sector', sector: 4,
+    message: 'YELLOW IN TRACK SECTOR 4',
+  },
+];
 
 export const predictionHistory: PredictionHistoryItem[] = [
   {

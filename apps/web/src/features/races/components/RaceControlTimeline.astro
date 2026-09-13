@@ -1,0 +1,39 @@
+---
+import type { RaceControlMessage } from '@/types';
+
+interface Props {
+  messages: RaceControlMessage[];
+}
+const { messages } = Astro.props;
+
+function toneClass(m: RaceControlMessage): string {
+  const flag = m.flag?.toUpperCase();
+  if (flag === 'RED') return 'border-red-500/30 text-red-400/80';
+  if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW') return 'border-yellow-500/30 text-yellow-400/80';
+  if (flag === 'GREEN') return 'border-green-500/30 text-green-400/80';
+  if (m.category === 'SafetyCar') return 'border-orange-500/30 text-orange-400/80';
+  return 'border-white/[0.08] text-muted-foreground';
+}
+
+// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
+// avoids a timezone-dependent Date parse just to show the session clock time.
+const timeOf = (iso: string) => iso.slice(11, 19);
+---
+
+{messages.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No race control messages available.</p>
+) : (
+  <ol class="divide-y divide-white/[0.06]">
+    {messages.map((m) => (
+      <li class="flex items-start gap-3 px-4 py-2.5">
+        <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase pt-0.5 shrink-0">
+          {timeOf(m.date)}
+        </span>
+        <span class={`font-mono text-[8px] tracking-widest uppercase border px-1.5 py-0.5 shrink-0 ${toneClass(m)}`}>
+          {m.flag ?? m.category}
+        </span>
+        <span class="text-sm leading-snug">{m.message}</span>
+      </li>
+    ))}
+  </ol>
+)}
