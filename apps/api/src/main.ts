@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { sql } from 'drizzle-orm';
 import { createDb } from './config/database';
 import racesModule from './modules/races/races.module';
+import raceEventsModule from './modules/race-events/race-events.module';
 import driversModule from './modules/drivers/drivers.module';
 import teamsModule from './modules/teams/teams.module';
 import predictionsModule from './modules/predictions/predictions.module';
@@ -50,6 +51,7 @@ app.get('/api/health', async (c) => {
 });
 
 app.route('/api/races', racesModule);
+app.route('/api/races', raceEventsModule);
 app.route('/api/drivers', driversModule);
 app.route('/api/teams', teamsModule);
 app.route('/api/predictions', predictionsModule);

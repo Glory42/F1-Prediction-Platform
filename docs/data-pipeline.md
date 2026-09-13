@@ -36,6 +36,20 @@ All jobs live in `data-engine/src/jobs/`. They are invoked via `src/main.py --jo
 | `data_quality_audit` | Measures per-table completeness/coverage across a season; writes `data_quality_runs` + `data_quality_issues` |
 | `data_quality_repair` | Re-ingests data for open, `fixable` issues reported by the audit, then recomputes the affected features/predictions/season-stats |
 
+### Supplementary Jobs (OpenF1)
+
+Not part of the required job chain below — these enrich completed races with data FastF1
+doesn't provide, sourced from the free [OpenF1 API](https://openf1.org) instead. OpenF1 has
+no coverage before 2023, and its free tier only serves data once a session is >30min past
+its end, so these jobs self-skip until a race is `completed` and safely past that window.
+
+| Job | Purpose |
+|-----|---------|
+| `ingest_race_control` | Ingests OpenF1 flags/safety-car/VSC/incident messages into `race_control_messages` — 2023+ only |
+
+Backfill across a year range with `python scripts/backfill_race_control.py <start> <end>`
+(data-engine/, paced to stay under OpenF1's free-tier rate limit).
+
 ---
 
 ## Job Chain

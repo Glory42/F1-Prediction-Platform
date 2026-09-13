@@ -1,6 +1,6 @@
 import { describe, expect, test, afterEach } from 'bun:test';
-import { toTeam, toDriver, toCircuit, toRace } from '../../../src/common/mappers';
-import type { teams, drivers, races, circuits } from '../../../src/db/schema';
+import { toTeam, toDriver, toCircuit, toRace, toRaceControlMessage } from '../../../src/common/mappers';
+import type { teams, drivers, races, circuits, raceControlMessages } from '../../../src/db/schema';
 
 type TeamRow = typeof teams.$inferSelect;
 type DriverRow = typeof drivers.$inferSelect;
@@ -132,6 +132,50 @@ describe('toCircuit', () => {
     delete process.env.R2_PUBLIC_URL;
     const result = toCircuit({ ...circuit, imageUrl: null });
     expect(result.imageUrl).toBe('/circuits/monza.jpg');
+  });
+});
+
+describe('toRaceControlMessage', () => {
+  const row: typeof raceControlMessages.$inferSelect = {
+    id: 1,
+    raceId: 100,
+    date: new Date('2025-09-07T13:32:10Z'),
+    category: 'Flag',
+    flag: 'YELLOW',
+    lapNumber: 12,
+    driverNumber: 44,
+    scope: 'Sector',
+    sector: 4,
+    message: 'YELLOW IN TRACK SECTOR 4',
+    createdAt: new Date('2025-09-07T14:00:00Z'),
+  };
+
+  test('converts the date column to an ISO string', () => {
+    expect(toRaceControlMessage(row).date).toBe('2025-09-07T13:32:10.000Z');
+  });
+
+  test('maps nullable columns through as-is', () => {
+    expect(toRaceControlMessage(row)).toEqual({
+      id: 1,
+      raceId: 100,
+      date: '2025-09-07T13:32:10.000Z',
+      category: 'Flag',
+      flag: 'YELLOW',
+      lapNumber: 12,
+      driverNumber: 44,
+      scope: 'Sector',
+      sector: 4,
+      message: 'YELLOW IN TRACK SECTOR 4',
+    });
+  });
+
+  test('null optional columns stay null', () => {
+    const result = toRaceControlMessage({ ...row, flag: null, lapNumber: null, driverNumber: null, scope: null, sector: null });
+    expect(result.flag).toBeNull();
+    expect(result.lapNumber).toBeNull();
+    expect(result.driverNumber).toBeNull();
+    expect(result.scope).toBeNull();
+    expect(result.sector).toBeNull();
   });
 });
 

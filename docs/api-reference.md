@@ -81,6 +81,12 @@ The `Race` object includes:
 - `sprintDate` / `sprintQualifyingDate` — ISO strings, null for conventional weekends
 - `sprintWeather`, `sprintSafetyCarLaps`, `sprintVscLaps`, `sprintAirTempAvg`, `sprintTrackTempAvg`, `sprintHumidityAvg` — sprint-specific conditions
 
+### `GET /api/races/:id/race-control`
+
+Returns race-control messages (flags, safety car/VSC, incidents) for a race, ordered by
+timestamp ascending. Empty until `ingest_race_control` has run for that race — sourced from
+OpenF1, which only has data for completed races from 2023 onward.
+
 ### `GET /api/races/circuits`
 
 Returns a list of all circuits in the database, ordered alphabetically by name.

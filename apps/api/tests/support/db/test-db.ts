@@ -4,7 +4,7 @@ import {
   seasons, circuits, teams, drivers, races, raceResults, qualifyingResults,
   lapTimes, sprintResults, sprintLapTimes, driverSeasonStats, teamSeasonStats,
   racePredictions, sprintPredictions, driverPredictionFeatures, driverSprintFeatures,
-  fp2LongRunTimes, dataQualityIssues, dataQualityRuns,
+  fp2LongRunTimes, dataQualityIssues, dataQualityRuns, raceControlMessages,
 } from '../../../src/db/schema';
 
 export const getTestDatabaseUrl = (): string => {
@@ -49,6 +49,7 @@ const ALL_TABLES = [
   racePredictions, sprintPredictions,
   fp2LongRunTimes, sprintLapTimes, lapTimes,
   sprintResults, raceResults, qualifyingResults,
+  raceControlMessages,
   driverSeasonStats, teamSeasonStats,
   races, drivers, teams, circuits, seasons,
 ];

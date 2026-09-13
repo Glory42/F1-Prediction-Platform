@@ -32,6 +32,7 @@ seasons
   └── races          (FK → circuits)
         └── qualifying_results      (FK → drivers)
         └── race_results            (FK → drivers)
+        └── race_control_messages   (no driver FK — driver_number is a raw OpenF1 car number)
         └── lap_times               (FK → drivers)
         └── driver_prediction_features (FK → drivers)
         └── race_predictions        (FK → drivers)
@@ -194,6 +195,27 @@ One row per driver per grand prix.
 | `total_race_time_ms` | bigint | For winner only |
 | `fastest_lap` | boolean | |
 | UNIQUE | `(race_id, driver_id)` | |
+
+---
+
+### `race_control_messages`
+One row per flag/safety-car/incident event per race, sourced from OpenF1 — 2023+ only
+(OpenF1 has no coverage before that), and only ingested once a race is `completed` and past
+OpenF1's live-data window.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial PK | |
+| `race_id` | FK → races | |
+| `date` | timestamptz | Message timestamp, from OpenF1 |
+| `category` | varchar(30) | `Flag`, `SafetyCar`, `Drs`, `SessionStatus`, `CarEvent`, `Other` |
+| `flag` | varchar(20) | e.g. `YELLOW`, `DOUBLE YELLOW`, `RED`, `GREEN`; null for non-flag messages |
+| `lap_number` | integer | Nullable |
+| `driver_number` | integer | Raw OpenF1 car number, not a `drivers` FK — no reliable per-season mapping stored here |
+| `scope` | varchar(20) | e.g. `Track`, `Sector`, `Driver`; nullable |
+| `sector` | integer | Nullable |
+| `message` | text | Raw OpenF1 message text |
+| UNIQUE | `(race_id, date, message)` | |
 
 ---
 

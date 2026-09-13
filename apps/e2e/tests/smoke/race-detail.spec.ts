@@ -10,3 +10,11 @@ test('renders race results, qualifying, and prediction against fixture data', as
 
   await expect(page.getByText(/failed to load/i)).toHaveCount(0);
 });
+
+test('renders the incidents tab with race control messages', async ({ page }) => {
+  await page.goto('/races/1');
+
+  await page.getByRole('tab', { name: 'Incidents' }).click();
+  await expect(page.getByText('SAFETY CAR DEPLOYED')).toBeVisible();
+  await expect(page.getByText('YELLOW IN TRACK SECTOR 4')).toBeVisible();
+});
