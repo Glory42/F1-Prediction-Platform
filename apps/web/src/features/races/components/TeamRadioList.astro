@@ -1,4 +1,5 @@
 ---
+import { Play, Pause } from 'lucide-react';
 import type { TeamRadioClip, Driver } from '@/types';
 import { getTeamColor } from '@/lib/teamColors';
 
@@ -21,15 +22,23 @@ const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.te
     {clips.map((clip) => {
       const driver = driverMap.get(clip.driverId);
       return (
-        <li class="flex items-center gap-4 px-4 py-3">
+        <li class="radio-clip flex items-center gap-3 px-4 py-3">
           <span class="font-mono text-[9px] text-muted-foreground tracking-widest uppercase shrink-0">
             {timeOf(clip.date)}
           </span>
-          <div class="flex items-center gap-2 w-24 shrink-0">
+          <div class="flex items-center gap-2 w-16 shrink-0">
             <span class="size-2 rounded-full shrink-0" style={`background:${dotColor(driver)}`} />
             <span class="font-bold truncate">{driver?.code ?? '???'}</span>
           </div>
-          <audio controls preload="none" class="h-8 flex-1 min-w-0">
+          <button type="button" class="radio-play-btn shrink-0 text-[#a855f7] hover:text-[#c084fc] transition-colors" aria-label="Play clip">
+            <Play size={14} className="radio-icon-play" />
+            <Pause size={14} className="radio-icon-pause hidden" />
+          </button>
+          <div class="radio-progress relative flex-1 h-1 bg-white/[0.08] cursor-pointer">
+            <div class="radio-progress-fill absolute inset-y-0 left-0 bg-[#a855f7]" style="width:0%" />
+          </div>
+          <span class="radio-time font-mono text-[9px] text-muted-foreground w-20 text-right shrink-0">0:00</span>
+          <audio class="radio-audio hidden" preload="metadata">
             <source src={clip.recordingUrl} type="audio/mpeg" />
           </audio>
         </li>
@@ -37,3 +46,66 @@ const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.te
     })}
   </ol>
 )}
+
+<script>
+  function formatTime(seconds: number): string {
+    if (!isFinite(seconds)) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function initRadioPlayers() {
+    const clips = document.querySelectorAll<HTMLElement>('.radio-clip');
+    if (clips.length === 0) return;
+
+    const audios = Array.from(clips, (clip) => clip.querySelector<HTMLAudioElement>('.radio-audio')!);
+
+    clips.forEach((clip, i) => {
+      const audio = audios[i];
+      const btn = clip.querySelector<HTMLButtonElement>('.radio-play-btn')!;
+      const iconPlay = clip.querySelector<HTMLElement>('.radio-icon-play')!;
+      const iconPause = clip.querySelector<HTMLElement>('.radio-icon-pause')!;
+      const progress = clip.querySelector<HTMLElement>('.radio-progress')!;
+      const fill = clip.querySelector<HTMLElement>('.radio-progress-fill')!;
+      const timeLabel = clip.querySelector<HTMLElement>('.radio-time')!;
+
+      const setPlayingState = (playing: boolean) => {
+        iconPlay.classList.toggle('hidden', playing);
+        iconPause.classList.toggle('hidden', !playing);
+      };
+
+      btn.addEventListener('click', () => {
+        if (audio.paused) {
+          audios.forEach((other) => { if (other !== audio) other.pause(); });
+          audio.play();
+        } else {
+          audio.pause();
+        }
+      });
+
+      audio.addEventListener('play', () => setPlayingState(true));
+      audio.addEventListener('pause', () => setPlayingState(false));
+      audio.addEventListener('ended', () => setPlayingState(false));
+
+      audio.addEventListener('timeupdate', () => {
+        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        fill.style.width = `${pct}%`;
+        timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+      });
+
+      audio.addEventListener('loadedmetadata', () => {
+        timeLabel.textContent = `0:00 / ${formatTime(audio.duration)}`;
+      });
+
+      progress.addEventListener('click', (e) => {
+        if (!isFinite(audio.duration)) return;
+        const rect = progress.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = ratio * audio.duration;
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initRadioPlayers);
+</script>
