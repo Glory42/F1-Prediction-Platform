@@ -1,14 +1,16 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 import src.utils.ingest_runner as ingest_runner
 from src.utils.ingest_runner import (
     IngestJobConfig,
+    OpenF1JobConfig,
     QualifyingContext,
     QualifyingJobConfig,
     RaceContext,
     run_ingest_job,
+    run_openf1_job,
     run_qualifying_ingest_job,
 )
 from tests.support.fake_db import FakeConnection
@@ -426,3 +428,115 @@ class TestRunQualifyingIngestJob:
 
         _, kwargs = upsert_calls[0]
         assert kwargs["exclude_update"] == ["finish_position", "points"]
+
+
+class TestRunOpenF1Job:
+    _LONG_AGO = datetime.now(timezone.utc) - timedelta(days=1)
+    _JUST_NOW = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+    def _race_row(self, **overrides):
+        row = {
+            "id": 1, "season_id": 10, "race_date": "2024-11-03",
+            "race_date_utc": self._LONG_AGO, "status": "completed",
+        }
+        row.update(overrides)
+        return row
+
+    def _config(self, **overrides):
+        defaults = dict(
+            job_name="test_openf1_job",
+            table="some_table",
+            conflict_cols=["race_id", "date"],
+            row_label="rows",
+            fetch=lambda session_key: [{"date": "2024-11-03T14:00:00+00:00"}],
+            to_rows=lambda raw, race_id, driver_map: ([{"race_id": race_id, "date": raw[0]["date"]}], 0),
+        )
+        defaults.update(overrides)
+        return OpenF1JobConfig(**defaults)
+
+    def _patch_openf1(self, monkeypatch, session_key=9636, driver_map=None):
+        monkeypatch.setattr(ingest_runner, "get_session_key", lambda year, race_date: session_key)
+        monkeypatch.setattr(
+            ingest_runner, "build_driver_number_map", lambda conn, season_id: dict(driver_map or {})
+        )
+
+    def test_happy_path_upserts_and_commits(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row()])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config())
+
+        assert len(upsert_calls) == 1
+        (conn_arg, table, rows, conflict_cols), _ = upsert_calls[0]
+        assert table == "some_table"
+        assert conflict_cols == ["race_id", "date"]
+        assert rows[0]["race_id"] == 1
+        assert conn.commits == 1
+        assert conn.closed is True
+
+    def test_passes_race_id_and_driver_map_to_to_rows(self, monkeypatch):
+        self._patch_openf1(monkeypatch, driver_map={1: 100})
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: None)
+        conn = FakeConnection([self._race_row()])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        captured = {}
+
+        def to_rows(raw, race_id, driver_map):
+            captured["race_id"] = race_id
+            captured["driver_map"] = driver_map
+            return [], 0
+
+        run_openf1_job(2024, 20, self._config(to_rows=to_rows))
+
+        assert captured["race_id"] == 1
+        assert captured["driver_map"] == {1: 100}
+
+    def test_no_rows_still_commits_without_upserting(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row()])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        config = self._config(to_rows=lambda raw, race_id, driver_map: ([], 3))
+
+        run_openf1_job(2024, 20, config)
+
+        assert upsert_calls == []
+        assert conn.commits == 1
+
+    def test_skips_when_race_not_completed(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row(status="qualifying_done")])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config())
+
+        assert upsert_calls == []
+        assert conn.commits == 0
+
+    def test_skips_when_still_inside_openf1_live_window(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row(race_date_utc=self._JUST_NOW)])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config())
+
+        assert upsert_calls == []
+        assert conn.commits == 0
+
+    def test_raises_when_race_not_found(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        conn = FakeConnection([None])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        with pytest.raises(ValueError, match="Race not found"):
+            run_openf1_job(2024, 20, self._config())

@@ -1,18 +1,13 @@
 ---
 import { Play, Pause } from 'lucide-react';
 import type { TeamRadioClip, Driver } from '@/types';
-import { getTeamColor } from '@/lib/teamColors';
+import { timeOf, dotColor } from '../raceEventDisplay';
 
 interface Props {
   clips: TeamRadioClip[];
   driverMap: Map<number, Driver>;
 }
 const { clips, driverMap } = Astro.props;
-
-// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
-// avoids a timezone-dependent Date parse just to show the session clock time.
-const timeOf = (iso: string) => iso.slice(11, 19);
-const dotColor = (driver: Driver | undefined) => driver ? getTeamColor(driver.team.teamKey) : '#6B7280';
 ---
 
 {clips.length === 0 ? (
