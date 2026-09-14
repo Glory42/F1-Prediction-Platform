@@ -1,0 +1,161 @@
+---
+import { Play, Pause } from 'lucide-react';
+import type { TrackLocation, Driver } from '@/types';
+import { getTeamColor } from '@/lib/teamColors';
+
+interface Props {
+  locations: TrackLocation[];
+  driverMap: Map<number, Driver>;
+}
+const { locations, driverMap } = Astro.props;
+
+const VIEW_W = 700;
+const VIEW_H = 520;
+const PADDING = 24;
+const PLAYBACK_MS = 20000;
+
+const byDriver = new Map<number, TrackLocation[]>();
+for (const loc of locations) {
+  const arr = byDriver.get(loc.driverId) ?? [];
+  arr.push(loc);
+  byDriver.set(loc.driverId, arr);
+}
+
+const minX = Math.min(...locations.map((l) => l.x));
+const maxX = Math.max(...locations.map((l) => l.x));
+const minY = Math.min(...locations.map((l) => l.y));
+const maxY = Math.max(...locations.map((l) => l.y));
+const rangeX = maxX - minX || 1;
+const rangeY = maxY - minY || 1;
+const scale = Math.min((VIEW_W - PADDING * 2) / rangeX, (VIEW_H - PADDING * 2) / rangeY);
+
+// SVG y grows downward, so flip it here to read like a normal top-down track map.
+const toSvgX = (x: number) => PADDING + (x - minX) * scale;
+const toSvgY = (y: number) => VIEW_H - PADDING - (y - minY) * scale;
+
+const startMs = Math.min(...locations.map((l) => new Date(l.date).getTime()));
+const endMs = Math.max(...locations.map((l) => new Date(l.date).getTime()));
+const totalDurationMs = endMs - startMs || 1;
+
+// The driver with the most samples ran the fullest distance — its path doubles as the
+// static track outline traced in the background.
+const [referenceDriverId] = [...byDriver.entries()].sort((a, b) => b[1].length - a[1].length)[0] ?? [];
+const trackPathPoints = (byDriver.get(referenceDriverId!) ?? []).map((l) => `${toSvgX(l.x)},${toSvgY(l.y)}`).join(' ');
+
+const driversWithWaypoints = [...byDriver.entries()].map(([driverId, points]) => {
+  const driver = driverMap.get(driverId);
+  const waypoints = points.map((l) => [
+    (new Date(l.date).getTime() - startMs) / totalDurationMs,
+    toSvgX(l.x),
+    toSvgY(l.y),
+  ]);
+  return { code: driver?.code ?? '???', color: driver ? getTeamColor(driver.team.teamKey) : '#6B7280', waypoints };
+});
+
+const payload = JSON.stringify({ playbackMs: PLAYBACK_MS, totalDurationMs, drivers: driversWithWaypoints.map((d) => d.waypoints) })
+  .replace(/</g, '\\u003c');
+---
+
+{locations.length === 0 ? (
+  <p class="text-sm text-muted-foreground px-4 py-6">No track replay data available.</p>
+) : (
+  <div class="track-replay p-4" data-track-replay>
+    <script type="application/json" is:inline data-track-replay-payload set:html={payload} />
+    <div class="flex items-center gap-3 mb-3">
+      <button type="button" class="replay-play-btn text-[#a855f7] hover:text-[#c084fc] transition-colors" aria-label="Play replay">
+        <Play size={16} className="replay-icon-play" />
+        <Pause size={16} className="replay-icon-pause hidden" />
+      </button>
+      <span class="replay-clock font-mono text-[10px] text-muted-foreground">0:00 / 0:00</span>
+    </div>
+    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} class="w-full h-auto" style="max-width:700px;display:block;margin:0 auto;">
+      <polyline points={trackPathPoints} fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+      {driversWithWaypoints.map((d) => (
+        <circle class="replay-dot" cx={d.waypoints[0]?.[1] ?? 0} cy={d.waypoints[0]?.[2] ?? 0} r="5" fill={d.color} stroke="#000" stroke-width="1" />
+      ))}
+    </svg>
+    <div class="flex flex-wrap gap-x-3 gap-y-1 mt-3">
+      {driversWithWaypoints.map((d) => (
+        <span class="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground uppercase">
+          <span class="size-2 rounded-full shrink-0" style={`background:${d.color}`} />
+          {d.code}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+<script>
+  function formatClock(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function interpolate(waypoints: number[][], frac: number, cursor: number): { x: number; y: number; cursor: number } {
+    let idx = cursor;
+    while (idx < waypoints.length - 1 && waypoints[idx + 1][0] <= frac) idx++;
+    const [t0, x0, y0] = waypoints[idx];
+    if (idx === waypoints.length - 1) return { x: x0, y: y0, cursor: idx };
+    const [t1, x1, y1] = waypoints[idx + 1];
+    const localT = Math.max(0, Math.min(1, (frac - t0) / (t1 - t0 || 1)));
+    return { x: x0 + (x1 - x0) * localT, y: y0 + (y1 - y0) * localT, cursor: idx };
+  }
+
+  function initTrackReplay() {
+    document.querySelectorAll<HTMLElement>('[data-track-replay]').forEach((root) => {
+      const payloadEl = root.querySelector('[data-track-replay-payload]');
+      if (!payloadEl?.textContent) return;
+      const { playbackMs, totalDurationMs, drivers } = JSON.parse(payloadEl.textContent) as {
+        playbackMs: number; totalDurationMs: number; drivers: number[][][];
+      };
+
+      const dots = root.querySelectorAll<SVGCircleElement>('.replay-dot');
+      const playBtn = root.querySelector<HTMLButtonElement>('.replay-play-btn')!;
+      const iconPlay = root.querySelector<HTMLElement>('.replay-icon-play')!;
+      const iconPause = root.querySelector<HTMLElement>('.replay-icon-pause')!;
+      const clock = root.querySelector<HTMLElement>('.replay-clock')!;
+
+      let playing = false;
+      let startTime: number | null = null;
+      let cursors = drivers.map(() => 0);
+
+      function frame(now: number) {
+        if (!playing) return;
+        if (startTime === null) startTime = now;
+        const frac = Math.min((now - startTime) / playbackMs, 1);
+
+        drivers.forEach((waypoints, i) => {
+          const result = interpolate(waypoints, frac, cursors[i]);
+          cursors[i] = result.cursor;
+          dots[i]?.setAttribute('cx', String(result.x));
+          dots[i]?.setAttribute('cy', String(result.y));
+        });
+        clock.textContent = `${formatClock(frac * totalDurationMs)} / ${formatClock(totalDurationMs)}`;
+
+        if (frac < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          playing = false;
+          iconPlay.classList.remove('hidden');
+          iconPause.classList.add('hidden');
+        }
+      }
+
+      playBtn.addEventListener('click', () => {
+        playing = !playing;
+        iconPlay.classList.toggle('hidden', playing);
+        iconPause.classList.toggle('hidden', !playing);
+        if (playing) {
+          startTime = null;
+          cursors = drivers.map(() => 0);
+          requestAnimationFrame(frame);
+        }
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initTrackReplay);
+</script>

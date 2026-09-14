@@ -216,6 +216,15 @@ export type TeamRadioClip = {
   recordingUrl: string;
 };
 
+export type TrackLocation = {
+  id: number;
+  raceId: number;
+  driverId: number;
+  date: string;
+  x: number;
+  y: number;
+};
+
 export type DriverDetailResponse = {
   driver: Driver;
   seasonStats: DriverSeasonStats;

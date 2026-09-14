@@ -35,6 +35,7 @@ seasons
         └── race_control_messages   (no driver FK — driver_number is a raw OpenF1 car number)
         └── race_overtakes          (two FKs → drivers: overtaking_driver_id, overtaken_driver_id)
         └── team_radio_clips        (FK → drivers)
+        └── track_locations         (FK → drivers) — high row count, bigserial PK
         └── lap_times               (FK → drivers)
         └── driver_prediction_features (FK → drivers)
         └── race_predictions        (FK → drivers)
@@ -251,6 +252,25 @@ session, so sparse or missing coverage for a given race is expected, not a data 
 | `driver_id` | FK → drivers | Resolved from OpenF1's car number via `build_driver_number_map` |
 | `date` | timestamptz | Clip timestamp, from OpenF1 |
 | `recording_url` | text | Direct link to F1's own audio CDN |
+| UNIQUE | `(race_id, driver_id, date)` | |
+
+---
+
+### `track_locations`
+One row per downsampled car position sample per driver per race, sourced from OpenF1 — same
+2023+/completed/past-live-window coverage as the other OpenF1 tables. OpenF1 samples at
+~3.7Hz raw (~46k points/driver/race); `ingest_track_replay` keeps roughly one point every
+2 seconds before writing, since a visual replay doesn't need full telemetry fidelity and the
+raw volume would be tens of millions of rows across a season.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigserial PK | Large table — bigserial not serial |
+| `race_id` | FK → races | |
+| `driver_id` | FK → drivers | Resolved from OpenF1's car number via `build_driver_number_map` |
+| `date` | timestamptz | Sample timestamp, from OpenF1 |
+| `x` | integer | Raw OpenF1 track-relative X coordinate |
+| `y` | integer | Raw OpenF1 track-relative Y coordinate |
 | UNIQUE | `(race_id, driver_id, date)` | |
 
 ---

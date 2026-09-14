@@ -7,5 +7,6 @@ const raceEventsModule = new Hono<{ Bindings: Bindings }>();
 raceEventsModule.get('/:id/race-control', RaceEventsController.getRaceControl);
 raceEventsModule.get('/:id/overtakes', RaceEventsController.getOvertakes);
 raceEventsModule.get('/:id/team-radio', RaceEventsController.getTeamRadio);
+raceEventsModule.get('/:id/track-replay', RaceEventsController.getTrackReplay);
 
 export default raceEventsModule;

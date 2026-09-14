@@ -9,6 +9,7 @@ import { createRace } from '../../support/factories/race.factory';
 import { createRaceControlMessage } from '../../support/factories/raceControlMessage.factory';
 import { createRaceOvertake } from '../../support/factories/raceOvertake.factory';
 import { createTeamRadioClip } from '../../support/factories/teamRadioClip.factory';
+import { createTrackLocation } from '../../support/factories/trackLocation.factory';
 
 describe('race-events (integration)', () => {
   const db = getTestDb();
@@ -59,6 +60,17 @@ describe('race-events (integration)', () => {
     await createTeamRadioClip(db, race.id, driverB.id, {
       date: new Date('2098-03-01T14:02:00Z'),
       recordingUrl: 'https://example.com/clip-b.mp3',
+    });
+
+    await createTrackLocation(db, race.id, driverA.id, {
+      date: new Date('2098-03-01T14:00:02Z'),
+      x: 100,
+      y: 200,
+    });
+    await createTrackLocation(db, race.id, driverA.id, {
+      date: new Date('2098-03-01T14:00:00Z'),
+      x: 90,
+      y: 190,
     });
 
     raceId = race.id;
@@ -113,6 +125,23 @@ describe('race-events (integration)', () => {
 
   it('returns 404 for team radio on a race that does not exist', async () => {
     const res = await apiRequest('/api/races/999999999/team-radio');
+    expect(res.status).toBe(404);
+    const { data, error } = (await res.json()) as { data: null; error: { code: string } };
+    expect(data).toBeNull();
+    expect(error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns track locations ordered by date ascending', async () => {
+    const res = await apiRequest(`/api/races/${raceId}/track-replay`);
+    expect(res.status).toBe(200);
+    const { data } = (await res.json()) as { data: Array<{ x: number; y: number }> };
+    expect(data).toHaveLength(2);
+    expect(data[0]).toMatchObject({ x: 90, y: 190 });
+    expect(data[1]).toMatchObject({ x: 100, y: 200 });
+  });
+
+  it('returns 404 for track replay on a race that does not exist', async () => {
+    const res = await apiRequest('/api/races/999999999/track-replay');
     expect(res.status).toBe(404);
     const { data, error } = (await res.json()) as { data: null; error: { code: string } };
     expect(data).toBeNull();

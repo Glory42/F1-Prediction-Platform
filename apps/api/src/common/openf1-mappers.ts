@@ -1,5 +1,5 @@
-import type { raceControlMessages, raceOvertakes, teamRadioClips } from '../db/schema';
-import type { RaceControlMessage, RaceOvertake, TeamRadioClip } from './types';
+import type { raceControlMessages, raceOvertakes, teamRadioClips, trackLocations } from '../db/schema';
+import type { RaceControlMessage, RaceOvertake, TeamRadioClip, TrackLocation } from './types';
 
 export function toRaceControlMessage(m: typeof raceControlMessages.$inferSelect): RaceControlMessage {
   return {
@@ -34,5 +34,16 @@ export function toTeamRadioClip(c: typeof teamRadioClips.$inferSelect): TeamRadi
     driverId: c.driverId,
     date: c.date.toISOString(),
     recordingUrl: c.recordingUrl,
+  };
+}
+
+export function toTrackLocation(l: typeof trackLocations.$inferSelect): TrackLocation {
+  return {
+    id: l.id,
+    raceId: l.raceId,
+    driverId: l.driverId,
+    date: l.date.toISOString(),
+    x: l.x,
+    y: l.y,
   };
 }

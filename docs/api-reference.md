@@ -102,6 +102,13 @@ Returns team radio clips for a race, ordered by timestamp ascending. `driverId` 
 `recordingUrl` points directly at F1's own CDN. F1 doesn't release radio for every session,
 so an empty or partial list is expected, not an error.
 
+### `GET /api/races/:id/track-replay`
+
+Returns downsampled car position points (x, y) for every driver in a race, ordered by
+timestamp ascending. `driverId` references `drivers.id` (resolved from OpenF1's car
+number). Points are ~1/2s apart — sampled down from OpenF1's raw ~3.7Hz feed at ingest time
+— intended for a visual replay, not precise telemetry analysis.
+
 ### `GET /api/races/circuits`
 
 Returns a list of all circuits in the database, ordered alphabetically by name.

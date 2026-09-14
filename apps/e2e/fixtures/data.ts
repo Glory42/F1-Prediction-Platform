@@ -5,7 +5,7 @@ import type {
   DriverSeasonStats, DriverYearStats, DriverDetailResponse, TeamSeasonStats, TeamYearStats,
   TeamDetailResponse, DriverStanding,
   SprintFeatureScores, DriverSprintPrediction, SprintPredictionResponse,
-  SprintResult, SprintDetailResponse, RaceControlMessage, RaceOvertake, TeamRadioClip,
+  SprintResult, SprintDetailResponse, RaceControlMessage, RaceOvertake, TeamRadioClip, TrackLocation,
 } from '../../web/src/types';
 
 export const circuit: Circuit = {
@@ -102,6 +102,13 @@ export const raceOvertakes: RaceOvertake[] = [
 
 export const teamRadioClips: TeamRadioClip[] = [
   { id: 1, raceId: 1, driverId: 10, date: '2025-09-07T13:45:52.000Z', recordingUrl: 'https://example.com/clip-ver.mp3' },
+];
+
+export const trackLocations: TrackLocation[] = [
+  { id: 1, raceId: 1, driverId: 10, date: '2025-09-07T13:00:00.000Z', x: 100, y: 200 },
+  { id: 2, raceId: 1, driverId: 10, date: '2025-09-07T13:00:10.000Z', x: 150, y: 250 },
+  { id: 3, raceId: 1, driverId: 11, date: '2025-09-07T13:00:00.000Z', x: 90, y: 190 },
+  { id: 4, raceId: 1, driverId: 11, date: '2025-09-07T13:00:10.000Z', x: 140, y: 240 },
 ];
 
 export const predictionHistory: PredictionHistoryItem[] = [

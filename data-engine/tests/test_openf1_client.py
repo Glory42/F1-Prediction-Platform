@@ -1,7 +1,7 @@
 import pytest
 
 import src.utils.openf1_client as openf1_client
-from src.utils.openf1_client import fetch_overtakes, fetch_race_control, fetch_team_radio, get_session_key
+from src.utils.openf1_client import fetch_location, fetch_overtakes, fetch_race_control, fetch_team_radio, get_session_key
 
 
 class _FakeResponse:
@@ -74,3 +74,11 @@ class TestFetchTeamRadio:
         monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(clips))
 
         assert fetch_team_radio(9636) == clips
+
+
+class TestFetchLocation:
+    def test_returns_parsed_json(self, monkeypatch):
+        points = [{"date": "2024-11-03T14:38:00+00:00", "x": 100, "y": 200}]
+        monkeypatch.setattr(openf1_client.requests, "get", lambda *a, **k: _FakeResponse(points))
+
+        assert fetch_location(9636, 1) == points

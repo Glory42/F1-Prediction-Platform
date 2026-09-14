@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { toRaceControlMessage, toRaceOvertake, toTeamRadioClip } from '../../../src/common/openf1-mappers';
-import type { raceControlMessages, raceOvertakes, teamRadioClips } from '../../../src/db/schema';
+import { toRaceControlMessage, toRaceOvertake, toTeamRadioClip, toTrackLocation } from '../../../src/common/openf1-mappers';
+import type { raceControlMessages, raceOvertakes, teamRadioClips, trackLocations } from '../../../src/db/schema';
 
 describe('toRaceControlMessage', () => {
   const row: typeof raceControlMessages.$inferSelect = {
@@ -94,6 +94,33 @@ describe('toTeamRadioClip', () => {
       driverId: 10,
       date: '2025-09-07T13:45:52.000Z',
       recordingUrl: 'https://livetiming.formula1.com/static/clip.mp3',
+    });
+  });
+});
+
+describe('toTrackLocation', () => {
+  const locationRow: typeof trackLocations.$inferSelect = {
+    id: 1,
+    raceId: 100,
+    driverId: 10,
+    date: new Date('2025-09-07T13:38:07Z'),
+    x: 2292,
+    y: -2024,
+    createdAt: new Date('2025-09-07T14:00:00Z'),
+  };
+
+  test('converts the date column to an ISO string', () => {
+    expect(toTrackLocation(locationRow).date).toBe('2025-09-07T13:38:07.000Z');
+  });
+
+  test('maps all columns through', () => {
+    expect(toTrackLocation(locationRow)).toEqual({
+      id: 1,
+      raceId: 100,
+      driverId: 10,
+      date: '2025-09-07T13:38:07.000Z',
+      x: 2292,
+      y: -2024,
     });
   });
 });

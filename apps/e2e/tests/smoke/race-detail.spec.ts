@@ -44,3 +44,19 @@ test('renders the team radio tab with a custom player', async ({ page }) => {
   await expect(playBtn.locator('.radio-icon-pause')).toBeHidden();
   await expect(panel.locator('.radio-progress')).toBeVisible();
 });
+
+test('renders the replay tab with a track outline and driver dots', async ({ page }) => {
+  await page.goto('/races/1');
+
+  await page.getByRole('tab', { name: 'Replay' }).click();
+  const panel = page.locator('#panel-replay');
+  await expect(panel.getByText('VER', { exact: true })).toBeVisible();
+  await expect(panel.getByText('LEC', { exact: true })).toBeVisible();
+  await expect(panel.locator('polyline')).toBeVisible();
+  await expect(panel.locator('circle.replay-dot')).toHaveCount(2);
+
+  const playBtn = panel.locator('.replay-play-btn');
+  await expect(playBtn.locator('.replay-icon-play')).toBeVisible();
+  await playBtn.click();
+  await expect(playBtn.locator('.replay-icon-pause')).toBeVisible();
+});

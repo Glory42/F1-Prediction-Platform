@@ -51,3 +51,15 @@ def fetch_team_radio(session_key: int) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_location(session_key: int, driver_number: int) -> list[dict]:
+    """OpenF1 rejects a bare session_key on this endpoint (needs driver_number or a date
+    range) — per-driver is simpler to reason about than paging a whole-session date range."""
+    resp = requests.get(
+        f"{BASE_URL}/location",
+        params={"session_key": session_key, "driver_number": driver_number},
+        timeout=_TIMEOUT_S,
+    )
+    resp.raise_for_status()
+    return resp.json()
