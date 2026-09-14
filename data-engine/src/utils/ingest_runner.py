@@ -1,14 +1,15 @@
-"""Two seams, not one: qualifying has no weather/laps/headshots, so forcing it through the
-race/sprint config would just add always-None fields to an already-wide one."""
+"""Three seams, not one: qualifying has no weather/laps/headshots, so forcing it through the
+race/sprint config would just add always-None fields to an already-wide one; OpenF1 jobs pull
+from a REST API instead of a FastF1 session object, so their guard/shape split differs again."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
 from psycopg2.extras import execute_batch
 
 from src.db.client import get_conn
-from src.utils.driver_map import build_driver_code_map
+from src.utils.driver_map import build_driver_code_map, build_driver_number_map
 from src.utils.fastf1_helpers import (
     get_sc_vsc_laps,
     get_session,
@@ -19,6 +20,7 @@ from src.utils.fastf1_helpers import (
     session_to_race_results,
     validate_session_data,
 )
+from src.utils.openf1_client import get_session_key
 from src.utils.upsert import upsert
 
 
@@ -218,5 +220,68 @@ def run_qualifying_ingest_job(year: int, round_num: int, config: QualifyingJobCo
         conn.commit()
         print(f"  Race {ctx.race_id} status → {config.new_status}")
 
+    finally:
+        conn.close()
+
+
+# OpenF1's free tier only serves data once a session is >30min past its end. We don't track
+# exact race end time, so this buffers from the (known) start time by a typical race
+# duration + margin — conservative in the direction of waiting longer, never running early
+# enough to hit OpenF1's paid live window.
+OPENF1_LIVE_WINDOW_BUFFER = timedelta(hours=3)
+
+
+@dataclass(frozen=True)
+class OpenF1JobConfig:
+    job_name: str
+    table: str
+    conflict_cols: list[str]
+    row_label: str
+    fetch: Callable[[int], list[dict[str, Any]]]
+    # (raw OpenF1 rows, race_id, driver_number->driver_id map) -> (rows to upsert, skipped count).
+    # driver_map is always built and passed, even to configs that don't need it (e.g.
+    # race_control) — one extra cheap query isn't worth a conditional in the runner.
+    to_rows: Callable[[list[dict[str, Any]], int, dict[int, int]], tuple[list[dict[str, Any]], int]]
+
+
+def run_openf1_job(year: int, round_num: int, config: OpenF1JobConfig) -> None:
+    print(f"[{config.job_name}] year={year} round={round_num}")
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT r.id, r.season_id, r.race_date, r.race_date_utc, r.status FROM races r "
+                "JOIN seasons s ON r.season_id = s.id "
+                "WHERE s.year = %s AND r.round_number = %s",
+                (year, round_num),
+            )
+            race_row = cur.fetchone()
+        if not race_row:
+            raise ValueError(f"Race not found for year={year} round={round_num}")
+
+        race_id = race_row["id"]
+        if race_row["status"] != "completed":
+            print(f"  [SKIP] Race {race_id} is not 'completed' yet (status={race_row['status']})")
+            return
+
+        race_date_utc = race_row["race_date_utc"]
+        if race_date_utc is not None and datetime.now(timezone.utc) - race_date_utc < OPENF1_LIVE_WINDOW_BUFFER:
+            print(f"  [SKIP] Race {race_id} is still inside OpenF1's live-data window")
+            return
+
+        session_key = get_session_key(year, race_row["race_date"])
+        driver_map = build_driver_number_map(conn, race_row["season_id"])
+        raw = config.fetch(session_key)
+        rows, skipped = config.to_rows(raw, race_id, driver_map)
+        skip_note = f" ({skipped} skipped — unknown driver number)" if skipped else ""
+
+        if rows:
+            upsert(conn, config.table, rows, config.conflict_cols)
+            print(f"  Upserted {len(rows)} {config.row_label}{skip_note}")
+        else:
+            print(f"  No {config.row_label} upserted{skip_note}")
+
+        conn.commit()
     finally:
         conn.close()

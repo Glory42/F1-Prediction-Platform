@@ -95,7 +95,7 @@ apps/api/
 │       │   └── races.module.ts    # Hono sub-router: GET /, /circuits, /circuit/:key, /:id
 │       ├── race-events/           # OpenF1-sourced race data, separate from races/ to keep its controller under budget
 │       │   ├── race-events.service.ts    # getRaceControlMessages(), getOvertakes(), getTeamRadio(), raceExists()
-│       │   ├── race-events.controller.ts
+│       │   ├── race-events.controller.ts # raceSubResource(getter) factory — one 404/cache/json shape, three getters bound to it
 │       │   └── race-events.module.ts     # GET /:id/race-control, /:id/overtakes, /:id/team-radio (mounted at /api/races)
 │       ├── drivers/
 │       │   ├── drivers.service.ts # Driver list, standings, detail, career stats
@@ -287,11 +287,12 @@ apps/web/
 │   │   │       └── UpcomingPredictionPanel.astro   # /prediction hero panel (GP + sprint share it)
 │   │   ├── races/
 │   │   │   ├── raceTabs.ts            # initRaceCountdown() + initRaceTabs() — shared by GP + sprint detail scripts
+│   │   │   ├── raceEventDisplay.ts    # timeOf(), dotColor() — shared by the three Race Event list components
 │   │   │   └── components/
 │   │   │       ├── LapChart.astro         # Plain SVG lap time chart (no chart library)
-│   │       ├── RaceControlTimeline.astro # Flags/SC/VSC/incident log, ordered by session time
-│   │       ├── OvertakesList.astro    # On-track overtakes list; resolves driver codes via a driverMap prop built from race results
-│   │       ├── TeamRadioList.astro    # Team radio clip list with <audio> playback; first audio usage in apps/web, driverMap resolved the same way as OvertakesList
+│   │   │       ├── RaceControlTimeline.astro # Flags/SC/VSC/incident log, ordered by session time
+│   │   │       ├── OvertakesList.astro    # On-track overtakes list; resolves driver codes via a driverMap prop built from race results
+│   │   │       ├── TeamRadioList.astro    # Team radio clip list with a custom play/pause + progress-bar player (native <audio controls> didn't fit the dark UI)
 │   │   │       ├── RaceResultsTable.tsx   # Race results with team color dots; flColor prop for sprint (orange)
 │   │   │       ├── QualifyingGrid.tsx     # Qualifying session grid; labelPrefix prop ("Q" or "SQ")
 │   │   │       ├── RaceYearSelect.astro   # Year selector for race/sprint detail; variant="orange"|"purple", extraParams prop
@@ -366,7 +367,10 @@ apps/web/
 │   │   ├── lib/
 │   │   │   ├── teamColors.test.ts            # pure, `node` env
 │   │   │   ├── teamLogos.test.ts             # pure, `node` env
-│   │   │   └── predictionMath.test.ts        # pure, `node` env — all predictionMath exports
+│   │   │   ├── predictionMath.test.ts        # pure, `node` env — all predictionMath exports
+│   │   │   └── utils.test.ts                 # pure, `node` env — unwrapSettled()
+│   │   ├── features/races/
+│   │   │   └── raceEventDisplay.test.ts      # pure, `node` env — timeOf(), dotColor()
 │   │   └── features/search/                  # jsdom — hook + component tests, MSW-mocked API
 │   │       ├── useGlobalSearch.test.ts
 │   │       └── GlobalSearch.test.tsx
@@ -413,7 +417,7 @@ apps/web/
 | `lib/api.ts` | Single typed API client. All pages call functions from here — never raw `fetch`. |
 | `lib/teamColors.ts` | Maps `team_key` strings (e.g. `red_bull`, `ferrari`) to official hex colors. Used for colored badges/dots across standings, driver pages, and result tables. |
 | `lib/teamLogos.ts` | Maps `team_key` to a static logo path under `/teams/`. Returns `null` for historical teams with no logo file. Used on teams index, teams detail, and drivers standings pages. |
-| `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. |
+| `lib/utils.ts` | `cn()` — combines `clsx` and `tailwind-merge` for conditional class names. `unwrapSettled(result, fallback)` — one-line `PromiseSettledResult` unwrap, used wherever a page fans out `Promise.allSettled()` calls. |
 | `features/compare/compareReducer.ts` | Pure `compareReducer(state, action, config)` — every hydrate/year-change/selection/mode transition and stale-fetch-response guard, as one reducer with no React dependency; unit-tested directly. |
 | `features/compare/useCompareController.ts` | Generic hook powering both compare tools — wraps `compareReducer` in `useReducer` plus the URL-hydrate, URL-sync, and fetch effects. Item list, A/B selection, discriminated `comparison` (season/career) result, URL sync through an injectable `locationAdapter` seam. |
 | `features/search/useGlobalSearch.ts` | Hook powering `GlobalSearch` — open/close state, Cmd/Ctrl+K + Escape keyboard shortcut, `open-global-search` event bridge from `Navbar.astro`, fetch-on-first-open, close-animation timing. |
@@ -480,8 +484,8 @@ data-engine/
 │   │   ├── ingest_qualifying.py        # Q1/Q2/Q3 + sector times — 2018+; date guard rejects future rounds
 │   │   ├── ingest_qualifying_legacy.py # Qualifying from Ergast — pre-2018
 │   │   ├── ingest_race.py              # Race results + lap times + conditions — 2018+
-│   │   ├── ingest_race_control.py      # OpenF1 race-control messages (flags/SC/VSC) — completed races only, post-live-window
-│   │   ├── ingest_overtakes.py         # OpenF1 overtakes → race_overtakes; resolves driver_number via build_driver_number_map
+│   │   ├── ingest_race_control.py      # OpenF1 race-control messages → race_control_messages; _to_rows() over run_openf1_job (ingest_runner.py)
+│   │   ├── ingest_overtakes.py         # OpenF1 overtakes → race_overtakes; _to_rows() resolves driver_number via the driver_map run_openf1_job passes in
 │   │   ├── ingest_team_radio.py        # OpenF1 team radio → team_radio_clips; same driver_number resolution, empty/partial results are normal
 │   │   ├── ingest_race_legacy.py       # Race results from Ergast (no laps) — pre-2018
 │   │   ├── ingest_sprint_qualifying.py # SQ session → sq1/sq2/sq3 + sector times + speed; messages=True; date guard
@@ -504,11 +508,14 @@ data-engine/
 │       ├── math_utils.py          # normalize_minmax(), softmax(), bayesian_win_rate(), clamp(), weighted_sum()
 │       ├── upsert.py              # upsert(conn, table, rows, conflict_cols, exclude_update=[])
 │       ├── driver_map.py          # build_driver_code_map(), build_driver_number_map(conn, season_id) — shared driver code/number→id lookups for ingest jobs
-│       ├── openf1_client.py       # get_session_key(), fetch_race_control(), fetch_overtakes(), fetch_team_radio() — thin OpenF1 REST client (free/historical tier only)
+│       ├── openf1_client.py       # get_session_key(), fetch_race_control(), fetch_overtakes(), fetch_team_radio() over one shared _get(path, params) — thin OpenF1 REST client (free/historical tier only)
 │       ├── prediction_runner.py   # run_prediction_job(...) — shared softmax/rank/upsert logic for GP + sprint predictions
-│       ├── ingest_runner.py       # Two seams: run_ingest_job(...) — shared headshot/results/lap-time/status logic for
+│       ├── ingest_runner.py       # Three seams: run_ingest_job(...) — shared headshot/results/lap-time/status logic for
 │       │                          # ingest_race + ingest_sprint; run_qualifying_ingest_job(...) — shared logic for
-│       │                          # ingest_qualifying + ingest_sprint_qualifying (no weather/laps/headshots)
+│       │                          # ingest_qualifying + ingest_sprint_qualifying (no weather/laps/headshots);
+│       │                          # run_openf1_job(...) — shared resolve/guard/upsert logic for the OpenF1-sourced jobs
+│       │                          # (ingest_race_control/ingest_overtakes/ingest_team_radio); each supplies only a
+│       │                          # table, conflict_cols, a fetch(session_key) callable, and a to_rows() shaping callable
 │       ├── feature_helpers.py     # Shared scoring math for GP + sprint models — compute_weather_score(),
 │       │                          # compute_luck_score(), circuit_adj_start_pos(), compute_rolling_teammate_delta()
 │       ├── feature_context.py     # build_feature_context() — shared query/assembly scaffolding (race+circuit row,
@@ -544,10 +551,10 @@ data-engine/
 │   ├── test_upsert.py              # upsert() param shape + no-op-on-empty — via fake_db + monkeypatched execute_batch
 │   ├── test_schedule_window.py     # race_weekend_window + RaceWeekendWindow.contains
 │   ├── test_auto_runner.py         # run_cycle() schedule gate, decide_next_action, revert-on-failure, poll_interval_for_window
-│   ├── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job — via fake_db + monkeypatched fastf1_helpers
-│   ├── test_ingest_race_control.py # ingest_race_control run() — completed/live-window guards, upsert — via fake_db
-│   ├── test_ingest_overtakes.py    # ingest_overtakes run() — same guards + unknown-driver-number row skipping — via fake_db
-│   ├── test_ingest_team_radio.py   # ingest_team_radio run() — same guards + unknown-driver-number skipping + empty-result handling — via fake_db
+│   ├── test_ingest_runner.py       # run_ingest_job + run_qualifying_ingest_job + run_openf1_job (guards, driver_map pass-through) — via fake_db + monkeypatched fastf1_helpers
+│   ├── test_ingest_race_control.py # _to_rows() pure-function shaping + run() config-wiring check
+│   ├── test_ingest_overtakes.py    # _to_rows() pure-function shaping incl. unknown-driver-number skipping + run() config-wiring check
+│   ├── test_ingest_team_radio.py   # _to_rows() pure-function shaping incl. unknown-driver-number skipping + run() config-wiring check
 │   ├── test_openf1_client.py       # get_session_key (date match incl. 1-day drift, pre-2023 no-coverage), fetch_race_control, fetch_overtakes, fetch_team_radio
 │   ├── test_data_quality_audit.py  # _audit_race gate/threshold branching per race status — via fake_db
 │   ├── test_data_quality_repair.py # run() audit-run selection, per-race issue grouping + step dedup, resolve/rollback — mocked jobs
@@ -595,7 +602,7 @@ data-engine/
 | `feature_helpers.py` | Shared scoring math for GP + sprint models: `compute_weather_score()`, `compute_luck_score()`, `circuit_adj_start_pos()`, `compute_rolling_teammate_delta()` |
 | `feature_context.py` | `build_feature_context(conn, race_id, grid_table=..., grid_not_found_message=..., validate_race=None)` — shared query/assembly scaffolding for `compute_features` and `compute_sprint_features`: race+circuit row, grid map, per-driver starting position, driver season stats, team perf/reliability |
 | `prediction_runner.py` | `run_prediction_job(...)` — shared softmax/rank/upsert logic for GP + sprint predictions; `rank_by_probability(driver_ids, probabilities)` — pure position-ranking + winner-pick, extracted so it's unit-testable without a DB connection |
-| `ingest_runner.py` | Two seams, matched to two different session shapes (see the module docstring for why they're not one). `run_ingest_job(year, round, IngestJobConfig)` — full race/sprint session (weather, SC/VSC, results, lap times, headshots); `IngestJobConfig.mark_status` writes the job's own `races` row, an optional `cross_table_hook` runs after it for effects on other tables (e.g. `ingest_race`'s `circuits.sc_probability` recompute). `run_qualifying_ingest_job(year, round, QualifyingJobConfig)` — qualifying-only session (just quali times, no weather/laps/headshots); `QualifyingJobConfig.rows_from_quali` is the per-job typed `session → rows` function used by `ingest_qualifying`/`ingest_sprint_qualifying` |
+| `ingest_runner.py` | Three seams, matched to three different session shapes (see the module docstring for why they're not one). `run_ingest_job(year, round, IngestJobConfig)` — full race/sprint session (weather, SC/VSC, results, lap times, headshots); `IngestJobConfig.mark_status` writes the job's own `races` row, an optional `cross_table_hook` runs after it for effects on other tables (e.g. `ingest_race`'s `circuits.sc_probability` recompute). `run_qualifying_ingest_job(year, round, QualifyingJobConfig)` — qualifying-only session (just quali times, no weather/laps/headshots); `QualifyingJobConfig.rows_from_quali` is the per-job typed `session → rows` function used by `ingest_qualifying`/`ingest_sprint_qualifying`. `run_openf1_job(year, round, OpenF1JobConfig)` — the shared resolve-race/completed-guard/live-window-guard/upsert/commit shape behind the three OpenF1-sourced jobs; `OpenF1JobConfig.fetch(session_key)` calls the right `openf1_client` function, `to_rows(raw, race_id, driver_map)` shapes rows and returns `(rows, skipped_count)` — `driver_map` (built once via `build_driver_number_map`) is always passed even to configs that ignore it |
 | `schedule_window.py` | `race_weekend_window(schedule, now)` → `RaceWeekendWindow \| None` — the current/next GP's window (FP1−1h … race+24h) derived purely from the FastF1 calendar, no DB; `RaceWeekendWindow.contains(now)`. Used by `auto_runner` to gate all DB access and to size the worker's poll interval |
 
 ---

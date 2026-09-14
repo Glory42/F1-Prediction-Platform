@@ -1,5 +1,6 @@
 ---
 import type { RaceControlMessage } from '@/types';
+import { timeOf } from '../raceEventDisplay';
 
 interface Props {
   messages: RaceControlMessage[];
@@ -14,10 +15,6 @@ function toneClass(m: RaceControlMessage): string {
   if (m.category === 'SafetyCar') return 'border-orange-500/30 text-orange-400/80';
   return 'border-white/[0.08] text-muted-foreground';
 }
-
-// Mapper output is always a UTC ISO string (e.g. "2024-11-03T15:31:01.000Z") — slicing
-// avoids a timezone-dependent Date parse just to show the session clock time.
-const timeOf = (iso: string) => iso.slice(11, 19);
 ---
 
 {messages.length === 0 ? (
