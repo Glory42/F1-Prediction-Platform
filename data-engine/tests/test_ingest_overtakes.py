@@ -43,16 +43,29 @@ class TestRun:
         captured = {}
         monkeypatch.setattr(
             ingest_overtakes, "run_openf1_job",
-            lambda year, round_num, config: captured.update(year=year, round_num=round_num, config=config)
+            lambda year, round_num, config, session_name="Race":
+                captured.update(year=year, round_num=round_num, config=config, session_name=session_name)
         )
 
         run(2024, 20)
 
         assert captured["year"] == 2024
         assert captured["round_num"] == 20
+        assert captured["session_name"] == "Race"
         config = captured["config"]
         assert config.job_name == "ingest_overtakes"
         assert config.table == "race_overtakes"
         assert config.conflict_cols == ["race_id", "date", "overtaking_driver_id", "overtaken_driver_id"]
         assert config.fetch is fetch_overtakes
         assert config.to_rows is _to_rows
+
+    def test_forwards_session_name(self, monkeypatch):
+        captured = {}
+        monkeypatch.setattr(
+            ingest_overtakes, "run_openf1_job",
+            lambda year, round_num, config, session_name="Race": captured.update(session_name=session_name)
+        )
+
+        run(2024, 20, session_name="Sprint")
+
+        assert captured["session_name"] == "Sprint"

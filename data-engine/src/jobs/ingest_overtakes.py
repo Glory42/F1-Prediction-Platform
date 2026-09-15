@@ -25,7 +25,7 @@ def _to_rows(
     return rows, skipped
 
 
-def run(year: int, round_num: int) -> None:
+def run(year: int, round_num: int, session_name: str = "Race") -> None:
     run_openf1_job(
         year, round_num,
         OpenF1JobConfig(
@@ -36,4 +36,5 @@ def run(year: int, round_num: int) -> None:
             fetch=fetch_overtakes,
             to_rows=_to_rows,
         ),
+        session_name=session_name,
     )

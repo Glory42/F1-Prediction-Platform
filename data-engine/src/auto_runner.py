@@ -23,6 +23,9 @@ from src.jobs import (
     compute_features,
     compute_predictions,
     ingest_race,
+    ingest_race_control,
+    ingest_overtakes,
+    ingest_team_radio,
 )
 
 
@@ -45,6 +48,16 @@ class JobStep:
     name: str
     run: Callable[[RaceRunContext], None]
     commits_status: Optional[str]
+
+
+def _run_openf1_step(job_run: Callable[[int, int], None], step_name: str, ctx: RaceRunContext) -> None:
+    """Race-event enrichment (OpenF1) rides on the MAIN_RACE sequence but must never fail or
+    revert it — these jobs are independently idempotent, so a transient OpenF1 hiccup here is
+    safe to just log and leave for a manual re-run rather than treating as a pipeline failure."""
+    try:
+        job_run(ctx.year, ctx.round_number)
+    except Exception as e:
+        log_job_failure(step_name, e, race_id=ctx.race_id, year=ctx.year, round=ctx.round_number)
 
 
 _ACTION_JOBS: dict[ActionKind, tuple[JobStep, ...]] = {
@@ -70,6 +83,46 @@ _ACTION_JOBS: dict[ActionKind, tuple[JobStep, ...]] = {
     ActionKind.MAIN_RACE: (
         JobStep("ingest_race", lambda ctx: ingest_race.run(ctx.year, ctx.round_number), "completed"),
         JobStep("compute_season_stats", lambda ctx: compute_season_stats.run(ctx.year), None),
+        # Race Events (OpenF1) — 2023+ only, and run_openf1_job self-skips while still inside
+        # OpenF1's live-data window; see openf1_client.py. Non-fatal via _run_openf1_step.
+        # The Sprint-session steps self-skip too (no-op) on a non-sprint weekend, since
+        # races.sprint_date is null there — see run_openf1_job.
+        JobStep(
+            "ingest_race_control",
+            lambda ctx: _run_openf1_step(ingest_race_control.run, "ingest_race_control", ctx),
+            None,
+        ),
+        JobStep(
+            "ingest_overtakes",
+            lambda ctx: _run_openf1_step(ingest_overtakes.run, "ingest_overtakes", ctx),
+            None,
+        ),
+        JobStep(
+            "ingest_team_radio",
+            lambda ctx: _run_openf1_step(ingest_team_radio.run, "ingest_team_radio", ctx),
+            None,
+        ),
+        JobStep(
+            "ingest_race_control_sprint",
+            lambda ctx: _run_openf1_step(
+                lambda y, r: ingest_race_control.run(y, r, session_name="Sprint"), "ingest_race_control_sprint", ctx
+            ),
+            None,
+        ),
+        JobStep(
+            "ingest_overtakes_sprint",
+            lambda ctx: _run_openf1_step(
+                lambda y, r: ingest_overtakes.run(y, r, session_name="Sprint"), "ingest_overtakes_sprint", ctx
+            ),
+            None,
+        ),
+        JobStep(
+            "ingest_team_radio_sprint",
+            lambda ctx: _run_openf1_step(
+                lambda y, r: ingest_team_radio.run(y, r, session_name="Sprint"), "ingest_team_radio_sprint", ctx
+            ),
+            None,
+        ),
     ),
 }
 
