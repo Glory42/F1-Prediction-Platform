@@ -23,7 +23,7 @@ def _to_rows(
     return rows, skipped
 
 
-def run(year: int, round_num: int) -> None:
+def run(year: int, round_num: int, session_name: str = "Race") -> None:
     # F1 doesn't release radio for every session, so an empty or partial result here is
     # a normal outcome, not an error — run_openf1_job's skip-count logging covers this.
     run_openf1_job(
@@ -36,4 +36,5 @@ def run(year: int, round_num: int) -> None:
             fetch=fetch_team_radio,
             to_rows=_to_rows,
         ),
+        session_name=session_name,
     )

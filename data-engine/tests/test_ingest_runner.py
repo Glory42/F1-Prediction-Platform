@@ -454,8 +454,15 @@ class TestRunOpenF1Job:
         defaults.update(overrides)
         return OpenF1JobConfig(**defaults)
 
-    def _patch_openf1(self, monkeypatch, session_key=9636, driver_map=None):
-        monkeypatch.setattr(ingest_runner, "get_session_key", lambda year, race_date: session_key)
+    def _patch_openf1(self, monkeypatch, session_key=9636, driver_map=None, capture=None):
+        def fake_get_session_key(year, session_date, session_name="Race"):
+            if capture is not None:
+                capture["year"] = year
+                capture["session_date"] = session_date
+                capture["session_name"] = session_name
+            return session_key
+
+        monkeypatch.setattr(ingest_runner, "get_session_key", fake_get_session_key)
         monkeypatch.setattr(
             ingest_runner, "build_driver_number_map", lambda conn, season_id: dict(driver_map or {})
         )
@@ -540,3 +547,51 @@ class TestRunOpenF1Job:
 
         with pytest.raises(ValueError, match="Race not found"):
             run_openf1_job(2024, 20, self._config())
+
+    def test_sprint_session_uses_sprint_date_and_forwards_session_name(self, monkeypatch):
+        capture = {}
+        self._patch_openf1(monkeypatch, capture=capture)
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: None)
+        conn = FakeConnection([self._race_row(sprint_date=self._LONG_AGO)])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config(), session_name="Sprint")
+
+        assert capture["session_name"] == "Sprint"
+        assert capture["session_date"] == self._LONG_AGO
+
+    def test_sprint_session_skips_when_race_has_no_sprint_date(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row(sprint_date=None)])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config(), session_name="Sprint")
+
+        assert upsert_calls == []
+        assert conn.commits == 0
+
+    def test_sprint_session_gates_on_the_same_race_date_utc_live_window(self, monkeypatch):
+        self._patch_openf1(monkeypatch)
+        upsert_calls = []
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: upsert_calls.append((a, k)))
+        conn = FakeConnection([self._race_row(sprint_date=self._LONG_AGO, race_date_utc=self._JUST_NOW)])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config(), session_name="Sprint")
+
+        assert upsert_calls == []
+        assert conn.commits == 0
+
+    def test_default_session_name_uses_race_date(self, monkeypatch):
+        capture = {}
+        self._patch_openf1(monkeypatch, capture=capture)
+        monkeypatch.setattr(ingest_runner, "upsert", lambda *a, **k: None)
+        conn = FakeConnection([self._race_row()])
+        monkeypatch.setattr(ingest_runner, "get_conn", lambda: conn)
+
+        run_openf1_job(2024, 20, self._config())
+
+        assert capture["session_name"] == "Race"
+        assert capture["session_date"] == "2024-11-03"

@@ -179,7 +179,7 @@ def _dispatch(job: str, args) -> None:
             else auto_detect_completed_race(args.year, conn)
         conn.close()
         from src.jobs.ingest_race_control import run
-        run(year, round_num)
+        run(year, round_num, session_name=args.session)
 
     elif job == "ingest_overtakes":
         from src.db.client import get_conn
@@ -188,7 +188,7 @@ def _dispatch(job: str, args) -> None:
             else auto_detect_completed_race(args.year, conn)
         conn.close()
         from src.jobs.ingest_overtakes import run
-        run(year, round_num)
+        run(year, round_num, session_name=args.session)
 
     elif job == "ingest_team_radio":
         from src.db.client import get_conn
@@ -197,7 +197,7 @@ def _dispatch(job: str, args) -> None:
             else auto_detect_completed_race(args.year, conn)
         conn.close()
         from src.jobs.ingest_team_radio import run
-        run(year, round_num)
+        run(year, round_num, session_name=args.session)
 
     elif job == "compute_season_stats":
         if not args.year:
@@ -269,6 +269,10 @@ def main() -> None:
     parser.add_argument("--race_id", type=int, help="Race DB id (for feature/prediction jobs)")
     parser.add_argument("--all", action="store_true", help="data_quality_audit: scan every season")
     parser.add_argument("--resolve_run", type=int, help="data_quality_repair: audit run id to act on")
+    parser.add_argument(
+        "--session", choices=["Race", "Sprint"], default="Race",
+        help="ingest_race_control/ingest_overtakes/ingest_team_radio: which session's OpenF1 data to pull",
+    )
     args = parser.parse_args()
 
     try:

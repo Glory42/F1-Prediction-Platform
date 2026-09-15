@@ -36,12 +36,21 @@ All jobs live in `data-engine/src/jobs/`. They are invoked via `src/main.py --jo
 | `data_quality_audit` | Measures per-table completeness/coverage across a season; writes `data_quality_runs` + `data_quality_issues` |
 | `data_quality_repair` | Re-ingests data for open, `fixable` issues reported by the audit, then recomputes the affected features/predictions/season-stats |
 
-### Supplementary Jobs (OpenF1)
+### Race Events Jobs (OpenF1)
 
-Not part of the required job chain below — these enrich completed races with data FastF1
-doesn't provide, sourced from the free [OpenF1 API](https://openf1.org) instead. OpenF1 has
-no coverage before 2023, and its free tier only serves data once a session is >30min past
-its end, so these jobs self-skip until a race is `completed` and safely past that window.
+Enrich a completed race weekend with data FastF1 doesn't provide, sourced from the free
+[OpenF1 API](https://openf1.org) instead. OpenF1 has no coverage before 2023, and its free
+tier only serves data once a session is >30min past its end, so these jobs self-skip until
+the *weekend* is `completed` and `race_date_utc` is safely past that window — the Saturday
+sprint session is always well outside its own live window by then too, so one gate covers
+both. Each accepts `--session Race` (default, the Sunday GP) or `--session Sprint` (the
+Saturday sprint race on a sprint weekend); a `Sprint` request self-skips as a no-op on a
+non-sprint weekend, since `races.sprint_date` is null there.
+
+Wired into `auto_runner.py`'s `MAIN_RACE` sequence (see below) — every completed race weekend
+now gets all three, for both sessions where applicable, automatically. Each runs via a
+non-fatal wrapper (`_run_openf1_step`) so a transient OpenF1 hiccup logs and moves on rather
+than blocking or reverting the core race-completion pipeline it rides on.
 
 | Job | Purpose |
 |-----|---------|
@@ -52,7 +61,9 @@ its end, so these jobs self-skip until a race is `completed` and safely past tha
 Backfill across a year range with `python scripts/backfill_race_control.py <start> <end>`,
 `python scripts/backfill_overtakes.py <start> <end>`, or
 `python scripts/backfill_team_radio.py <start> <end>` (data-engine/, paced to stay under
-OpenF1's free-tier rate limit).
+OpenF1's free-tier rate limit). These backfill scripts currently only cover the `Race`
+session; pass `--session Sprint` to the underlying `src.main` job directly to backfill a
+specific sprint weekend's race events by hand.
 
 ---
 
@@ -71,6 +82,9 @@ ingest_race          race_results and lap_times ingested; race.status → comple
       ↓
 compute_season_stats driver_season_stats and team_season_stats must be fresh
                      before compute_features reads them
+      ↓
+ingest_race_control, ingest_overtakes, ingest_team_radio (Race, then Sprint if applicable)
+                     Race Events (OpenF1) — non-fatal, 2023+ only
       ↓
 compute_features     produces driver_prediction_features (raw weighted scores)
       ↓
@@ -103,6 +117,10 @@ ingest_race                → race_results + lap_times
                              race.status → completed
       ↓
 compute_season_stats       → final season stats update
+      ↓
+ingest_race_control, ingest_overtakes, ingest_team_radio (Race, then Sprint)
+                            Race Events (OpenF1) — non-fatal, 2023+ only; the Sprint pass
+                            covers Saturday's sprint session under the same race_id
 ```
 
 `compute_season_stats` should be re-run after each race so that rolling stats
@@ -129,6 +147,7 @@ A persistent web service runs continuously:
 4. If the time has passed, it attempts to download the data. 
    - **If F1 data is delayed**, FastF1 throws a `DataNotLoadedError`. The script catches this, exits cleanly, and tries again next hour.
 5. Once ingestion succeeds, it automatically chains the downstream jobs (features, predictions, stats). If any job in the sequence fails, it sets the race `status` to whatever the sequence actually last committed — not blindly back to the pre-sequence value — so the next hour's retry resumes from where it left off instead of redoing already-completed steps.
+6. After `MAIN_RACE`'s core steps (`ingest_race`, `compute_season_stats`) commit `completed`, it also runs the OpenF1 Race Events jobs (race control, overtakes, team radio) for both the Race and Sprint sessions. These run through a non-fatal wrapper — a failure here is logged but never reverts `status` or fails the cycle, since Race Events are supplementary and safe to pick up on a later manual run if OpenF1 has a transient issue.
 
 ---
 
@@ -154,6 +173,11 @@ python src/main.py --job ingest_sprint_qualifying --year 2026 --round 9
 python src/main.py --job compute_sprint_features  --race_id 55
 python src/main.py --job compute_sprint_predictions --race_id 55
 python src/main.py --job ingest_sprint            --year 2026 --round 9
+
+# Race Events (OpenF1) — --session defaults to Race; pass Sprint for the sprint session
+python src/main.py --job ingest_race_control --year 2026 --round 9 --session Sprint
+python src/main.py --job ingest_overtakes    --year 2026 --round 9 --session Sprint
+python src/main.py --job ingest_team_radio   --year 2026 --round 9 --session Sprint
 
 # Data-quality audit
 python src/main.py --job data_quality_audit --year 2026     # latest season

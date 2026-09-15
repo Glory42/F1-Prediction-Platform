@@ -244,14 +244,19 @@ class OpenF1JobConfig:
     to_rows: Callable[[list[dict[str, Any]], int, dict[int, int]], tuple[list[dict[str, Any]], int]]
 
 
-def run_openf1_job(year: int, round_num: int, config: OpenF1JobConfig) -> None:
-    print(f"[{config.job_name}] year={year} round={round_num}")
+def run_openf1_job(year: int, round_num: int, config: OpenF1JobConfig, *, session_name: str = "Race") -> None:
+    """session_name selects which session's data to pull: "Race" (the Sunday GP, default) or
+    "Sprint" (the Saturday sprint race on a sprint weekend). Both are gated on the *weekend's*
+    completion (status == 'completed') and OpenF1 live-window buffer off race_date_utc — by the
+    time the GP is done and past the buffer, Saturday's sprint session is well outside its own
+    live window too, so one gate covers both rather than needing a second timestamp column."""
+    print(f"[{config.job_name}] year={year} round={round_num} session={session_name}")
 
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT r.id, r.season_id, r.race_date, r.race_date_utc, r.status FROM races r "
+                "SELECT r.id, r.season_id, r.race_date, r.race_date_utc, r.sprint_date, r.status FROM races r "
                 "JOIN seasons s ON r.season_id = s.id "
                 "WHERE s.year = %s AND r.round_number = %s",
                 (year, round_num),
@@ -270,7 +275,15 @@ def run_openf1_job(year: int, round_num: int, config: OpenF1JobConfig) -> None:
             print(f"  [SKIP] Race {race_id} is still inside OpenF1's live-data window")
             return
 
-        session_key = get_session_key(year, race_row["race_date"])
+        if session_name == "Sprint":
+            session_date = race_row["sprint_date"]
+            if session_date is None:
+                print(f"  [SKIP] Race {race_id} has no sprint session")
+                return
+        else:
+            session_date = race_row["race_date"]
+
+        session_key = get_session_key(year, session_date, session_name=session_name)
         driver_map = build_driver_number_map(conn, race_row["season_id"])
         raw = config.fetch(session_key)
         rows, skipped = config.to_rows(raw, race_id, driver_map)

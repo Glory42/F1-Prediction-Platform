@@ -233,6 +233,67 @@ class TestDecideNextAction:
         )
         assert action is None
 
+    def test_main_race_includes_race_events_ingestion_after_the_core_pipeline(self):
+        names = [step.name for step in auto_runner._ACTION_JOBS[auto_runner.ActionKind.MAIN_RACE]]
+        assert names == [
+            "ingest_race",
+            "compute_season_stats",
+            "ingest_race_control",
+            "ingest_overtakes",
+            "ingest_team_radio",
+            "ingest_race_control_sprint",
+            "ingest_overtakes_sprint",
+            "ingest_team_radio_sprint",
+        ]
+
+
+class TestRunOpenF1Step:
+    def test_success_calls_through_with_year_and_round(self):
+        calls = []
+        ctx = auto_runner.RaceRunContext(race_id=1, year=2026, round_number=5)
+
+        auto_runner._run_openf1_step(lambda y, r: calls.append((y, r)), "ingest_race_control", ctx)
+
+        assert calls == [(2026, 5)]
+
+    def test_failure_is_swallowed_and_logged_rather_than_raised(self, monkeypatch):
+        logged = []
+        monkeypatch.setattr(
+            auto_runner, "log_job_failure",
+            lambda job, error, **context: logged.append((job, str(error), context)),
+        )
+        ctx = auto_runner.RaceRunContext(race_id=1, year=2026, round_number=5)
+
+        def _boom(y, r):
+            raise RuntimeError("OpenF1 429")
+
+        auto_runner._run_openf1_step(_boom, "ingest_team_radio", ctx)
+
+        assert logged == [("ingest_team_radio", "OpenF1 429", {"race_id": 1, "year": 2026, "round": 5})]
+
+    def test_race_events_failure_does_not_fail_the_main_race_sequence(self, monkeypatch):
+        monkeypatch.setattr(auto_runner.ingest_race, "run", lambda y, r: None)
+        monkeypatch.setattr(auto_runner.compute_season_stats, "run", lambda y: None)
+        monkeypatch.setattr(
+            auto_runner.ingest_race_control, "run",
+            lambda y, r, session_name="Race": (_ for _ in ()).throw(RuntimeError("boom"))
+        )
+        monkeypatch.setattr(auto_runner.ingest_overtakes, "run", lambda y, r, session_name="Race": None)
+        monkeypatch.setattr(auto_runner.ingest_team_radio, "run", lambda y, r, session_name="Race": None)
+
+        action = auto_runner.Action(
+            kind=auto_runner.ActionKind.MAIN_RACE,
+            ready=True,
+            label="Main Race",
+            steps=auto_runner._ACTION_JOBS[auto_runner.ActionKind.MAIN_RACE],
+        )
+        ctx = auto_runner.RaceRunContext(race_id=1, year=2026, round_number=5)
+
+        outcome = auto_runner._run_action_steps(action, ctx)
+
+        assert outcome.ok is True
+        assert outcome.last_committed_status == "completed"
+
 
 class TestRunActionSteps:
     def test_all_steps_succeed_returns_ok_and_last_committed_status(self, monkeypatch):
