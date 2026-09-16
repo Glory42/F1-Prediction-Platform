@@ -272,6 +272,51 @@ def _backfill_fp2(log_func, conn, ctx: RaceRunContext) -> None:
         log_func(f"[auto_runner] FP2 not ready yet: {e}")
 
 
+def _retry_missing_race_events(log_func: Callable[[str], None], conn: Any, round_number: int, year: int) -> None:
+    """Safety net for MAIN_RACE's non-fatal OpenF1 steps (see _run_openf1_step): if a race
+    completed but OpenF1 genuinely wasn't ready yet (e.g. a red-flag-delayed race pushed the
+    real session end past OPENF1_LIVE_WINDOW_BUFFER), that failure is logged and swallowed
+    there rather than retried — deliberately, so it never blocks or reverts the core pipeline.
+    This re-checks the current window's race every cycle (up to 24h post-race, per
+    RaceWeekendWindow's _TAIL) and retries if it's still missing.
+
+    Race control is used as the "did ingestion ever actually succeed" signal because a
+    session that happened virtually always has at least one message — unlike team radio,
+    which is routinely and legitimately empty, so its absence alone would be a false signal.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.id, r.status, r.sprint_date,
+                   EXISTS (SELECT 1 FROM race_control_messages rc WHERE rc.race_id = r.id) AS has_race_control
+            FROM races r
+            JOIN seasons s ON s.id = r.season_id
+            WHERE s.year = %s AND r.round_number = %s
+            """,
+            (year, round_number),
+        )
+        row = cur.fetchone()
+
+    if row is None or row["status"] != "completed" or row["has_race_control"]:
+        return
+
+    log_func(f"[auto_runner] Race {row['id']} is completed but has no race control data — retrying OpenF1 ingestion")
+    ctx = RaceRunContext(race_id=row["id"], year=year, round_number=round_number)
+    _run_openf1_step(ingest_race_control.run, "ingest_race_control", ctx)
+    _run_openf1_step(ingest_overtakes.run, "ingest_overtakes", ctx)
+    _run_openf1_step(ingest_team_radio.run, "ingest_team_radio", ctx)
+    if row["sprint_date"] is not None:
+        _run_openf1_step(
+            lambda y, r: ingest_race_control.run(y, r, session_name="Sprint"), "ingest_race_control_sprint", ctx
+        )
+        _run_openf1_step(
+            lambda y, r: ingest_overtakes.run(y, r, session_name="Sprint"), "ingest_overtakes_sprint", ctx
+        )
+        _run_openf1_step(
+            lambda y, r: ingest_team_radio.run(y, r, session_name="Sprint"), "ingest_team_radio_sprint", ctx
+        )
+
+
 ACTIVE_POLL_SECONDS = 20 * 60
 IDLE_POLL_SECONDS = 6 * 60 * 60
 
@@ -341,6 +386,12 @@ def run_cycle(
 
     conn = conn_factory()
     try:
+        # The window's race may already be 'completed' and so invisible to the "active race"
+        # query below (or superseded by the next round already being 'scheduled') — check it
+        # directly on every cycle we're still inside its window (up to 24h post-race-start).
+        if window is not None:
+            _retry_missing_race_events(log_func, conn, window.round_number, now_utc.year)
+
         with conn.cursor() as cur:
             # Find the most recent active race
             cur.execute(

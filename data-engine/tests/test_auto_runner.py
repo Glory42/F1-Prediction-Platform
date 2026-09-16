@@ -91,7 +91,9 @@ class TestRunScheduleGate:
         assert spy.calls == 0
 
     def test_queries_the_database_when_inside_a_race_weekend(self):
-        spy = _SpyConnFactory(FakeConnection([None]))  # no active race row -> run_cycle() exits cleanly
+        # First row answers the missing-race-events recheck (no race found -> no-op), second
+        # answers the active-race query (no active race row -> run_cycle() exits cleanly).
+        spy = _SpyConnFactory(FakeConnection([None, None]))
         race = _utc(2026, 3, 8, 4, 0)
         now = race - timedelta(hours=6)  # Saturday evening, well inside the window
 
@@ -125,7 +127,9 @@ class TestRunScheduleGate:
         race = _utc(2026, 3, 8, 4, 0)
         now = race - timedelta(hours=6)
         provider = _SpyScheduleProvider(_schedule_with_race(1, race))
-        conn = FakeConnection([_active_race_row(status="unhandled_status", event_format="conventional")])
+        conn = FakeConnection(
+            [None, _active_race_row(status="unhandled_status", event_format="conventional")]
+        )
 
         auto_runner.run_cycle(
             log_func=lambda *_: None,
@@ -154,6 +158,42 @@ class TestRunScheduleGate:
         assert result.schedule_available is True
         assert result.window is not None
         assert result.window.contains(now)
+
+    def test_checks_missing_race_events_for_the_windows_round_when_inside_it(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            auto_runner, "_retry_missing_race_events",
+            lambda log_func, conn, round_number, year: calls.append((round_number, year))
+        )
+        race = _utc(2026, 3, 8, 4, 0)
+        now = race - timedelta(hours=6)
+
+        auto_runner.run_cycle(
+            log_func=lambda *_: None,
+            now_utc=now,
+            schedule_provider=lambda: _schedule_with_race(1, race),
+            conn_factory=lambda: FakeConnection([None]),
+        )
+
+        assert calls == [(1, 2026)]
+
+    def test_does_not_check_missing_race_events_outside_the_window(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            auto_runner, "_retry_missing_race_events",
+            lambda *a, **k: calls.append(1)
+        )
+        race = _utc(2026, 3, 8, 4, 0)
+        now = race - timedelta(days=4)  # window has not opened yet
+
+        auto_runner.run_cycle(
+            log_func=lambda *_: None,
+            now_utc=now,
+            schedule_provider=lambda: _schedule_with_race(1, race),
+            conn_factory=lambda: FakeConnection([]),
+        )
+
+        assert calls == []
 
 
 class TestPollIntervalForWindow:
@@ -295,6 +335,95 @@ class TestRunOpenF1Step:
         assert outcome.last_committed_status == "completed"
 
 
+class TestRetryMissingRaceEvents:
+    def _row(self, **overrides):
+        row = {"id": 1, "status": "completed", "sprint_date": None, "has_race_control": False}
+        row.update(overrides)
+        return row
+
+    def _patch_openf1_jobs(self, monkeypatch):
+        calls = []
+        for job in (auto_runner.ingest_race_control, auto_runner.ingest_overtakes, auto_runner.ingest_team_radio):
+            name = job.__name__.rsplit(".", 1)[-1]
+            monkeypatch.setattr(
+                job, "run",
+                lambda y, r, session_name="Race", _name=name: calls.append((_name, session_name))
+            )
+        return calls
+
+    def test_noop_when_race_not_found(self, monkeypatch):
+        calls = self._patch_openf1_jobs(monkeypatch)
+        conn = FakeConnection([None])
+
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == []
+
+    def test_noop_when_race_not_completed(self, monkeypatch):
+        calls = self._patch_openf1_jobs(monkeypatch)
+        conn = FakeConnection([self._row(status="qualifying_done")])
+
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == []
+
+    def test_noop_when_race_control_already_present(self, monkeypatch):
+        calls = self._patch_openf1_jobs(monkeypatch)
+        conn = FakeConnection([self._row(has_race_control=True)])
+
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == []
+
+    def test_retries_race_session_jobs_when_completed_and_missing(self, monkeypatch):
+        calls = self._patch_openf1_jobs(monkeypatch)
+        conn = FakeConnection([self._row()])
+
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == [
+            ("ingest_race_control", "Race"),
+            ("ingest_overtakes", "Race"),
+            ("ingest_team_radio", "Race"),
+        ]
+
+    def test_also_retries_sprint_session_jobs_when_sprint_date_present(self, monkeypatch):
+        calls = self._patch_openf1_jobs(monkeypatch)
+        conn = FakeConnection([self._row(sprint_date=datetime(2026, 3, 7, 15, 0, tzinfo=timezone.utc))])
+
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == [
+            ("ingest_race_control", "Race"),
+            ("ingest_overtakes", "Race"),
+            ("ingest_team_radio", "Race"),
+            ("ingest_race_control", "Sprint"),
+            ("ingest_overtakes", "Sprint"),
+            ("ingest_team_radio", "Sprint"),
+        ]
+
+    def test_a_failure_in_one_job_does_not_stop_the_others(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            auto_runner.ingest_race_control, "run",
+            lambda y, r, session_name="Race": (_ for _ in ()).throw(RuntimeError("boom"))
+        )
+        monkeypatch.setattr(
+            auto_runner.ingest_overtakes, "run",
+            lambda y, r, session_name="Race": calls.append(("ingest_overtakes", session_name))
+        )
+        monkeypatch.setattr(
+            auto_runner.ingest_team_radio, "run",
+            lambda y, r, session_name="Race": calls.append(("ingest_team_radio", session_name))
+        )
+        conn = FakeConnection([self._row()])
+
+        # Must not raise — each job goes through the same non-fatal _run_openf1_step wrapper.
+        auto_runner._retry_missing_race_events(lambda *_: None, conn, round_number=5, year=2026)
+
+        assert calls == [("ingest_overtakes", "Race"), ("ingest_team_radio", "Race")]
+
+
 class TestRunActionSteps:
     def test_all_steps_succeed_returns_ok_and_last_committed_status(self, monkeypatch):
         calls = []
@@ -411,7 +540,9 @@ class TestRunCycleSequenceRetry:
             lambda rid: pytest.fail("should not run — compute_sprint_features already failed"),
         )
 
-        conn = FakeConnection([_active_race_row(), None])
+        # First row answers the missing-race-events recheck (no race found -> no-op), second
+        # answers the active-race query, third is revert_race_status's UPDATE.
+        conn = FakeConnection([None, _active_race_row(), None])
 
         with pytest.raises(ConnectionError, match="boom"):
             auto_runner.run_cycle(
